@@ -3,6 +3,7 @@ name = "shrinkfit-ffi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false  # shipped inside the Python wheel and the npm package
 [lib]
 name="shrinkfit"
 crate-type=["cdylib","staticlib"]

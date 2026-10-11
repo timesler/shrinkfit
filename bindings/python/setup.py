@@ -2,7 +2,8 @@
 
 Metadata lives in pyproject.toml; this file only adds the native build step.
 Set SHRINKFIT_SKIP_CARGO=1 to bundle a library already placed in
-shrinkfit/_native/ (e.g. by a cross-compiling CI job).
+shrinkfit/_native/ (e.g. by a cross-compiling CI job). Set SHRINKFIT_CARGO_TARGET=<triple> to
+cross-compile (e.g. x86_64-apple-darwin on an arm64 Mac).
 """
 
 import os
@@ -39,11 +40,15 @@ class BuildPyWithNative(build_py):
         native = HERE / "shrinkfit" / "_native"
         native.mkdir(exist_ok=True)
         if not os.environ.get("SHRINKFIT_SKIP_CARGO"):
+            target = os.environ.get("SHRINKFIT_CARGO_TARGET")
             cmd = ["cargo", "build", "--release", "-p", "shrinkfit-ffi"]
+            if target:
+                cmd += ["--target", target]
             if os.environ.get("CARGO_NET_OFFLINE"):
                 cmd.append("--offline")
             subprocess.check_call(cmd, cwd=ROOT)
-            shutil.copy2(ROOT / "target" / "release" / lib_name(), native / lib_name())
+            built = ROOT / "target" / (target or "") / "release" / lib_name()
+            shutil.copy2(built, native / lib_name())
         if not (native / lib_name()).exists():
             raise RuntimeError(f"native library missing: {native / lib_name()}")
         super().run()

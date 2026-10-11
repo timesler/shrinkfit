@@ -1,0 +1,184 @@
+name: Release
+
+# Pushing a tag like v0.2.0 builds everything and, if all builds pass,
+# publishes to crates.io, PyPI and npm. Pull requests that touch this file
+# (and manual runs) do the builds but never publish, so the workflow can be
+# tested safely. Setup instructions: RELEASING.md.
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["release-test/**"]
+  pull_request:
+    paths: [".github/workflows/release.yml", "scripts/version.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Versions agree with the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 scripts/version.py --check-tag "$GITHUB_REF_NAME"
+      - name: Versions agree with each other
+        run: python3 scripts/version.py
+
+  # One wheel per platform: the wheel holds a plain C-ABI library (no Python
+  # C API), so it is tagged py3-none-<platform> and works on every Python 3.
+  wheels:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, kind: manylinux, image: "quay.io/pypa/manylinux_2_28_x86_64", plat: manylinux_2_28_x86_64 }
+          - { name: linux-aarch64, os: ubuntu-24.04-arm, kind: manylinux, image: "quay.io/pypa/manylinux_2_28_aarch64", plat: manylinux_2_28_aarch64 }
+          - { name: macos-arm64, os: macos-latest, kind: native, plat: macosx_11_0_arm64, target: aarch64-apple-darwin, deploy: "11.0" }
+          - { name: macos-x86_64, os: macos-latest, kind: native, plat: macosx_10_12_x86_64, target: x86_64-apple-darwin, deploy: "10.12", cross: true }
+          - { name: windows-x86_64, os: windows-latest, kind: native, plat: win_amd64 }
+    runs-on: ${{ matrix.os }}
+    name: wheel (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v5
+
+      # Linux: build inside a manylinux container so the library only needs an
+      # old glibc and the wheel runs on any mainstream distribution.
+      - name: Build wheel (manylinux container)
+        if: matrix.kind == 'manylinux'
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "${{ matrix.image }}" bash -ec '
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+            . "$HOME/.cargo/env"
+            /opt/python/cp312-cp312/bin/python -m pip wheel bindings/python --no-deps -w dist \
+              --config-settings=--build-option=--plat-name=${{ matrix.plat }}
+          '
+          sudo chown -R "$USER" dist
+
+      - uses: actions/setup-python@v6
+        if: matrix.kind == 'native'
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel (native)
+        if: matrix.kind == 'native'
+        shell: bash
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deploy }}
+          SHRINKFIT_CARGO_TARGET: ${{ matrix.target }}
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then rustup target add "${{ matrix.target }}"; fi
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip wheel bindings/python --no-deps -w dist \
+            --config-settings=--build-option=--plat-name=${{ matrix.plat }}
+
+      - name: Test the wheel
+        if: ${{ !matrix.cross }}
+        shell: bash
+        run: |
+          python -m venv venv
+          . venv/bin/activate 2>/dev/null || . venv/Scripts/activate
+          python -m pip install dist/*.whl
+          cd bindings/python/tests && python -m unittest -v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.name }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  npm-package:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - working-directory: bindings/typescript
+        run: |
+          npm install
+          npm run build
+          npm test
+          npm pack --pack-destination ../../npm-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: npm-dist/*.tgz
+          if-no-files-found: error
+
+  crate-check:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo publish --dry-run -p shrinkfit
+
+  # ---- Publishing: tags only, and only once every build above passed. ----
+
+  publish-crates:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, npm-package, crate-check]
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish shrinkfit, then shrinkfit-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cargo publish -p shrinkfit
+          # shrinkfit-cli depends on the version just published: wait for the
+          # index to serve it, retrying while it propagates.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if cargo publish -p shrinkfit-cli; then exit 0; fi
+            echo "retrying in 20s ($i/10)"; sleep 20
+          done
+          exit 1
+
+  publish-pypi:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, npm-package, crate-check]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # PyPI trusted publishing (OIDC): no token needed
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-npm:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, npm-package, crate-check]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v5
+        with:
+          name: npm-package
+          path: npm-dist
+      - run: npm publish npm-dist/*.tgz --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

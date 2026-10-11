@@ -3,8 +3,14 @@ name = "shrinkfit-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Command-line tool and local playground for shrinkfit: shrink JSON/YAML to fit a character budget"
+keywords = ["json", "yaml", "truncate", "llm", "cli"]
+categories = ["command-line-utilities", "text-processing"]
+readme = "../../README.md"
 [[bin]]
 name="shrinkfit"
 path="src/main.rs"
 [dependencies]
-shrinkfit = { path = "../shrinkfit", features = ["yaml"] }
+shrinkfit = { path = "../shrinkfit", version = "0.1.0", features = ["yaml"] }

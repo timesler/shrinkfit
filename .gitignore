@@ -7,3 +7,6 @@ bindings/python/shrinkfit/_native/
 bindings/typescript/node_modules/
 bindings/typescript/dist/
 step.log
+/dist/
+/npm-dist/
+/venv/
