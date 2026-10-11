@@ -4,18 +4,19 @@
 //! shrinkfit --max-chars 4000 [--format json|yaml] [--indent N] [--report] [FILE|-]
 //! ```
 
-use shrinkfit::{json, shrink, Format, Options};
+use shrinkfit::{json, shrink_str, Format, InputFormat, Options};
 use std::io::Read;
 use std::process::ExitCode;
 
 const USAGE: &str = "\
 usage: shrinkfit --max-chars N [options] [FILE|-]
 
-Shrink a JSON document to fit within N characters, preserving its schema.
+Shrink a JSON or YAML document to fit within N characters, preserving its schema.
 
 options:
   -n, --max-chars N            output budget in characters (required)
   -f, --format json|yaml       output format (default: json)
+  -F, --input-format json|yaml input format (default: from file extension, else json)
   -i, --indent N               indent width; 0 = compact JSON (default 0; yaml 2)
       --head N                 string head chars shown whole (default 500)
       --section N              chars shown per later string section (default 100)
@@ -37,6 +38,7 @@ fn run() -> Result<ExitCode, String> {
     let mut args = std::env::args().skip(1);
     let mut max: Option<usize> = None;
     let mut format = Format::Json;
+    let mut input_format: Option<InputFormat> = None;
     let mut indent: Option<usize> = None;
     let mut head = None;
     let mut section = None;
@@ -62,6 +64,13 @@ fn run() -> Result<ExitCode, String> {
                     Some("yaml") | Some("yml") => Format::Yaml,
                     _ => return Err("--format must be json or yaml".into()),
                 }
+            }
+            "-F" | "--input-format" => {
+                input_format = Some(match args.next().as_deref() {
+                    Some("json") => InputFormat::Json,
+                    Some("yaml") | Some("yml") => InputFormat::Yaml,
+                    _ => return Err("--input-format must be json or yaml".into()),
+                })
             }
             "-i" | "--indent" => indent = Some(num(&a, args.next())?),
             "--head" => head = Some(num(&a, args.next())?),
@@ -108,9 +117,12 @@ fn run() -> Result<ExitCode, String> {
         opts.text.section = s;
     }
     opts.keep_last_item = keep_last;
+    opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {
+        Some(p) if p.ends_with(".yaml") || p.ends_with(".yml") => InputFormat::Yaml,
+        _ => InputFormat::Json,
+    });
 
-    let value = json::parse(&input).map_err(|e| format!("invalid JSON input: {e}"))?;
-    let out = shrink(&value, &opts);
+    let out = shrink_str(&input, &opts).map_err(|e| e.to_string())?;
     print!("{}", out.text);
     if format == Format::Json {
         println!();

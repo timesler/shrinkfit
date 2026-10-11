@@ -84,12 +84,19 @@ class ShrinkTests(unittest.TestCase):
         out = shrink(data, 10_000, format="yaml")
         self.assertEqual(yaml.safe_load(out), data)
 
-    @unittest.skipIf(yaml is None, "PyYAML not installed")
     def test_yaml_input(self):
         src = "items:\n" + "".join(f"  - id: {i}\n    name: n{i}\n" for i in range(300))
         out = shrink(src, 500, input_format="yaml", format="yaml")
         self.assertLessEqual(len(out), 500)
         self.assertIn("items omitted", out)
+
+    def test_yaml_input_errors_and_json_output(self):
+        out = shrink("a: [1, 2, 3]\nb: hello\n", 100, input_format="yaml")
+        self.assertEqual(json.loads(out), {"a": [1, 2, 3], "b": "hello"})
+        with self.assertRaises(ShrinkError):
+            shrink("a: [1", 100, input_format="yaml")
+        with self.assertRaises(ShrinkError):
+            shrink("{}", 100, input_format="toml")
 
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}

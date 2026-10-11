@@ -77,7 +77,7 @@ from shrinkfit import shrink, shrink_with_report
 shrink(big_dict, max_chars=4000)                 # -> str (compact JSON)
 shrink(big_dict, 4000, format="yaml")            # YAML output
 shrink(json_text, 4000)                          # str/bytes are parsed as JSON
-shrink(yaml_text, 4000, input_format="yaml")     # needs PyYAML
+shrink(yaml_text, 4000, input_format="yaml")     # parsed natively
 
 r = shrink_with_report(big_dict, 4000, string_section_chars=60)
 r.text, r.report["items_omitted"], r.report["fits"]
@@ -100,6 +100,8 @@ use shrinkfit::{shrink_json, Options};
 
 let out = shrink_json(&big_json_text, &Options::new(4000).yaml())?;
 println!("{}", out.text);
+// YAML text in (feature `yaml`): set `opts.input_format = InputFormat::Yaml`
+// and call `shrink_str`.
 assert!(out.report.fits);
 ```
 
@@ -107,7 +109,7 @@ assert!(out.report.fits);
 
 ```sh
 cargo install --path crates/shrinkfit-cli
-shrinkfit --max-chars 4000 [--format yaml] [--indent 2] [--report] payload.json
+shrinkfit --max-chars 4000 [--format yaml] [--input-format yaml] [--indent 2] [--report] payload.json
 ```
 
 ## How it works
@@ -142,6 +144,7 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 |---|---|---|---|
 | `max_chars` | 2nd arg | required | output ceiling, in Unicode characters |
 | `format` | `format` | `"json"` | `"json"` or `"yaml"` output |
+| `input_format` | `inputFormat` | `"json"` | `"json"` or `"yaml"` for text input (Rust: needs the `yaml` cargo feature) |
 | `indent` | `indent` | 0 (JSON), 2 (YAML) | JSON: 0 = compact |
 | `string_head_chars` | `stringHeadChars` | 500 | text shown whole before section previews begin |
 | `string_section_chars` | `stringSectionChars` | 100 | preview length for each later section |
@@ -172,9 +175,8 @@ requires binding changes.
 
 v0.1 is a first working cut. Planned next:
 
-- **YAML input in the core.** Today, YAML input is parsed by the binding
-  (PyYAML in Python); the core reads JSON. A `yaml` cargo feature will add
-  native YAML parsing. TOML and JSON Lines are natural next formats.
+- **More input formats:** TOML and JSON Lines are natural next steps
+  (YAML input is already native; see `input_format`).
 - **Hierarchical string previews:** when a paragraph is cut, preview its
   lines rather than only its opening.
 - **Token budgets:** a pluggable cost function (e.g. a tokenizer) instead of

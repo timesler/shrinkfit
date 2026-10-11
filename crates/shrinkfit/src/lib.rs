@@ -30,9 +30,11 @@ pub mod size;
 pub mod text;
 pub mod value;
 pub mod yaml;
+#[cfg(feature = "yaml")]
+pub mod yaml_in;
 
 pub use json::{Layout, ParseError};
-pub use options::{Format, Options};
+pub use options::{Format, InputFormat, Options};
 pub use prune::Stats;
 pub use text::TextParams;
 pub use value::Value;
@@ -95,6 +97,8 @@ pub struct Shrunk {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     Parse(ParseError),
+    /// Malformed YAML, or YAML input without the `yaml` feature compiled in.
+    Yaml(String),
     Options(String),
 }
 
@@ -102,6 +106,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Parse(e) => write!(f, "invalid JSON input: {e}"),
+            Error::Yaml(e) => write!(f, "invalid YAML input: {e}"),
             Error::Options(e) => write!(f, "invalid options: {e}"),
         }
     }
@@ -132,6 +137,22 @@ fn chars(s: &str) -> usize {
 /// Parse JSON text and shrink it.
 pub fn shrink_json(input: &str, opts: &Options) -> Result<Shrunk, Error> {
     let v = json::parse(input).map_err(Error::Parse)?;
+    Ok(shrink(&v, opts))
+}
+
+/// Parse `input` in the format selected by `opts.input_format` and shrink it.
+pub fn shrink_str(input: &str, opts: &Options) -> Result<Shrunk, Error> {
+    let v = match opts.input_format {
+        InputFormat::Json => json::parse(input).map_err(Error::Parse)?,
+        #[cfg(feature = "yaml")]
+        InputFormat::Yaml => yaml_in::parse(input).map_err(Error::Yaml)?,
+        #[cfg(not(feature = "yaml"))]
+        InputFormat::Yaml => {
+            return Err(Error::Yaml(
+                "shrinkfit was built without the `yaml` feature".into(),
+            ))
+        }
+    };
     Ok(shrink(&v, opts))
 }
 

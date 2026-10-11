@@ -20,6 +20,14 @@ test("string input and object input agree", () => {
   assert.equal(shrink(data, 200), shrink(JSON.stringify(data), 200));
 });
 
+test("yaml input", () => {
+  const src = "items:\n" + Array.from({ length: 300 }, (_, i) => `  - id: ${i}\n`).join("");
+  const out = shrink(src, 200, { inputFormat: "yaml" });
+  assert.ok([...out].length <= 200);
+  assert.match(out, /items omitted/);
+  assert.throws(() => shrink("a: [1", 100, { inputFormat: "yaml" }), ShrinkError);
+});
+
 test("yaml output and camelCase options", () => {
   const out = shrink({ notes: Array.from({ length: 200 }, (_, i) => `line ${i}`).join("\n") }, 400, {
     format: "yaml",

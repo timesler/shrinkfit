@@ -11,6 +11,14 @@ pub enum Format {
     Yaml,
 }
 
+/// Input format of the text handed to [`crate::shrink_str`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InputFormat {
+    Json,
+    /// Requires the `yaml` cargo feature.
+    Yaml,
+}
+
 /// Options controlling how a document is shrunk.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Options {
@@ -18,6 +26,8 @@ pub struct Options {
     pub max_chars: usize,
     /// Output format.
     pub format: Format,
+    /// Format of text input (ignored by [`crate::shrink`], which takes a value).
+    pub input_format: InputFormat,
     /// Indent width. For JSON, 0 means compact (the default, and the most
     /// information-dense choice). For YAML it must be at least 2 (default 2).
     pub indent: usize,
@@ -39,6 +49,7 @@ impl Options {
         Options {
             max_chars,
             format: Format::Json,
+            input_format: InputFormat::Json,
             indent: 0,
             text: TextParams::default(),
             keep_last_item: true,
@@ -95,6 +106,17 @@ impl Options {
                             Format::Yaml
                         }
                         _ => return Err("format must be \"json\" or \"yaml\"".into()),
+                    }
+                }
+                "input_format" => {
+                    o.input_format = match val {
+                        Value::String(s) if s.eq_ignore_ascii_case("json") => InputFormat::Json,
+                        Value::String(s)
+                            if s.eq_ignore_ascii_case("yaml") || s.eq_ignore_ascii_case("yml") =>
+                        {
+                            InputFormat::Yaml
+                        }
+                        _ => return Err("input_format must be \"json\" or \"yaml\"".into()),
                     }
                 }
                 "indent" => {

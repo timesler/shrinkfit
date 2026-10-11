@@ -365,3 +365,27 @@ fn large_input_is_fast() {
         elapsed
     );
 }
+
+/// Our YAML emitter's output must parse back (via the real YAML parser) to
+/// the same value, and shrinking YAML text must equal shrinking its value.
+#[cfg(feature = "yaml")]
+#[test]
+fn yaml_input_roundtrips_and_shrinks() {
+    use shrinkfit::{shrink_str, InputFormat};
+    let mut r = Rng(0x1234_5678_9abc_def1);
+    for doc in 0..200 {
+        let v = gen(&mut r, 0);
+        let y = shrinkfit::yaml::to_string(&v, 2);
+        let back = shrinkfit::yaml_in::parse(&y).unwrap_or_else(|e| panic!("doc {doc}: {e}\n{y}"));
+        // Numbers may be re-spelled (1.25e-3 stays as is; ints are exact).
+        assert_eq!(back, v, "doc {doc}\n{y}");
+
+        for b in [150usize, 700, 3000] {
+            let mut o = Options::new(b);
+            o.input_format = InputFormat::Yaml;
+            let from_text = shrink_str(&y, &o).unwrap();
+            let from_value = shrink(&v, &o);
+            assert_eq!(from_text.text, from_value.text, "doc {doc} budget {b}");
+        }
+    }
+}

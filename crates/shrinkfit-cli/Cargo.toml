@@ -7,4 +7,4 @@ license.workspace = true
 name="shrinkfit"
 path="src/main.rs"
 [dependencies]
-shrinkfit = { path = "../shrinkfit" }
+shrinkfit = { path = "../shrinkfit", features = ["yaml"] }

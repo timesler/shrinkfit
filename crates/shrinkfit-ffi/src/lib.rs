@@ -15,7 +15,7 @@
 //! The same exports are used natively (Python via ctypes) and when compiled
 //! to `wasm32-unknown-unknown` (TypeScript), with no binding generator.
 
-use shrinkfit::{json, shrink, Options, Value};
+use shrinkfit::{json, shrink_str, Options, Value};
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -84,11 +84,10 @@ fn run(input: &[u8], options: &[u8]) -> String {
         Ok(o) => o,
         Err(e) => return envelope_err(format!("invalid options: {e}")),
     };
-    let value = match json::parse(input) {
-        Ok(v) => v,
-        Err(e) => return envelope_err(format!("invalid JSON input: {e}")),
+    let out = match shrink_str(input, &opts) {
+        Ok(o) => o,
+        Err(e) => return envelope_err(e.to_string()),
     };
-    let out = shrink(&value, &opts);
     envelope_ok(out.text, out.report.to_value())
 }
 
@@ -152,6 +151,18 @@ mod tests {
         assert!(call("[1", r#"{"max_chars":15}"#).contains("invalid JSON input"));
         assert!(call("[1]", r#"{"bogus":1}"#).contains("unknown option"));
         assert!(call("[1]", "").contains("invalid options JSON"));
+    }
+
+    #[test]
+    fn yaml_input() {
+        let ok = call(
+            "a: [1, 2, 3]
+",
+            r#"{"max_chars":100,"input_format":"yaml"}"#,
+        );
+        assert!(ok.contains(r#""text":"{\"a\":[1,2,3]}""#), "{ok}");
+        assert!(call("a: [1", r#"{"max_chars":100,"input_format":"yaml"}"#)
+            .contains("invalid YAML input"));
     }
 
     #[test]

@@ -11,5 +11,11 @@ categories = ["encoding", "text-processing"]
 readme = "../../README.md"
 
 [dependencies]
-# Intentionally none: the core is dependency-free so it builds anywhere,
+# Optional, so the default core stays dependency-free and builds anywhere,
 # including wasm32-unknown-unknown without wasm-bindgen.
+yaml-rust2 = { version = "0.11", optional = true }
+
+[features]
+default = []
+# Native YAML input. Emitting YAML never needs it.
+yaml = ["dep:yaml-rust2"]

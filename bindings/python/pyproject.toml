@@ -16,9 +16,6 @@ classifiers = [
     "Programming Language :: Rust",
 ]
 
-[project.optional-dependencies]
-yaml = ["pyyaml>=5"]
-
 [project.urls]
 Repository = "https://github.com/timesler/shrinkfit"
 

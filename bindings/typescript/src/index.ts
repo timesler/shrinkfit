@@ -16,6 +16,8 @@
 export interface ShrinkOptions {
   /** Output format (default "json"). */
   format?: "json" | "yaml";
+  /** Format of string input (default "json"). Objects are always sent as JSON. */
+  inputFormat?: "json" | "yaml";
   /** Indent width. JSON: 0 = compact (default). YAML: >= 2 (default 2). */
   indent?: number;
   /** Characters of leading whole string sections to keep (default 500). */
@@ -106,6 +108,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
   const out: Record<string, unknown> = { max_chars: maxChars };
   const map: Record<keyof ShrinkOptions, string> = {
     format: "format",
+    inputFormat: "input_format",
     indent: "indent",
     stringHeadChars: "string_head_chars",
     stringSectionChars: "string_section_chars",

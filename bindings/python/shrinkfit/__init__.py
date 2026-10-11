@@ -82,20 +82,12 @@ def _get_lib() -> ctypes.CDLL:
     return _lib
 
 
-def _to_json_text(data: Any, input_format: Optional[str]) -> str:
+def _to_text(data: Any, input_format: str) -> str:
     if isinstance(data, (bytes, bytearray)):
         data = bytes(data).decode("utf-8")
     if isinstance(data, str):
-        if input_format in (None, "json"):
-            return data
-        if input_format in ("yaml", "yml"):
-            try:
-                import yaml  # type: ignore
-            except ImportError as e:  # pragma: no cover
-                raise ShrinkError("YAML input needs PyYAML: pip install pyyaml") from e
-            data = yaml.safe_load(data)
-        else:
-            raise ShrinkError(f"unknown input_format: {input_format!r}")
+        return data
+    # Python objects are always handed over as JSON.
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
@@ -104,14 +96,14 @@ def shrink_with_report(
     max_chars: int,
     *,
     format: str = "json",
-    input_format: Optional[str] = None,
+    input_format: str = "json",
     **options: Any,
 ) -> ShrinkResult:
     """Shrink ``data`` to at most ``max_chars`` characters.
 
     ``data`` may be a Python object (dict, list, ...), or a ``str``/``bytes``
     holding a serialized document: JSON by default, or YAML with
-    ``input_format="yaml"`` (requires PyYAML). Non-JSON values such as
+    ``input_format="yaml"`` (parsed natively by the core). Non-JSON values such as
     datetimes are converted with ``str()``.
 
     ``format`` is the output format, ``"json"`` or ``"yaml"``. Other keyword
@@ -120,8 +112,10 @@ def shrink_with_report(
     ``string_min_section_chars``, ``keep_last_item``, ``max_samples``,
     ``min_partial_chars``.
     """
-    text = _to_json_text(data, input_format).encode("utf-8")
-    opts = json.dumps({"max_chars": int(max_chars), "format": format, **options}).encode("utf-8")
+    text = _to_text(data, input_format).encode("utf-8")
+    opts = json.dumps(
+        {"max_chars": int(max_chars), "format": format, "input_format": input_format, **options}
+    ).encode("utf-8")
     lib = _get_lib()
     out_len = ctypes.c_size_t(0)
     ptr = lib.shrinkfit_shrink(text, len(text), opts, len(opts), ctypes.byref(out_len))
