@@ -2,6 +2,9 @@
 // (seeded PRNG) so results are reproducible between reloads. Each example
 // returns { name, desc, text, max_chars? } where `text` is JSON or YAML.
 
+// Examples are emitted as formatted (indented) JSON, as a tool would typically return them.
+const pj = (v) => JSON.stringify(v, null, 2);
+
 function rng(seed) {
   let s = seed >>> 0 || 1;
   const next = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
@@ -56,7 +59,7 @@ function searchResponse() {
     name: "Search response",
     desc: "40 ranked results, each with rich metadata, snippets and passages",
     max_chars: 10000,
-    text: JSON.stringify({ query: "capacity planning for autoscale rollout", total_results: 18342, took_ms: 87, page: 1, page_size: 40, next_page_token: hex(r, 48), facets: { source: { confluence: 9120, github: 4311, drive: 2890, slack: 1500, zendesk: 521 } }, results }),
+    text: pj({ query: "capacity planning for autoscale rollout", total_results: 18342, took_ms: 87, page: 1, page_size: 40, next_page_token: hex(r, 48), facets: { source: { confluence: 9120, github: 4311, drive: 2890, slack: 1500, zendesk: 521 } }, results }),
   };
 }
 
@@ -85,7 +88,7 @@ function confluencePage() {
     _expandable: { container: "/rest/api/space/ENG", operations: "", children: "/rest/api/content/5120948611/child", restrictions: "/rest/api/content/5120948611/restriction/byOperation", descendants: "/rest/api/content/5120948611/descendant" },
     _links: { webui: "/spaces/ENG/pages/5120948611/Capacity+Planning+Runbook", edit: "/pages/resumedraft.action?draftId=5120948611", tinyui: "/x/AwBp", self: "https://example.atlassian.net/wiki/rest/api/content/5120948611", base: "https://example.atlassian.net/wiki", context: "/wiki" },
   };
-  return { name: "Confluence page", desc: "Content API response dominated by a large storage-format (XHTML) body", max_chars: 10000, text: JSON.stringify(page) };
+  return { name: "Confluence page", desc: "Content API response dominated by a large storage-format (XHTML) body", max_chars: 10000, text: pj(page) };
 }
 
 function adf(r, paras) {
@@ -115,7 +118,7 @@ function jiraIssue() {
       attachment: Array.from({ length: 4 }, () => ({ id: String(r.int(99999)), filename: `${r.pick(WORDS)}-${r.int(99)}.png`, size: r.int(900000), mimeType: "image/png", content: `https://example.atlassian.net/secure/attachment/${hex(r, 8)}` })),
     },
   };
-  return { name: "Jira issue", desc: "Issue with an ADF (nested JSON) description and 24 ADF comments", max_chars: 10000, text: JSON.stringify(issue) };
+  return { name: "Jira issue", desc: "Issue with an ADF (nested JSON) description and 24 ADF comments", max_chars: 10000, text: pj(issue) };
 }
 
 function githubIssues() {
@@ -128,7 +131,7 @@ function githubIssues() {
     body: Array.from({ length: 1 + r.int(5) }, () => paragraph(r, 3 + r.int(5))).join("\n\n"),
     reactions: { total_count: r.int(20), "+1": r.int(10), heart: r.int(5) },
   }));
-  return { name: "Issue list", desc: "60 homogeneous GitHub-style issues with markdown bodies", max_chars: 8000, text: JSON.stringify(items) };
+  return { name: "Issue list", desc: "60 homogeneous GitHub-style issues with markdown bodies", max_chars: 8000, text: pj(items) };
 }
 
 function buildLog() {
@@ -139,7 +142,7 @@ function buildLog() {
     name, number: i + 1, status: "completed", conclusion: i === 4 ? "failure" : "success", started_at: iso(r), completed_at: iso(r),
     log: log(i === 4 ? 900 : 40 + r.int(200)),
   }));
-  return { name: "CI build log", desc: "A job whose steps carry long multi-line log strings (tests line-level previews)", max_chars: 6000, text: JSON.stringify({ job: "build-and-test", run_id: 8812340011, runner: { os: "linux", arch: "x64" }, steps }) };
+  return { name: "CI build log", desc: "A job whose steps carry long multi-line log strings (tests line-level previews)", max_chars: 6000, text: pj({ job: "build-and-test", run_id: 8812340011, runner: { os: "linux", arch: "x64" }, steps }) };
 }
 
 function k8sYaml() {
@@ -162,7 +165,7 @@ function k8sYaml() {
 function dbRows() {
   const r = rng(7);
   const rows = Array.from({ length: 800 }, (_, i) => ({ id: i + 1, user_id: r.int(50000), event: r.pick(["view", "click", "purchase", "refund"]), amount_cents: r.int(100000), currency: "USD", ip: `10.${r.int(255)}.${r.int(255)}.${r.int(255)}`, ts: iso(r), country: r.pick(["US", "DE", "JP", "BR", "IN"]), flags: { new_user: r() > 0.8, mobile: r() > 0.5 } }));
-  return { name: "Database rows", desc: "800 uniform analytics rows: wide, flat, no long strings", max_chars: 4000, text: JSON.stringify({ query: "SELECT * FROM events WHERE ts > now() - interval '1 day'", row_count: rows.length, columns: Object.keys(rows[0]), rows }) };
+  return { name: "Database rows", desc: "800 uniform analytics rows: wide, flat, no long strings", max_chars: 4000, text: pj({ query: "SELECT * FROM events WHERE ts > now() - interval '1 day'", row_count: rows.length, columns: Object.keys(rows[0]), rows }) };
 }
 
 function auditEvents() {
@@ -175,7 +178,7 @@ function auditEvents() {
     () => ({ type: "export", actor: actor(), dataset: r.pick(WORDS), rows: r.int(1e6), destination: { kind: "s3", bucket: `bkt-${hex(r, 6)}`, key: `exports/${hex(r, 10)}.csv` } }),
   ];
   const events = Array.from({ length: 150 }, (_, i) => ({ seq: i, at: iso(r), ...r.pick(kinds)() }));
-  return { name: "Audit events", desc: "Heterogeneous event stream: several shapes in one array (tests shape-aware sampling)", max_chars: 6000, text: JSON.stringify({ tenant: "acme", events }) };
+  return { name: "Audit events", desc: "Heterogeneous event stream: several shapes in one array (tests shape-aware sampling)", max_chars: 6000, text: pj({ tenant: "acme", events }) };
 }
 
 const EXAMPLES = [searchResponse, confluencePage, jiraIssue, githubIssues, buildLog, k8sYaml, dbRows, auditEvents];
