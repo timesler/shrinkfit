@@ -195,8 +195,6 @@ v0.1 is a first working cut. Planned next:
 
 - **More input formats:** TOML and JSON Lines are natural next steps
   (YAML input is already native; see `input_format`).
-- **Hierarchical string previews:** when a paragraph is cut, preview its
-  lines rather than only its opening.
 - **Token budgets:** a pluggable cost function (e.g. a tokenizer) instead of
   characters.
 - Optionally listing omitted key names in the object marker.

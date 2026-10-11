@@ -126,6 +126,13 @@ uses the budget fully instead of stopping at fixed defaults. Below
 `…[+K sections, N chars]`. Text with no internal boundaries (an id, base64)
 is cut at the head with `…[+N chars]`.
 
+**Hierarchical previews.** A section that is itself multi-line (a paragraph
+holding a log excerpt) is not reduced to one opaque prefix. Its preview is
+the first line (up to `section` chars), then each following line shortened to
+`section / 4` chars (minimum 8) while the preview stays within `2 * section`
+chars, then a `…[+K lines, N chars]` marker. The preview is still monotone in
+`section`, so the same binary search applies.
+
 The string cost function is additive (`cost(a + b) = cost(a) + cost(b) - 2`),
 so candidates are evaluated per piece without re-escaping whole strings.
 

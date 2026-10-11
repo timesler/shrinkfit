@@ -10,6 +10,12 @@
 //! 3. if even minimal previews don't fit, the trailing sections are elided
 //!    behind a single `…[+K sections, N chars]` marker.
 //!
+//! A section that is itself multi-line (say, a paragraph holding a log
+//! excerpt) is previewed hierarchically instead of as one opaque prefix: its
+//! first line, then a shortened preview of each following line while a small
+//! allowance lasts, then a `…[+K lines, N chars]` marker. The outline of its
+//! lines survives, not just its opening.
+//!
 //! `head` and `section` scale together (keeping their ratio) so that the
 //! result uses as much of the budget as possible: a generous budget shows
 //! longer previews, a tight one shorter previews, and only a very tight one
@@ -45,6 +51,11 @@ pub fn chars_marker(n: usize) -> String {
 /// Marker for trailing sections that were dropped entirely.
 pub fn sections_marker(k: usize, n: usize) -> String {
     format!("…[+{k} sections, {n} chars]")
+}
+
+/// Marker for trailing lines of a multi-line section that were dropped.
+pub fn lines_marker(k: usize, n: usize) -> String {
+    format!("…[+{k} lines, {n} chars]")
 }
 
 /// One section: the content and the separator that followed it.
@@ -200,12 +211,53 @@ fn preview(content: &str, max: usize, cost: &dyn Fn(&str) -> usize) -> String {
     if total <= max {
         return content.to_string();
     }
+    let lines = split_lines(content);
+    if lines.len() >= 2 {
+        let out = preview_lines(&lines, total, max, cost);
+        if cost(&out) < cost(content) {
+            return out;
+        }
+        return content.to_string();
+    }
     let (head, kept) = cut(content, max);
     let mut out = String::with_capacity(head.len() + 16);
     out.push_str(head);
     out.push_str(&chars_marker(total - kept));
     if cost(&out) >= cost(content) {
         return content.to_string();
+    }
+    out
+}
+
+/// Hierarchical preview of a multi-line section: the first line (up to
+/// `max` chars), then later lines shortened to `max / 4` each, as long as the
+/// whole preview stays within `2 * max` chars, then a lines marker.
+fn preview_lines(
+    lines: &[(&str, &str)],
+    total: usize,
+    max: usize,
+    cost: &dyn Fn(&str) -> usize,
+) -> String {
+    let per_line = (max / 4).max(8);
+    let allowance = max.saturating_mul(2);
+    let mut out = String::new();
+    let mut used = 0;
+    let mut shown_chars = 0;
+    let mut shown = 0;
+    for (i, (content, sep)) in lines.iter().enumerate() {
+        let p = preview(content, if i == 0 { max } else { per_line }, cost);
+        let cost_here = nchars(&p) + nchars(sep);
+        if i > 0 && used + cost_here > allowance {
+            break;
+        }
+        out.push_str(&p);
+        out.push_str(sep);
+        used += cost_here;
+        shown_chars += nchars(content) + nchars(sep);
+        shown += 1;
+    }
+    if shown < lines.len() {
+        out.push_str(&lines_marker(lines.len() - shown, total - shown_chars));
     }
     out
 }
@@ -401,6 +453,28 @@ mod tests {
         }
         assert!(out.contains("\n\n"));
         assert!(out.contains("…[+"));
+    }
+
+    #[test]
+    fn multiline_section_previews_its_lines() {
+        let log: Vec<String> = (0..200)
+            .map(|i| {
+                format!(
+                    "2024-01-01 12:00:{:02} INFO request {i} handled in 12ms",
+                    i % 60
+                )
+            })
+            .collect();
+        let doc = format!(
+            "# Title\n\nIntro paragraph.\n\n{}\n\n## After\n\nEnd text here.",
+            log.join("\n")
+        );
+        let out = fit_text(&doc, 1500, &TextParams::default(), &cost);
+        assert!(cost(&out) <= 1500, "{}", cost(&out));
+        assert!(out.contains("request 0 handled"), "{out}");
+        assert!(out.contains("request 1 handled"), "{out}");
+        assert!(out.contains("lines,"), "{out}");
+        assert!(out.contains("## After"), "{out}");
     }
 
     #[test]

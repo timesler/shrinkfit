@@ -7,6 +7,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 const INDEX: &str = include_str!("../web/index.html");
+const EXAMPLES_JS: &str = include_str!("../web/examples.js");
 const MAX_BODY: usize = 256 * 1024 * 1024;
 
 pub const USAGE: &str = "\
@@ -54,6 +55,12 @@ fn handle(mut s: TcpStream) -> std::io::Result<()> {
         ("GET", "/") | ("GET", "/index.html") => {
             respond(&mut s, 200, "text/html; charset=utf-8", INDEX.as_bytes())
         }
+        ("GET", "/examples.js") => respond(
+            &mut s,
+            200,
+            "text/javascript; charset=utf-8",
+            EXAMPLES_JS.as_bytes(),
+        ),
         ("POST", "/api/shrink") => {
             let out = api_shrink(&body);
             respond(&mut s, 200, "application/json", out.as_bytes())
