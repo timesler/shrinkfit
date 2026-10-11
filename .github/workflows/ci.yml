@@ -52,8 +52,49 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - working-directory: bindings/typescript
+      # Each step reports the tail of its output as an error annotation on
+      # failure, so the cause is visible from the run summary and the API.
+      - name: npm install
+        working-directory: bindings/typescript
+        shell: bash
         run: |
-          npm install
-          npm run build
-          npm test
+          npm install > step.log 2>&1 && status=0 || status=$?
+          cat step.log
+          if [ "$status" -ne 0 ]; then
+            msg=$(tail -c 3000 step.log | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=npm install failed::$msg"
+            exit "$status"
+          fi
+      - name: Build WASM
+        working-directory: bindings/typescript
+        shell: bash
+        run: |
+          npm run build:wasm > step.log 2>&1 && status=0 || status=$?
+          cat step.log
+          if [ "$status" -ne 0 ]; then
+            msg=$(tail -c 3000 step.log | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Build WASM failed::$msg"
+            exit "$status"
+          fi
+      - name: Compile TypeScript
+        working-directory: bindings/typescript
+        shell: bash
+        run: |
+          npm run build:ts > step.log 2>&1 && status=0 || status=$?
+          cat step.log
+          if [ "$status" -ne 0 ]; then
+            msg=$(tail -c 3000 step.log | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Compile TypeScript failed::$msg"
+            exit "$status"
+          fi
+      - name: Test
+        working-directory: bindings/typescript
+        shell: bash
+        run: |
+          npm test > step.log 2>&1 && status=0 || status=$?
+          cat step.log
+          if [ "$status" -ne 0 ]; then
+            msg=$(tail -c 3000 step.log | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Test failed::$msg"
+            exit "$status"
+          fi
