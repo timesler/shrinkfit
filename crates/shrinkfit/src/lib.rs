@@ -1,0 +1,237 @@
+//! # shrinkfit
+//!
+//! Shrink a JSON (or YAML) document to fit a character budget while keeping
+//! as much of its schema and structure as possible.
+//!
+//! Built for AI-agent tools that return large structured payloads: instead
+//! of failing, or spilling the result to a file, the tool can always answer
+//! inline with a faithful, clearly marked sample of the data.
+//!
+//! ```
+//! use shrinkfit::{shrink_json, Options};
+//!
+//! let big = format!(r#"{{"items":[{}],"total":500}}"#,
+//!     (0..500).map(|i| format!(r#"{{"id":{i},"name":"item {i}"}}"#)).collect::<Vec<_>>().join(","));
+//! let out = shrink_json(&big, &Options::new(300)).unwrap();
+//! assert!(out.report.output_chars <= 300);
+//! assert!(out.text.contains("items omitted"));
+//! assert!(out.text.contains(r#""total":500"#));
+//! ```
+//!
+//! Every output is valid in the requested format. Omissions are marked
+//! in-band with `…`-prefixed markers (`"…[37 items omitted]"`,
+//! `"…": "12 keys omitted"`, `…[+1234 chars]`) so a reader never mistakes a
+//! sample for the whole.
+
+pub mod json;
+pub mod options;
+pub mod prune;
+pub mod size;
+pub mod text;
+pub mod value;
+pub mod yaml;
+
+pub use json::{Layout, ParseError};
+pub use options::{Format, Options};
+pub use prune::Stats;
+pub use text::TextParams;
+pub use value::Value;
+
+use prune::Pruner;
+use size::Model;
+
+/// What happened during shrinking.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Report {
+    /// Size of the input rendered in the output format, in characters.
+    pub input_chars: usize,
+    /// Size of the returned text, in characters.
+    pub output_chars: usize,
+    /// The requested budget.
+    pub max_chars: usize,
+    /// Whether anything was removed.
+    pub pruned: bool,
+    /// Whether the output is within `max_chars`. Only false when the budget
+    /// is smaller than the most compact possible representation, in which
+    /// case that representation is returned anyway.
+    pub fits: bool,
+    pub stats: Stats,
+}
+
+impl Report {
+    /// The report as a JSON-compatible value (used by the C ABI).
+    pub fn to_value(&self) -> Value {
+        let n = |x: usize| Value::Number(x.to_string());
+        Value::Object(vec![
+            ("input_chars".into(), n(self.input_chars)),
+            ("output_chars".into(), n(self.output_chars)),
+            ("max_chars".into(), n(self.max_chars)),
+            ("pruned".into(), Value::Bool(self.pruned)),
+            ("fits".into(), Value::Bool(self.fits)),
+            ("strings_truncated".into(), n(self.stats.strings_truncated)),
+            ("arrays_sampled".into(), n(self.stats.arrays_sampled)),
+            ("items_omitted".into(), n(self.stats.items_omitted)),
+            ("objects_trimmed".into(), n(self.stats.objects_trimmed)),
+            ("keys_omitted".into(), n(self.stats.keys_omitted)),
+            (
+                "containers_collapsed".into(),
+                n(self.stats.containers_collapsed),
+            ),
+        ])
+    }
+}
+
+/// A shrunk document.
+#[derive(Clone, Debug)]
+pub struct Shrunk {
+    /// The rendered output.
+    pub text: String,
+    /// The pruned value tree that `text` renders.
+    pub value: Value,
+    pub report: Report,
+}
+
+/// Errors from the string-input entry points.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Error {
+    Parse(ParseError),
+    Options(String),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Parse(e) => write!(f, "invalid JSON input: {e}"),
+            Error::Options(e) => write!(f, "invalid options: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+/// Render a value in the format selected by `opts`, without pruning.
+pub fn render(v: &Value, opts: &Options) -> String {
+    match opts.format {
+        Format::Json => json::to_string(v, layout(opts)),
+        Format::Yaml => yaml::to_string(v, opts.indent),
+    }
+}
+
+fn layout(opts: &Options) -> Layout {
+    if opts.indent == 0 {
+        Layout::Compact
+    } else {
+        Layout::Pretty(opts.indent)
+    }
+}
+
+fn chars(s: &str) -> usize {
+    s.chars().count()
+}
+
+/// Parse JSON text and shrink it.
+pub fn shrink_json(input: &str, opts: &Options) -> Result<Shrunk, Error> {
+    let v = json::parse(input).map_err(Error::Parse)?;
+    Ok(shrink(&v, opts))
+}
+
+/// Shrink a value so its rendering fits within `opts.max_chars`.
+pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
+    let full_text = render(v, opts);
+    let input_chars = chars(&full_text);
+    if input_chars <= opts.max_chars {
+        return Shrunk {
+            text: full_text,
+            value: v.clone(),
+            report: Report {
+                input_chars,
+                output_chars: input_chars,
+                max_chars: opts.max_chars,
+                pruned: false,
+                fits: true,
+                stats: Stats::default(),
+            },
+        };
+    }
+
+    // JSON sizes are predicted exactly; YAML sizes are estimated with the
+    // pretty-JSON model and corrected below by measuring real output.
+    let (model, exact) = match opts.format {
+        Format::Json => (Model::new(layout(opts)), true),
+        Format::Yaml => (Model::new(Layout::Pretty(opts.indent.max(2))), false),
+    };
+    let meta = Pruner::new(model, opts).analyze(v, 0);
+    let max = opts.max_chars;
+
+    let attempt = |budget: usize| -> (Value, String, usize, Stats) {
+        let mut p = Pruner::new(model, opts);
+        let (out, _) = p.fit(v, &meta, budget, 0);
+        let text = render(&out, opts);
+        let n = chars(&text);
+        (out, text, n, p.stats)
+    };
+
+    // Search the internal budget: the largest one whose real output fits.
+    let mut best: Option<(Value, String, usize, Stats)> = None;
+    let mut smallest: Option<(Value, String, usize, Stats)> = None;
+    let (mut lo, mut hi): (Option<usize>, Option<usize>) = (None, None);
+    let mut b = max;
+    for _ in 0..24 {
+        let r = attempt(b);
+        let len = r.2;
+        if len <= max {
+            lo = Some(b);
+            let better = best.as_ref().map_or(true, |x| len > x.2);
+            let done = exact || max - len <= max / 200;
+            if better {
+                best = Some(r);
+            }
+            if done {
+                break;
+            }
+        } else {
+            hi = Some(b);
+            if smallest.as_ref().map_or(true, |x| len < x.2) {
+                smallest = Some(r);
+            }
+        }
+        let next = match (lo, hi) {
+            (Some(l), Some(h)) => {
+                if h <= l + 1 {
+                    break;
+                }
+                l + (h - l) / 2
+            }
+            (None, Some(h)) => {
+                if h == 0 {
+                    break;
+                }
+                let scaled = (h as f64 * max as f64 / len.max(1) as f64 * 0.97) as usize;
+                scaled.min(h - 1)
+            }
+            (Some(l), None) => {
+                let scaled = (l as f64 * max as f64 / len.max(1) as f64) as usize;
+                scaled.max(l + 1)
+            }
+            (None, None) => unreachable!(),
+        };
+        b = next;
+    }
+
+    let (fits, (value, text, output_chars, stats)) = match best {
+        Some(r) => (true, r),
+        None => (false, smallest.expect("at least one attempt was made")),
+    };
+    Shrunk {
+        text,
+        value,
+        report: Report {
+            input_chars,
+            output_chars,
+            max_chars: max,
+            pruned: true,
+            fits,
+            stats,
+        },
+    }
+}

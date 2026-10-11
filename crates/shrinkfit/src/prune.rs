@@ -1,0 +1,539 @@
+//! Budget-driven pruning of a value tree.
+//!
+//! `fit(v, budget)` returns a reduced copy of `v` whose rendered size is at
+//! most `budget` (whenever `budget` is at least the value's minimum
+//! representation). The strategy, applied recursively:
+//!
+//! * **Anything that fits is kept verbatim.**
+//! * **Objects keep every key** while their *skeleton* (all keys, each value
+//!   at its minimum representation) fits. Spare budget is shared among the
+//!   values by *water-filling*: small values are kept whole and the rest is
+//!   split equally among the larger ones (max-min fairness). Only when even
+//!   the skeleton is too big are trailing keys dropped behind a
+//!   `"…": "N keys omitted"` entry.
+//! * **Arrays keep whole items** in a priority order: the first item, then
+//!   the first item of every *new shape* (distinct key set or type), then
+//!   the last item, then the rest in order. Gaps get a
+//!   `"…[N items omitted]"` marker in place. If budget remains, one more
+//!   item is included in reduced form. If not even the first item fits
+//!   whole, up to `max_samples` shape-distinct items are kept, all reduced,
+//!   sharing the budget by water-filling.
+//! * **Strings** are truncated structure-first (see [`crate::text`]).
+//! * A container that cannot fit at all collapses to a one-element marker
+//!   of the same type: `["…[N items omitted]"]` or `{"…": "N keys omitted"}`.
+
+use crate::options::Options;
+use crate::size::Model;
+use crate::text;
+use crate::value::Value;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeSet, HashSet};
+use std::hash::{Hash, Hasher};
+
+/// Key used for the "omitted keys" marker entry.
+pub const MARKER_KEY: &str = "…";
+
+pub fn items_marker(n: usize) -> String {
+    format!("…[{n} items omitted]")
+}
+
+pub fn keys_marker(n: usize) -> String {
+    format!("{n} keys omitted")
+}
+
+/// Counts of what was cut, reported back to the caller.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Stats {
+    pub strings_truncated: usize,
+    pub arrays_sampled: usize,
+    pub items_omitted: usize,
+    pub objects_trimmed: usize,
+    pub keys_omitted: usize,
+    pub containers_collapsed: usize,
+}
+
+/// Precomputed sizes for a subtree, mirroring the value tree.
+pub struct Meta {
+    /// Rendered size of the untouched subtree.
+    pub full: usize,
+    /// Size of the smallest representation `fit` will ever produce.
+    pub min: usize,
+    /// Shape signature, used to pick diverse array samples.
+    pub shape: u64,
+    pub kids: Vec<Meta>,
+}
+
+pub struct Pruner<'a> {
+    pub model: Model,
+    pub opts: &'a Options,
+    pub stats: Stats,
+}
+
+fn shape_of(v: &Value) -> u64 {
+    let mut h = DefaultHasher::new();
+    v.kind().hash(&mut h);
+    if let Value::Object(entries) = v {
+        let mut keys: Vec<&str> = entries.iter().map(|(k, _)| k.as_str()).collect();
+        keys.sort_unstable();
+        keys.dedup();
+        keys.hash(&mut h);
+    }
+    h.finish()
+}
+
+impl<'a> Pruner<'a> {
+    pub fn new(model: Model, opts: &'a Options) -> Self {
+        Pruner {
+            model,
+            opts,
+            stats: Stats::default(),
+        }
+    }
+
+    fn collapsed_array_size(&self, n: usize, depth: usize) -> usize {
+        self.model.overhead(1, depth) + self.model.string(&items_marker(n))
+    }
+
+    fn collapsed_object_size(&self, n: usize, depth: usize) -> usize {
+        self.model.overhead(1, depth)
+            + self.model.key(MARKER_KEY)
+            + self.model.string(&keys_marker(n))
+    }
+
+    /// Compute full/min sizes and shapes for every node.
+    pub fn analyze(&self, v: &Value, depth: usize) -> Meta {
+        let m = &self.model;
+        match v {
+            Value::Array(items) => {
+                let kids: Vec<Meta> = items.iter().map(|x| self.analyze(x, depth + 1)).collect();
+                let full =
+                    m.overhead(items.len(), depth) + kids.iter().map(|k| k.full).sum::<usize>();
+                let min = if items.is_empty() {
+                    full
+                } else {
+                    full.min(self.collapsed_array_size(items.len(), depth))
+                };
+                Meta {
+                    full,
+                    min,
+                    shape: shape_of(v),
+                    kids,
+                }
+            }
+            Value::Object(entries) => {
+                let kids: Vec<Meta> = entries
+                    .iter()
+                    .map(|(_, x)| self.analyze(x, depth + 1))
+                    .collect();
+                let full = m.overhead(entries.len(), depth)
+                    + entries
+                        .iter()
+                        .zip(&kids)
+                        .map(|((k, _), km)| m.key(k) + km.full)
+                        .sum::<usize>();
+                let min = if entries.is_empty() {
+                    full
+                } else {
+                    full.min(self.collapsed_object_size(entries.len(), depth))
+                };
+                Meta {
+                    full,
+                    min,
+                    shape: shape_of(v),
+                    kids,
+                }
+            }
+            Value::String(s) => {
+                let full = m.string(s);
+                let min = full.min(m.string(&text::chars_marker(s.chars().count())));
+                Meta {
+                    full,
+                    min,
+                    shape: shape_of(v),
+                    kids: Vec::new(),
+                }
+            }
+            other => {
+                let full = m.scalar(other);
+                Meta {
+                    full,
+                    min: full,
+                    shape: shape_of(v),
+                    kids: Vec::new(),
+                }
+            }
+        }
+    }
+
+    /// The smallest representation of `v`, and its size.
+    fn minimal(&mut self, v: &Value, meta: &Meta, depth: usize) -> (Value, usize) {
+        if meta.min >= meta.full {
+            return (v.clone(), meta.full);
+        }
+        match v {
+            Value::Array(items) => {
+                self.stats.containers_collapsed += 1;
+                self.stats.items_omitted += items.len();
+                (
+                    Value::Array(vec![Value::String(items_marker(items.len()))]),
+                    self.collapsed_array_size(items.len(), depth),
+                )
+            }
+            Value::Object(entries) => {
+                self.stats.containers_collapsed += 1;
+                self.stats.keys_omitted += entries.len();
+                (
+                    Value::Object(vec![(
+                        MARKER_KEY.to_string(),
+                        Value::String(keys_marker(entries.len())),
+                    )]),
+                    self.collapsed_object_size(entries.len(), depth),
+                )
+            }
+            Value::String(s) => {
+                self.stats.strings_truncated += 1;
+                (
+                    Value::String(text::chars_marker(s.chars().count())),
+                    meta.min,
+                )
+            }
+            _ => (v.clone(), meta.full),
+        }
+    }
+
+    /// Reduce `v` to at most `budget` rendered characters. Returns the new
+    /// value and its exact size under the model.
+    pub fn fit(&mut self, v: &Value, meta: &Meta, budget: usize, depth: usize) -> (Value, usize) {
+        if meta.full <= budget {
+            return (v.clone(), meta.full);
+        }
+        if budget <= meta.min {
+            return self.minimal(v, meta, depth);
+        }
+        match v {
+            Value::String(s) => {
+                let model = self.model;
+                let out = text::fit_text(s, budget, &self.opts.text, &|x: &str| model.string(x));
+                self.stats.strings_truncated += 1;
+                let size = model.string(&out);
+                (Value::String(out), size)
+            }
+            Value::Array(items) => self.fit_array(v, items, meta, budget, depth),
+            Value::Object(entries) => self.fit_object(v, entries, meta, budget, depth),
+            _ => (v.clone(), meta.full),
+        }
+    }
+
+    /// Fit a set of children that share `surplus` characters above their
+    /// minimum sizes, using sequential water-filling: children are visited
+    /// from least to most demanding; each gets an equal share of what is
+    /// left, and any share it does not use flows on to the rest.
+    fn water_fill(
+        &mut self,
+        kids: &[(&Value, &Meta)],
+        surplus: usize,
+        depth: usize,
+    ) -> (Vec<Value>, usize) {
+        let mut order: Vec<usize> = (0..kids.len()).collect();
+        order.sort_by_key(|&i| kids[i].1.full - kids[i].1.min);
+        let mut out: Vec<Option<Value>> = vec![None; kids.len()];
+        let mut remaining = surplus;
+        let mut left = kids.len();
+        let mut total = 0;
+        for i in order {
+            let (v, m) = kids[i];
+            let extra = m.full - m.min;
+            let alloc = extra.min(remaining / left.max(1));
+            let (nv, size) = self.fit(v, m, m.min + alloc, depth);
+            remaining = remaining.saturating_sub(size.saturating_sub(m.min));
+            left -= 1;
+            total += size;
+            out[i] = Some(nv);
+        }
+        (out.into_iter().map(|x| x.unwrap()).collect(), total)
+    }
+
+    fn fit_object(
+        &mut self,
+        whole: &Value,
+        entries: &[(String, Value)],
+        meta: &Meta,
+        budget: usize,
+        depth: usize,
+    ) -> (Value, usize) {
+        let m = self.model;
+        let n = entries.len();
+        let key_costs: Vec<usize> = entries.iter().map(|(k, _)| m.key(k)).collect();
+        let skeleton: usize = m.overhead(n, depth)
+            + key_costs
+                .iter()
+                .zip(&meta.kids)
+                .map(|(k, km)| k + km.min)
+                .sum::<usize>();
+
+        // How many leading entries to keep, and the fixed cost of that layout
+        // (overhead + keys + children at minimum + marker entry if any).
+        let (kept, base) = if skeleton <= budget {
+            (n, skeleton)
+        } else {
+            let marker_cost = |omitted: usize| m.key(MARKER_KEY) + m.string(&keys_marker(omitted));
+            let mut acc = 0;
+            let mut best: Option<(usize, usize)> = None;
+            for (j, (kc, km)) in key_costs.iter().zip(&meta.kids).enumerate() {
+                acc += kc + km.min;
+                let c = m.overhead(j + 2, depth) + acc + marker_cost(n - j - 1);
+                if c <= budget {
+                    best = Some((j + 1, c));
+                } else {
+                    break;
+                }
+            }
+            match best {
+                Some(b) => b,
+                None => return self.minimal(whole, meta, depth),
+            }
+        };
+
+        let kids: Vec<(&Value, &Meta)> = entries[..kept]
+            .iter()
+            .map(|(_, v)| v)
+            .zip(&meta.kids[..kept])
+            .collect();
+        let fixed = base - meta.kids[..kept].iter().map(|k| k.min).sum::<usize>();
+        let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1);
+        let mut out: Vec<(String, Value)> = entries[..kept]
+            .iter()
+            .map(|(k, _)| k.clone())
+            .zip(values)
+            .collect();
+        if kept < n {
+            self.stats.objects_trimmed += 1;
+            self.stats.keys_omitted += n - kept;
+            out.push((MARKER_KEY.to_string(), Value::String(keys_marker(n - kept))));
+        }
+        (Value::Object(out), fixed + kids_size)
+    }
+
+    fn fit_array(
+        &mut self,
+        whole: &Value,
+        items: &[Value],
+        meta: &Meta,
+        budget: usize,
+        depth: usize,
+    ) -> (Value, usize) {
+        let n = items.len();
+        let order = self.priority(items, meta);
+
+        // Phase A: whole items in priority order.
+        let mut sel = Selection::new(n, self.model, depth);
+        let mut next = None;
+        for &i in &order {
+            if sel.cost_if_add(i, meta.kids[i].full) <= budget {
+                sel.add(i, meta.kids[i].full);
+            } else {
+                next = Some(i);
+                break;
+            }
+        }
+
+        let mut chosen: Vec<(usize, Option<Value>)>; // None = keep original whole
+        let size;
+        if !sel.is_empty() {
+            chosen = sel.indices().map(|i| (i, None)).collect();
+            let mut total = sel.cost();
+            // One more item, reduced, if the leftover budget is worth it.
+            if let Some(i) = next {
+                let km = &meta.kids[i];
+                let with_min = sel.cost_if_add(i, km.min);
+                if with_min <= budget {
+                    let item_budget = km.min + (budget - with_min);
+                    if item_budget >= km.full.min(self.opts.min_partial_chars).max(km.min) {
+                        let (v, s) = self.fit(&items[i], km, item_budget, depth + 1);
+                        total = sel.cost_if_add(i, s);
+                        chosen.push((i, Some(v)));
+                        sel.add(i, s);
+                    }
+                }
+            }
+            size = total;
+        } else {
+            // Phase B: nothing fits whole. Take shape-distinct samples at
+            // their minimum size, then share the surplus.
+            let mut reps: Vec<usize> = Vec::new();
+            let mut seen = HashSet::new();
+            for &i in &order {
+                if reps.len() >= self.opts.max_samples.max(1) {
+                    break;
+                }
+                if seen.insert(meta.kids[i].shape) {
+                    if sel.cost_if_add(i, meta.kids[i].min) <= budget {
+                        sel.add(i, meta.kids[i].min);
+                        reps.push(i);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            if reps.is_empty() {
+                return self.minimal(whole, meta, depth);
+            }
+            let base = sel.cost();
+            let kids: Vec<(&Value, &Meta)> =
+                reps.iter().map(|&i| (&items[i], &meta.kids[i])).collect();
+            let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1);
+            let mins: usize = reps.iter().map(|&i| meta.kids[i].min).sum();
+            size = base - mins + kids_size;
+            chosen = reps.into_iter().zip(values.into_iter().map(Some)).collect();
+        }
+
+        chosen.sort_by_key(|(i, _)| *i);
+        let mut out = Vec::with_capacity(chosen.len() * 2 + 1);
+        let mut prev: Option<usize> = None;
+        for (i, v) in chosen {
+            let gap = match prev {
+                None => i,
+                Some(p) => i - p - 1,
+            };
+            if gap > 0 {
+                out.push(Value::String(items_marker(gap)));
+            }
+            out.push(v.unwrap_or_else(|| items[i].clone()));
+            prev = Some(i);
+        }
+        let tail = n - 1 - prev.unwrap();
+        if tail > 0 {
+            out.push(Value::String(items_marker(tail)));
+        }
+        self.stats.arrays_sampled += 1;
+        self.stats.items_omitted += n - sel.len();
+        (Value::Array(out), size)
+    }
+
+    /// Priority order for array items: first, new shapes, last, the rest.
+    fn priority(&self, items: &[Value], meta: &Meta) -> Vec<usize> {
+        let n = items.len();
+        let mut order = Vec::with_capacity(n);
+        let mut taken = vec![false; n];
+        let push = |i: usize, order: &mut Vec<usize>, taken: &mut Vec<bool>| {
+            if !taken[i] {
+                taken[i] = true;
+                order.push(i);
+            }
+        };
+        push(0, &mut order, &mut taken);
+        let mut seen = HashSet::new();
+        seen.insert(meta.kids[0].shape);
+        for i in 1..n {
+            if seen.len() >= 64 {
+                break;
+            }
+            if seen.insert(meta.kids[i].shape) {
+                push(i, &mut order, &mut taken);
+            }
+        }
+        if self.opts.keep_last_item && n > 1 {
+            push(n - 1, &mut order, &mut taken);
+        }
+        for i in 1..n {
+            push(i, &mut order, &mut taken);
+        }
+        order
+    }
+}
+
+/// An incrementally maintained selection of array indices, with the exact
+/// rendered cost of the resulting array (kept items + gap markers).
+struct Selection {
+    n: usize,
+    model: Model,
+    depth: usize,
+    set: BTreeSet<usize>,
+    sizes_sum: usize,
+    /// Number of gap markers and their total size.
+    gaps: usize,
+    gaps_cost: usize,
+}
+
+impl Selection {
+    fn new(n: usize, model: Model, depth: usize) -> Self {
+        // Empty selection is modelled as one gap covering everything, so the
+        // first insertion splits it like any other.
+        let mut s = Selection {
+            n,
+            model,
+            depth,
+            set: BTreeSet::new(),
+            sizes_sum: 0,
+            gaps: 0,
+            gaps_cost: 0,
+        };
+        s.gaps = 1;
+        s.gaps_cost = s.gap_cost(n);
+        s
+    }
+
+    fn gap_cost(&self, len: usize) -> usize {
+        if len == 0 {
+            0
+        } else {
+            self.model.string(&items_marker(len))
+        }
+    }
+
+    fn neighbours(&self, i: usize) -> (isize, usize) {
+        let prev = self
+            .set
+            .range(..i)
+            .next_back()
+            .map(|&p| p as isize)
+            .unwrap_or(-1);
+        let next = self.set.range(i + 1..).next().copied().unwrap_or(self.n);
+        (prev, next)
+    }
+
+    /// (new gap count, new gaps cost) if `i` were added.
+    fn split(&self, i: usize) -> (usize, usize) {
+        let (p, s) = self.neighbours(i);
+        let old = (s as isize - p - 1) as usize;
+        let left = (i as isize - p - 1) as usize;
+        let right = s - i - 1;
+        let mut gaps = self.gaps - usize::from(old > 0);
+        gaps += usize::from(left > 0) + usize::from(right > 0);
+        let cost = self.gaps_cost - self.gap_cost(old) + self.gap_cost(left) + self.gap_cost(right);
+        (gaps, cost)
+    }
+
+    fn cost_with(&self, count: usize, gaps: usize, gaps_cost: usize, sizes: usize) -> usize {
+        self.model.overhead(count + gaps, self.depth) + gaps_cost + sizes
+    }
+
+    fn cost_if_add(&self, i: usize, size: usize) -> usize {
+        let (g, gc) = self.split(i);
+        self.cost_with(self.set.len() + 1, g, gc, self.sizes_sum + size)
+    }
+
+    fn add(&mut self, i: usize, size: usize) {
+        let (g, gc) = self.split(i);
+        self.gaps = g;
+        self.gaps_cost = gc;
+        self.sizes_sum += size;
+        self.set.insert(i);
+    }
+
+    fn cost(&self) -> usize {
+        self.cost_with(self.set.len(), self.gaps, self.gaps_cost, self.sizes_sum)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.set.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.set.len()
+    }
+
+    fn indices(&self) -> impl Iterator<Item = usize> + '_ {
+        self.set.iter().copied()
+    }
+}

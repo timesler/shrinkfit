@@ -1,0 +1,15 @@
+[package]
+name = "shrinkfit"
+description = "Shrink JSON/YAML payloads to fit a character budget while preserving their schema and structure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["json", "yaml", "truncate", "llm", "agents"]
+categories = ["encoding", "text-processing"]
+readme = "../../README.md"
+
+[dependencies]
+# Intentionally none: the core is dependency-free so it builds anywhere,
+# including wasm32-unknown-unknown without wasm-bindgen.

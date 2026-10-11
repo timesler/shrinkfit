@@ -1,0 +1,8 @@
+/target
+**/__pycache__/
+*.egg-info/
+bindings/python/build/
+bindings/python/dist/
+bindings/python/shrinkfit/_native/
+bindings/typescript/node_modules/
+bindings/typescript/dist/
