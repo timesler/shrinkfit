@@ -1,23 +1,26 @@
 //! `shrinkfit` command-line tool.
 //!
 //! ```text
-//! shrinkfit --max-chars 4000 [--format json|yaml] [--indent N] [--report] [FILE|-]
+//! shrinkfit [--max-chars 10000] [--format auto|json|yaml] [--indent N] [--report] [FILE|-]
 //! ```
+
+mod serve;
 
 use shrinkfit::{json, shrink_str, Format, InputFormat, Options};
 use std::io::Read;
 use std::process::ExitCode;
 
 const USAGE: &str = "\
-usage: shrinkfit --max-chars N [options] [FILE|-]
+usage: shrinkfit [options] [FILE|-]
+       shrinkfit serve [--port N]   (local playground web app)
 
 Shrink a JSON or YAML document to fit within N characters, preserving its schema.
 
 options:
-  -n, --max-chars N            output budget in characters (required)
-  -f, --format json|yaml       output format (default: json)
-  -F, --input-format json|yaml input format (default: from file extension, else json)
-  -i, --indent N               indent width; 0 = compact JSON (default 0; yaml 2)
+  -n, --max-chars N            output budget in characters (default 10000)
+  -f, --format auto|json|yaml  output format (default: auto = same as input)
+  -F, --input-format auto|json|yaml  input format (default: auto-detect)
+  -i, --indent N               indent width; 0 = compact JSON (default 2)
       --head N                 string head chars shown whole (default 500)
       --section N              chars shown per later string section (default 100)
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -36,8 +39,12 @@ fn main() -> ExitCode {
 
 fn run() -> Result<ExitCode, String> {
     let mut args = std::env::args().skip(1);
-    let mut max: Option<usize> = None;
-    let mut format = Format::Json;
+    if std::env::args().nth(1).as_deref() == Some("serve") {
+        serve::run(std::env::args().skip(2))?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    let mut max = shrinkfit::DEFAULT_MAX_CHARS;
+    let mut format = Format::Auto;
     let mut input_format: Option<InputFormat> = None;
     let mut indent: Option<usize> = None;
     let mut head = None;
@@ -57,19 +64,21 @@ fn run() -> Result<ExitCode, String> {
                 println!("{USAGE}");
                 return Ok(ExitCode::SUCCESS);
             }
-            "-n" | "--max-chars" => max = Some(num(&a, args.next())?),
+            "-n" | "--max-chars" => max = num(&a, args.next())?,
             "-f" | "--format" => {
                 format = match args.next().as_deref() {
+                    Some("auto") => Format::Auto,
                     Some("json") => Format::Json,
                     Some("yaml") | Some("yml") => Format::Yaml,
-                    _ => return Err("--format must be json or yaml".into()),
+                    _ => return Err("--format must be auto, json or yaml".into()),
                 }
             }
             "-F" | "--input-format" => {
                 input_format = Some(match args.next().as_deref() {
+                    Some("auto") => InputFormat::Auto,
                     Some("json") => InputFormat::Json,
                     Some("yaml") | Some("yml") => InputFormat::Yaml,
-                    _ => return Err("--input-format must be json or yaml".into()),
+                    _ => return Err("--input-format must be auto, json or yaml".into()),
                 })
             }
             "-i" | "--indent" => indent = Some(num(&a, args.next())?),
@@ -87,7 +96,6 @@ fn run() -> Result<ExitCode, String> {
             }
         }
     }
-    let max = max.ok_or_else(|| format!("--max-chars is required\n\n{USAGE}"))?;
 
     let mut input = String::new();
     match path.as_deref() {
@@ -101,9 +109,7 @@ fn run() -> Result<ExitCode, String> {
     };
 
     let mut opts = Options::new(max);
-    if format == Format::Yaml {
-        opts = opts.yaml();
-    }
+    opts.format = format;
     if let Some(i) = indent {
         if format == Format::Yaml && i < 2 {
             return Err("YAML indent must be at least 2".into());
@@ -119,12 +125,13 @@ fn run() -> Result<ExitCode, String> {
     opts.keep_last_item = keep_last;
     opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {
         Some(p) if p.ends_with(".yaml") || p.ends_with(".yml") => InputFormat::Yaml,
-        _ => InputFormat::Json,
+        Some(p) if p.ends_with(".json") => InputFormat::Json,
+        _ => InputFormat::Auto,
     });
 
     let out = shrink_str(&input, &opts).map_err(|e| e.to_string())?;
     print!("{}", out.text);
-    if format == Format::Json {
+    if out.report.format == Format::Json {
         println!();
     }
     if report {

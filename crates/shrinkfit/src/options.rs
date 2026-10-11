@@ -7,6 +7,8 @@ use crate::value::Value;
 /// Output format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Format {
+    /// Same as the input format (JSON when shrinking an in-memory value).
+    Auto,
     Json,
     Yaml,
 }
@@ -14,6 +16,8 @@ pub enum Format {
 /// Input format of the text handed to [`crate::shrink_str`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputFormat {
+    /// Try JSON first, then YAML (when the `yaml` feature is on).
+    Auto,
     Json,
     /// Requires the `yaml` cargo feature.
     Yaml,
@@ -22,14 +26,15 @@ pub enum InputFormat {
 /// Options controlling how a document is shrunk.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Options {
-    /// Hard ceiling on the output size, in Unicode characters.
+    /// Hard ceiling on the output size, in Unicode characters
+    /// (default [`DEFAULT_MAX_CHARS`]).
     pub max_chars: usize,
-    /// Output format.
+    /// Output format (default: same as the input).
     pub format: Format,
-    /// Format of text input (ignored by [`crate::shrink`], which takes a value).
+    /// Format of text input (default: auto-detect; ignored by [`crate::shrink`], which takes a value).
     pub input_format: InputFormat,
-    /// Indent width. For JSON, 0 means compact (the default, and the most
-    /// information-dense choice). For YAML it must be at least 2 (default 2).
+    /// Indent width (default 2). For JSON, 0 means compact single-line
+    /// output. YAML cannot be compact: widths below 2 become 2.
     pub indent: usize,
     /// String truncation tunables (see [`TextParams`]).
     pub text: TextParams,
@@ -44,13 +49,22 @@ pub struct Options {
     pub min_partial_chars: usize,
 }
 
+/// Default output budget, in characters.
+pub const DEFAULT_MAX_CHARS: usize = 10_000;
+
+impl Default for Options {
+    fn default() -> Self {
+        Options::new(DEFAULT_MAX_CHARS)
+    }
+}
+
 impl Options {
     pub fn new(max_chars: usize) -> Self {
         Options {
             max_chars,
-            format: Format::Json,
-            input_format: InputFormat::Json,
-            indent: 0,
+            format: Format::Auto,
+            input_format: InputFormat::Auto,
+            indent: 2,
             text: TextParams::default(),
             keep_last_item: true,
             max_samples: 3,
@@ -60,9 +74,6 @@ impl Options {
 
     pub fn yaml(mut self) -> Self {
         self.format = Format::Yaml;
-        if self.indent < 2 {
-            self.indent = 2;
-        }
         self
     }
 
@@ -74,9 +85,7 @@ impl Options {
             Value::Object(e) => e,
             _ => return Err("options must be a JSON object".into()),
         };
-        let mut o = Options::new(0);
-        let mut have_max = false;
-        let mut indent_set = false;
+        let mut o = Options::default();
         for (k, val) in entries {
             let uint = || -> Result<usize, String> {
                 match val {
@@ -93,36 +102,34 @@ impl Options {
                 }
             };
             match k.as_str() {
-                "max_chars" => {
-                    o.max_chars = uint()?;
-                    have_max = true;
-                }
+                "max_chars" => o.max_chars = uint()?,
                 "format" => {
                     o.format = match val {
+                        Value::String(s) if s.eq_ignore_ascii_case("auto") => Format::Auto,
                         Value::String(s) if s.eq_ignore_ascii_case("json") => Format::Json,
                         Value::String(s)
                             if s.eq_ignore_ascii_case("yaml") || s.eq_ignore_ascii_case("yml") =>
                         {
                             Format::Yaml
                         }
-                        _ => return Err("format must be \"json\" or \"yaml\"".into()),
+                        _ => return Err("format must be \"auto\", \"json\" or \"yaml\"".into()),
                     }
                 }
                 "input_format" => {
                     o.input_format = match val {
+                        Value::String(s) if s.eq_ignore_ascii_case("auto") => InputFormat::Auto,
                         Value::String(s) if s.eq_ignore_ascii_case("json") => InputFormat::Json,
                         Value::String(s)
                             if s.eq_ignore_ascii_case("yaml") || s.eq_ignore_ascii_case("yml") =>
                         {
                             InputFormat::Yaml
                         }
-                        _ => return Err("input_format must be \"json\" or \"yaml\"".into()),
+                        _ => {
+                            return Err("input_format must be \"auto\", \"json\" or \"yaml\"".into())
+                        }
                     }
                 }
-                "indent" => {
-                    o.indent = uint()?;
-                    indent_set = true;
-                }
+                "indent" => o.indent = uint()?,
                 "string_head_chars" => o.text.head = uint()?,
                 "string_section_chars" => o.text.section = uint()?,
                 "string_min_section_chars" => o.text.min_section = uint()?,
@@ -132,15 +139,8 @@ impl Options {
                 other => return Err(format!("unknown option: {other}")),
             }
         }
-        if !have_max {
-            return Err("max_chars is required".into());
-        }
-        if o.format == Format::Yaml {
-            if !indent_set {
-                o.indent = 2;
-            } else if o.indent < 2 {
-                return Err("YAML indent must be at least 2".into());
-            }
+        if o.format == Format::Yaml && o.indent < 2 {
+            return Err("YAML indent must be at least 2".into());
         }
         Ok(o)
     }

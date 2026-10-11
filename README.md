@@ -8,7 +8,7 @@ failing, or spilling the result to a file, a tool can always answer inline
 with a faithful, clearly marked sample of the data:
 
 ```text
-$ shrinkfit --max-chars 900 --format yaml api_response.json   # 25 KB in, 895 chars out
+$ shrinkfit --max-chars 900 api_response.yaml   # 25 KB in, 895 chars out
 status: ok
 total: 250
 users:
@@ -74,10 +74,11 @@ shape would be preferred too.)
 ```python
 from shrinkfit import shrink, shrink_with_report
 
-shrink(big_dict, max_chars=4000)                 # -> str (compact JSON)
+shrink(big_dict)                                 # -> str: indented JSON, 10000-char budget
+shrink(big_dict, max_chars=4000, indent=0)       # compact one-line JSON
 shrink(big_dict, 4000, format="yaml")            # YAML output
-shrink(json_text, 4000)                          # str/bytes are parsed as JSON
-shrink(yaml_text, 4000, input_format="yaml")     # parsed natively
+shrink(json_or_yaml_text, 4000)                  # str/bytes: format auto-detected,
+                                                 # output in the same format
 
 r = shrink_with_report(big_dict, 4000, string_section_chars=60)
 r.text, r.report["items_omitted"], r.report["fits"]
@@ -89,6 +90,7 @@ r.text, r.report["items_omitted"], r.report["fits"]
 import { init, shrink, shrinkWithReport } from "shrinkfit";
 
 await init();                      // loads shrinkfit.wasm next to the module
+shrink(bigObject);                 // 10000-char budget, indented JSON
 shrink(bigObject, 4000);
 shrink(bigObject, 4000, { format: "yaml", stringSectionChars: 60 });
 ```
@@ -98,7 +100,7 @@ shrink(bigObject, 4000, { format: "yaml", stringSectionChars: 60 });
 ```rust
 use shrinkfit::{shrink_json, Options};
 
-let out = shrink_json(&big_json_text, &Options::new(4000).yaml())?;
+let out = shrink_json(&big_json_text, &Options::new(4000))?; // or Options::default()
 println!("{}", out.text);
 // YAML text in (feature `yaml`): set `opts.input_format = InputFormat::Yaml`
 // and call `shrink_str`.
@@ -109,8 +111,24 @@ assert!(out.report.fits);
 
 ```sh
 cargo install --path crates/shrinkfit-cli
-shrinkfit --max-chars 4000 [--format yaml] [--input-format yaml] [--indent 2] [--report] payload.json
+shrinkfit [--max-chars 10000] [--format auto|json|yaml] [--input-format auto|json|yaml] \
+          [--indent 2] [--report] [payload.json|-]
 ```
+
+The input format is auto-detected (JSON first, then YAML) and the output uses
+the same format unless `--format` says otherwise.
+
+### Playground
+
+```sh
+shrinkfit serve [--port 8765]    # then open http://127.0.0.1:8765/
+```
+
+A dependency-free local web page for exploring the behaviour while
+developing: paste JSON or YAML, change any option, and see the output and
+report update live. It talks to the same Rust code through the same options
+object as the bindings. It binds to loopback only; it is a dev tool, not a
+production server.
 
 ## How it works
 
@@ -142,10 +160,10 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 
 | option (Python / Rust field) | TS | default | meaning |
 |---|---|---|---|
-| `max_chars` | 2nd arg | required | output ceiling, in Unicode characters |
-| `format` | `format` | `"json"` | `"json"` or `"yaml"` output |
-| `input_format` | `inputFormat` | `"json"` | `"json"` or `"yaml"` for text input (Rust: needs the `yaml` cargo feature) |
-| `indent` | `indent` | 0 (JSON), 2 (YAML) | JSON: 0 = compact |
+| `max_chars` | 2nd arg | 10000 | output ceiling, in Unicode characters |
+| `format` | `format` | `"auto"` | `"auto"` (same as the input; JSON for in-memory values), `"json"` or `"yaml"` output |
+| `input_format` | `inputFormat` | `"auto"` | `"auto"` (JSON, else YAML), `"json"` or `"yaml"` for text input (Rust: YAML needs the `yaml` cargo feature) |
+| `indent` | `indent` | 2 | JSON: 0 = compact single-line; YAML: at least 2 |
 | `string_head_chars` | `stringHeadChars` | 500 | text shown whole before section previews begin |
 | `string_section_chars` | `stringSectionChars` | 100 | preview length for each later section |
 | `string_min_section_chars` | `stringMinSectionChars` | 16 | smallest preview before sections are dropped |
@@ -153,7 +171,7 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 | `max_samples` | `maxSamples` | 3 | shape-distinct samples when no array item fits whole |
 | `min_partial_chars` | `minPartialChars` | 40 | smallest budget worth spending on an extra, reduced item |
 
-The report includes `input_chars`, `output_chars`, `fits`, `pruned`,
+The report includes `format` (the output format actually used), `input_chars`, `output_chars`, `fits`, `pruned`,
 `strings_truncated`, `arrays_sampled`, `items_omitted`, `objects_trimmed`,
 `keys_omitted` and `containers_collapsed`.
 

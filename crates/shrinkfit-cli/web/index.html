@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shrinkfit playground</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --panel:#f6f8fa; --accent:#0969da; --bad:#cf222e; --good:#1a7f37; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --panel:#161b22; --accent:#58a6ff; --bad:#ff7b72; --good:#3fb950; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui, sans-serif; }
+  header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:baseline; }
+  header h1 { font-size:16px; margin:0; }
+  header span { color:var(--muted); }
+  main { display:grid; grid-template-columns: 260px 1fr 1fr; gap:0; height: calc(100vh - 45px); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; height:auto; } textarea, pre { min-height: 300px; } }
+  section { padding:12px; border-right:1px solid var(--line); display:flex; flex-direction:column; min-width:0; min-height:0; }
+  section:last-child { border-right:0; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 8px; display:flex; justify-content:space-between; }
+  label { display:block; margin:0 0 10px; }
+  label small { display:block; color:var(--muted); font-size:12px; }
+  input[type=number], select { width:100%; padding:4px 6px; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:4px; }
+  input[type=checkbox] { margin-right:6px; }
+  textarea, pre { flex:1; width:100%; margin:0; padding:8px; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:4px; font:12px/1.45 ui-monospace, Menlo, Consolas, monospace; overflow:auto; white-space:pre-wrap; word-break:break-word; resize:none; }
+  #stats { margin-top:8px; font-size:12px; color:var(--muted); }
+  #stats b.ok { color:var(--good); } #stats b.bad { color:var(--bad); }
+  #report { margin-top:6px; font:11px ui-monospace, Menlo, Consolas, monospace; color:var(--muted); white-space:pre-wrap; }
+  #error { color:var(--bad); }
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:2px 8px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+</style>
+</head>
+<body>
+<header><h1>shrinkfit</h1><span>playground: paste JSON or YAML, tweak options, see the result</span></header>
+<main>
+  <section id="opts">
+    <h2>Options <button id="reset" type="button">reset</button></h2>
+    <label>max_chars<small>output budget in characters</small><input type="number" id="max_chars" min="0" value="10000"></label>
+    <label>input_format<small>auto tries JSON, then YAML</small>
+      <select id="input_format"><option>auto</option><option>json</option><option>yaml</option></select></label>
+    <label>format<small>output; auto = same as input</small>
+      <select id="format"><option>auto</option><option>json</option><option>yaml</option></select></label>
+    <label>indent<small>0 = compact JSON (YAML needs ≥ 2)</small><input type="number" id="indent" min="0" value="2"></label>
+    <label>string_head_chars<small>whole text kept before previews</small><input type="number" id="string_head_chars" min="0" value="500"></label>
+    <label>string_section_chars<small>preview per later section</small><input type="number" id="string_section_chars" min="0" value="100"></label>
+    <label>string_min_section_chars<small>smallest preview before eliding</small><input type="number" id="string_min_section_chars" min="0" value="16"></label>
+    <label>max_samples<small>shape-distinct samples when no item fits</small><input type="number" id="max_samples" min="0" value="3"></label>
+    <label>min_partial_chars<small>smallest budget for a partial item</small><input type="number" id="min_partial_chars" min="0" value="40"></label>
+    <label><input type="checkbox" id="keep_last_item" checked>keep_last_item</label>
+  </section>
+  <section>
+    <h2>Input <span id="inlen"></span></h2>
+    <textarea id="input" spellcheck="false" placeholder="Paste JSON or YAML here"></textarea>
+  </section>
+  <section>
+    <h2>Output <button id="copy" type="button">copy</button></h2>
+    <pre id="out"></pre>
+    <div id="stats"></div>
+    <div id="report"></div>
+  </section>
+</main>
+<script>
+const NUM = ["max_chars","indent","string_head_chars","string_section_chars","string_min_section_chars","max_samples","min_partial_chars"];
+const SEL = ["input_format","format"];
+const $ = (id) => document.getElementById(id);
+const DEFAULTS = {}; [...NUM, ...SEL].forEach((k) => DEFAULTS[k] = $(k).value); DEFAULTS.keep_last_item = true;
+
+function options() {
+  const o = {};
+  for (const k of NUM) { const v = $(k).value; if (v !== "") o[k] = Number(v); }
+  for (const k of SEL) o[k] = $(k).value;
+  o.keep_last_item = $("keep_last_item").checked;
+  return o;
+}
+
+let seq = 0, timer = 0;
+function schedule() { clearTimeout(timer); timer = setTimeout(run, 150); save(); }
+
+async function run() {
+  const mine = ++seq, input = $("input").value;
+  $("inlen").textContent = input ? `${[...input].length.toLocaleString()} chars` : "";
+  if (!input.trim()) { $("out").textContent = ""; $("stats").textContent = ""; $("report").textContent = ""; return; }
+  let res;
+  try {
+    const r = await fetch("/api/shrink", { method: "POST", body: JSON.stringify({ input, options: options() }) });
+    res = await r.json();
+  } catch (e) { res = { ok: false, error: String(e) }; }
+  if (mine !== seq) return;
+  if (!res.ok) {
+    $("out").innerHTML = ""; const d = document.createElement("div"); d.id = "error"; d.textContent = res.error; $("out").append(d);
+    $("stats").textContent = ""; $("report").textContent = ""; return;
+  }
+  $("out").textContent = res.text;
+  const r = res.report;
+  const cls = r.fits ? "ok" : "bad";
+  $("stats").innerHTML = `<b class="${cls}">${r.output_chars.toLocaleString()}</b> / ${r.max_chars.toLocaleString()} chars `
+    + `(input ${r.input_chars.toLocaleString()} as ${r.format}${r.pruned ? "" : ", not pruned"}${r.fits ? "" : ", DOES NOT FIT"})`;
+  $("report").textContent = JSON.stringify(r);
+}
+
+function save() { try { localStorage.setItem("shrinkfit", JSON.stringify({ o: options(), input: $("input").value })); } catch {} }
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem("shrinkfit") || "null"); if (!s) return;
+    for (const k of [...NUM, ...SEL]) if (k in s.o) $(k).value = s.o[k];
+    $("keep_last_item").checked = s.o.keep_last_item !== false;
+    $("input").value = s.input || "";
+  } catch {}
+}
+
+document.querySelectorAll("#opts input, #opts select, #input").forEach((el) => el.addEventListener("input", schedule));
+$("reset").onclick = () => {
+  for (const k of [...NUM, ...SEL]) $(k).value = DEFAULTS[k];
+  $("keep_last_item").checked = true; schedule();
+};
+$("copy").onclick = () => navigator.clipboard && navigator.clipboard.writeText($("out").textContent);
+load(); run();
+</script>
+</body>
+</html>

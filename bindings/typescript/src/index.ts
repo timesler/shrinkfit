@@ -14,11 +14,11 @@
  */
 
 export interface ShrinkOptions {
-  /** Output format (default "json"). */
-  format?: "json" | "yaml";
-  /** Format of string input (default "json"). Objects are always sent as JSON. */
-  inputFormat?: "json" | "yaml";
-  /** Indent width. JSON: 0 = compact (default). YAML: >= 2 (default 2). */
+  /** Output format (default "auto": same as the input). */
+  format?: "auto" | "json" | "yaml";
+  /** Format of string input (default "auto": JSON, else YAML). Objects are sent as JSON. */
+  inputFormat?: "auto" | "json" | "yaml";
+  /** Indent width (default 2). JSON: 0 = compact single-line. YAML: >= 2. */
   indent?: number;
   /** Characters of leading whole string sections to keep (default 500). */
   stringHeadChars?: number;
@@ -138,7 +138,7 @@ function put(w: Exports, bytes: Uint8Array): number {
  * A string is treated as a serialized JSON document; anything else is
  * serialized with `JSON.stringify` first.
  */
-export function shrinkWithReport(data: unknown, maxChars: number, options: ShrinkOptions = {}): ShrinkResult {
+export function shrinkWithReport(data: unknown, maxChars = 10_000, options: ShrinkOptions = {}): ShrinkResult {
   const w = wasm;
   if (!w) throw new ShrinkError("shrinkfit is not initialized: await init() first");
   const json = typeof data === "string" ? data : JSON.stringify(data);
@@ -167,6 +167,6 @@ export function shrinkWithReport(data: unknown, maxChars: number, options: Shrin
 }
 
 /** Like `shrinkWithReport` but returns only the text. */
-export function shrink(data: unknown, maxChars: number, options: ShrinkOptions = {}): string {
+export function shrink(data: unknown, maxChars = 10_000, options: ShrinkOptions = {}): string {
   return shrinkWithReport(data, maxChars, options).text;
 }

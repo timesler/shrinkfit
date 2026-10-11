@@ -3,7 +3,7 @@
 use shrinkfit::json::{self, Layout};
 use shrinkfit::prune::Pruner;
 use shrinkfit::size::Model;
-use shrinkfit::{shrink, shrink_json, Format, Options, Value};
+use shrinkfit::{shrink, shrink_json, Format, InputFormat, Options, Value};
 
 /// Tiny deterministic PRNG (xorshift64*), so tests need no dependencies.
 struct Rng(u64);
@@ -202,6 +202,14 @@ fn yaml_output_fits_when_possible() {
     }
 }
 
+/// Compact single-line JSON options, so tests can assert on exact text.
+fn compact(max: usize) -> Options {
+    Options {
+        indent: 0,
+        ..Options::new(max)
+    }
+}
+
 fn records(n: usize) -> String {
     let items: Vec<String> = (0..n)
         .map(|i| format!(r#"{{"id":{i},"name":"user {i}","email":"u{i}@example.com","active":{},"roles":["admin","dev"],"bio":"{}"}}"#,
@@ -217,7 +225,7 @@ fn records(n: usize) -> String {
 fn records_keep_schema_and_counts() {
     let src = records(1000);
     for budget in [400, 1000, 3000, 10_000] {
-        let out = shrink_json(&src, &Options::new(budget)).unwrap();
+        let out = shrink_json(&src, &compact(budget)).unwrap();
         assert!(out.report.output_chars <= budget, "{budget}");
         let t = &out.text;
         // Top-level scalars survive intact.
@@ -245,7 +253,7 @@ fn records_keep_schema_and_counts() {
 
 #[test]
 fn generous_budget_shows_whole_records_and_last_item() {
-    let out = shrink_json(&records(50), &Options::new(6000)).unwrap();
+    let out = shrink_json(&records(50), &compact(6000)).unwrap();
     let t = &out.text;
     assert!(t.contains("\"id\":49"), "last item should be kept:\n{t}");
     assert!(t.contains("\"id\":1,"), "{t}");
@@ -259,7 +267,7 @@ fn generous_budget_shows_whole_records_and_last_item() {
 #[test]
 fn heterogeneous_arrays_sample_each_shape() {
     let src = r#"[{"type":"a","x":1},{"type":"a","x":2},{"type":"a","x":3},{"type":"b","y":[1,2,3]},{"type":"a","x":4},{"type":"c","z":"zzz"},{"type":"a","x":5},{"type":"a","x":6},{"type":"a","x":7},{"type":"a","x":8}]"#;
-    let out = shrink_json(src, &Options::new(140)).unwrap();
+    let out = shrink_json(src, &compact(140)).unwrap();
     let t = &out.text;
     assert!(t.contains("\"y\""), "{t}");
     assert!(t.contains("\"z\""), "{t}");
@@ -280,7 +288,7 @@ fn long_markdown_string_keeps_headings() {
         r#"{{"readme":{}}}"#,
         json::to_string(&Value::String(sections.join("\n\n")), Layout::Compact)
     );
-    let out = shrink_json(&doc, &Options::new(3000)).unwrap();
+    let out = shrink_json(&doc, &compact(3000)).unwrap();
     let readme = match &out.value {
         Value::Object(e) => match &e[0].1 {
             Value::String(s) => s.clone(),
@@ -303,7 +311,7 @@ fn wide_object_drops_trailing_keys_with_marker() {
         .map(|i| format!(r#""key_{i}":"{}""#, "v".repeat(30)))
         .collect();
     let src = format!("{{{}}}", entries.join(","));
-    let out = shrink_json(&src, &Options::new(500)).unwrap();
+    let out = shrink_json(&src, &compact(500)).unwrap();
     assert!(out.report.output_chars <= 500);
     assert!(out.text.contains(r#""key_0""#));
     assert!(
@@ -320,7 +328,7 @@ fn deeply_nested_input() {
         s = format!(r#"{{"level{i}":[{s}]}}"#);
     }
     // 500 levels of nesting: within the parser's limit.
-    let out = shrink_json(&s, &Options::new(200)).unwrap();
+    let out = shrink_json(&s, &compact(200)).unwrap();
     assert!(
         out.report.fits && out.report.output_chars <= 200,
         "{}",
@@ -328,12 +336,12 @@ fn deeply_nested_input() {
     );
     // Beyond the limit, input is rejected with an error rather than crashing.
     let too_deep = format!("{}1{}", "[".repeat(600), "]".repeat(600));
-    assert!(shrink_json(&too_deep, &Options::new(200)).is_err());
+    assert!(shrink_json(&too_deep, &compact(200)).is_err());
 }
 
 #[test]
 fn tiny_budget_returns_minimal_form() {
-    let out = shrink_json(&records(10), &Options::new(5)).unwrap();
+    let out = shrink_json(&records(10), &compact(5)).unwrap();
     assert!(!out.report.fits);
     assert_eq!(out.text, r#"{"…":"5 keys omitted"}"#);
 }
@@ -348,7 +356,107 @@ fn formats_and_options_from_json() {
     assert_eq!(o.indent, 2);
     assert_eq!(o.text.head, 50);
     assert!(Options::from_value(&json::parse(r#"{"max_chars":1,"bogus":1}"#).unwrap()).is_err());
-    assert!(Options::from_value(&json::parse(r#"{"format":"json"}"#).unwrap()).is_err());
+    // max_chars is optional; defaults: auto formats, indent 2.
+    let d = Options::from_value(&json::parse("{}").unwrap()).unwrap();
+    assert_eq!(d.max_chars, 10_000);
+    assert_eq!(
+        (d.format, d.input_format, d.indent),
+        (Format::Auto, InputFormat::Auto, 2)
+    );
+    assert!(Options::from_value(&json::parse(r#"{"format":"yaml","indent":0}"#).unwrap()).is_err());
+}
+
+#[test]
+fn default_output_is_indented_json() {
+    let out = shrink_json(r#"{"a":[1,2],"b":{"c":null}}"#, &Options::default()).unwrap();
+    assert_eq!(
+        out.text,
+        "{
+  \"a\": [
+    1,
+    2
+  ],
+  \"b\": {
+    \"c\": null
+  }
+}"
+    );
+    assert_eq!(out.report.format, Format::Json);
+}
+
+#[test]
+fn shrink_str_autodetects_and_follows_input_format() {
+    use shrinkfit::{parse_input, shrink_str};
+    let o = Options::default();
+    let j = shrink_str(r#"{"a":1}"#, &o).unwrap();
+    assert_eq!(j.report.format, Format::Json);
+    assert!(j.text.starts_with(
+        "{
+"
+    ));
+    for (src, want) in [
+        ("[1, 2]", InputFormat::Json),
+        ("\"str\"", InputFormat::Json),
+        ("42", InputFormat::Json),
+        (
+            "a: 1
+b: [x, y]
+",
+            InputFormat::Yaml,
+        ),
+        (
+            "- a
+- b
+",
+            InputFormat::Yaml,
+        ),
+        ("just some words", InputFormat::Yaml),
+    ] {
+        let got = parse_input(src, InputFormat::Auto);
+        if cfg!(feature = "yaml") || want == InputFormat::Json {
+            assert_eq!(got.unwrap().1, want, "{src}");
+        }
+    }
+    // Broken JSON-looking input reports the JSON error; empty input is an error.
+    assert!(matches!(
+        shrink_str("[1", &o),
+        Err(shrinkfit::Error::Parse(_))
+    ));
+    assert!(shrink_str("", &o).is_err());
+    #[cfg(feature = "yaml")]
+    {
+        let y = shrink_str(
+            "a: 1
+b: 2
+",
+            &o,
+        )
+        .unwrap();
+        assert_eq!(y.report.format, Format::Yaml);
+        assert_eq!(
+            y.text,
+            "a: 1
+b: 2
+"
+        );
+        // An explicit output format wins over the input's.
+        let o2 = Options {
+            format: Format::Json,
+            indent: 0,
+            ..Options::default()
+        };
+        assert_eq!(
+            shrink_str(
+                "a: 1
+b: 2
+",
+                &o2
+            )
+            .unwrap()
+            .text,
+            r#"{"a":1,"b":2}"#
+        );
+    }
 }
 
 #[test]
@@ -383,6 +491,7 @@ fn yaml_input_roundtrips_and_shrinks() {
         for b in [150usize, 700, 3000] {
             let mut o = Options::new(b);
             o.input_format = InputFormat::Yaml;
+            o.format = Format::Yaml;
             let from_text = shrink_str(&y, &o).unwrap();
             let from_value = shrink(&v, &o);
             assert_eq!(from_text.text, from_value.text, "doc {doc} budget {b}");

@@ -155,11 +155,11 @@ mod tests {
 
     #[test]
     fn yaml_input() {
-        let ok = call(
-            "a: [1, 2, 3]
-",
-            r#"{"max_chars":100,"input_format":"yaml"}"#,
-        );
+        let src = "a: [1, 2, 3]\n";
+        // Auto-detected YAML in -> YAML out, indented.
+        let ok = call(src, r#"{"max_chars":100}"#);
+        assert!(ok.contains(r#""text":"a:\n  - 1\n  - 2\n  - 3\n""#), "{ok}");
+        let ok = call(src, r#"{"format":"json","indent":0}"#);
         assert!(ok.contains(r#""text":"{\"a\":[1,2,3]}""#), "{ok}");
         assert!(call("a: [1", r#"{"max_chars":100,"input_format":"yaml"}"#)
             .contains("invalid YAML input"));

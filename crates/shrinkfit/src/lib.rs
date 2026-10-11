@@ -12,7 +12,9 @@
 //!
 //! let big = format!(r#"{{"items":[{}],"total":500}}"#,
 //!     (0..500).map(|i| format!(r#"{{"id":{i},"name":"item {i}"}}"#)).collect::<Vec<_>>().join(","));
-//! let out = shrink_json(&big, &Options::new(300)).unwrap();
+//! // Output is indented by default; indent 0 gives compact one-line JSON.
+//! let opts = Options { indent: 0, ..Options::new(300) };
+//! let out = shrink_json(&big, &opts).unwrap();
 //! assert!(out.report.output_chars <= 300);
 //! assert!(out.text.contains("items omitted"));
 //! assert!(out.text.contains(r#""total":500"#));
@@ -34,7 +36,7 @@ pub mod yaml;
 pub mod yaml_in;
 
 pub use json::{Layout, ParseError};
-pub use options::{Format, InputFormat, Options};
+pub use options::{Format, InputFormat, Options, DEFAULT_MAX_CHARS};
 pub use prune::Stats;
 pub use text::TextParams;
 pub use value::Value;
@@ -51,6 +53,8 @@ pub struct Report {
     pub output_chars: usize,
     /// The requested budget.
     pub max_chars: usize,
+    /// The output format that was used (never `Auto`).
+    pub format: Format,
     /// Whether anything was removed.
     pub pruned: bool,
     /// Whether the output is within `max_chars`. Only false when the budget
@@ -68,6 +72,10 @@ impl Report {
             ("input_chars".into(), n(self.input_chars)),
             ("output_chars".into(), n(self.output_chars)),
             ("max_chars".into(), n(self.max_chars)),
+            (
+                "format".into(),
+                Value::String(format_name(self.format).into()),
+            ),
             ("pruned".into(), Value::Bool(self.pruned)),
             ("fits".into(), Value::Bool(self.fits)),
             ("strings_truncated".into(), n(self.stats.strings_truncated)),
@@ -114,10 +122,30 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+fn format_name(f: Format) -> &'static str {
+    match f {
+        Format::Yaml => "yaml",
+        _ => "json",
+    }
+}
+
+/// Options with `Auto` resolved to `fallback`, and YAML's minimum indent applied.
+fn effective(opts: &Options, fallback: Format) -> Options {
+    let mut o = opts.clone();
+    if o.format == Format::Auto {
+        o.format = fallback;
+    }
+    if o.format == Format::Yaml && o.indent < 2 {
+        o.indent = 2;
+    }
+    o
+}
+
 /// Render a value in the format selected by `opts`, without pruning.
+/// (`Auto` renders as JSON.)
 pub fn render(v: &Value, opts: &Options) -> String {
     match opts.format {
-        Format::Json => json::to_string(v, layout(opts)),
+        Format::Json | Format::Auto => json::to_string(v, layout(opts)),
         Format::Yaml => yaml::to_string(v, opts.indent),
     }
 }
@@ -142,22 +170,55 @@ pub fn shrink_json(input: &str, opts: &Options) -> Result<Shrunk, Error> {
 
 /// Parse `input` in the format selected by `opts.input_format` and shrink it.
 pub fn shrink_str(input: &str, opts: &Options) -> Result<Shrunk, Error> {
-    let v = match opts.input_format {
-        InputFormat::Json => json::parse(input).map_err(Error::Parse)?,
-        #[cfg(feature = "yaml")]
-        InputFormat::Yaml => yaml_in::parse(input).map_err(Error::Yaml)?,
-        #[cfg(not(feature = "yaml"))]
-        InputFormat::Yaml => {
-            return Err(Error::Yaml(
-                "shrinkfit was built without the `yaml` feature".into(),
-            ))
-        }
+    let (v, detected) = parse_input(input, opts.input_format)?;
+    let fallback = match detected {
+        InputFormat::Yaml => Format::Yaml,
+        _ => Format::Json,
     };
-    Ok(shrink(&v, opts))
+    Ok(shrink(&v, &effective(opts, fallback)))
+}
+
+#[cfg(feature = "yaml")]
+fn parse_yaml(input: &str) -> Result<Value, Error> {
+    yaml_in::parse(input).map_err(Error::Yaml)
+}
+
+#[cfg(not(feature = "yaml"))]
+fn parse_yaml(_: &str) -> Result<Value, Error> {
+    Err(Error::Yaml(
+        "shrinkfit was built without the `yaml` feature".into(),
+    ))
+}
+
+/// Parse text as `format`, returning the value and the concrete format
+/// (`Json` or `Yaml`) it was read as. `Auto` tries JSON first, then YAML;
+/// when both fail, JSON's error is reported for input that looks like JSON
+/// (starts with `{`, `[` or `"`) and YAML's otherwise.
+pub fn parse_input(input: &str, format: InputFormat) -> Result<(Value, InputFormat), Error> {
+    match format {
+        InputFormat::Json => Ok((json::parse(input).map_err(Error::Parse)?, InputFormat::Json)),
+        InputFormat::Yaml => Ok((parse_yaml(input)?, InputFormat::Yaml)),
+        InputFormat::Auto => {
+            let jerr = match json::parse(input) {
+                Ok(v) => return Ok((v, InputFormat::Json)),
+                Err(e) => e,
+            };
+            let head = input.trim_start_matches('\u{feff}').trim_start();
+            if head.is_empty() || head.starts_with(['{', '[', '"']) {
+                return Err(Error::Parse(jerr));
+            }
+            match parse_yaml(input) {
+                Ok(v) => Ok((v, InputFormat::Yaml)),
+                Err(Error::Yaml(y)) if cfg!(feature = "yaml") => Err(Error::Yaml(y)),
+                Err(_) => Err(Error::Parse(jerr)),
+            }
+        }
+    }
 }
 
 /// Shrink a value so its rendering fits within `opts.max_chars`.
 pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
+    let opts = &effective(opts, Format::Json);
     let full_text = render(v, opts);
     let input_chars = chars(&full_text);
     if input_chars <= opts.max_chars {
@@ -168,6 +229,7 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
                 input_chars,
                 output_chars: input_chars,
                 max_chars: opts.max_chars,
+                format: opts.format,
                 pruned: false,
                 fits: true,
                 stats: Stats::default(),
@@ -178,7 +240,7 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
     // JSON sizes are predicted exactly; YAML sizes are estimated with the
     // pretty-JSON model and corrected below by measuring real output.
     let (model, exact) = match opts.format {
-        Format::Json => (Model::new(layout(opts)), true),
+        Format::Json | Format::Auto => (Model::new(layout(opts)), true),
         Format::Yaml => (Model::new(Layout::Pretty(opts.indent.max(2))), false),
     };
     let meta = Pruner::new(model, opts).analyze(v, 0);
@@ -250,6 +312,7 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
             input_chars,
             output_chars,
             max_chars: max,
+            format: opts.format,
             pruned: true,
             fits,
             stats,

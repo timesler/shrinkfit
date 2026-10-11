@@ -25,7 +25,8 @@ def records(n):
 class ShrinkTests(unittest.TestCase):
     def test_small_input_unchanged(self):
         r = shrink_with_report({"a": 1}, 100)
-        self.assertEqual(r.text, '{"a":1}')
+        self.assertEqual(r.text, '{\n  "a": 1\n}')  # indented by default
+        self.assertEqual(shrink({"a": 1}, indent=0), '{"a":1}')  # max_chars optional
         self.assertFalse(r.report["pruned"])
 
     def test_docstring_example(self):
@@ -91,7 +92,10 @@ class ShrinkTests(unittest.TestCase):
         self.assertIn("items omitted", out)
 
     def test_yaml_input_errors_and_json_output(self):
-        out = shrink("a: [1, 2, 3]\nb: hello\n", 100, input_format="yaml")
+        src = "a: [1, 2, 3]\nb: hello\n"
+        # Auto-detected YAML in -> YAML out; an explicit format overrides.
+        self.assertEqual(shrink(src), "a:\n  - 1\n  - 2\n  - 3\nb: hello\n")
+        out = shrink(src, 100, input_format="yaml", format="json")
         self.assertEqual(json.loads(out), {"a": [1, 2, 3], "b": "hello"})
         with self.assertRaises(ShrinkError):
             shrink("a: [1", 100, input_format="yaml")

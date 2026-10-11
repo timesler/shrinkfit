@@ -2,7 +2,7 @@
 preserving their schema and structure.
 
 >>> from shrinkfit import shrink
->>> shrink({"items": list(range(1000)), "total": 1000}, max_chars=80)
+>>> shrink({"items": list(range(1000)), "total": 1000}, max_chars=80, indent=0)
 '{"items":[0,1,2,3,4,5,6,7,8,9,10,11,12,"…[986 items omitted]",999],"total":1000}'
 
 This module is a thin ctypes wrapper around the Rust core's C ABI. Options
@@ -93,10 +93,10 @@ def _to_text(data: Any, input_format: str) -> str:
 
 def shrink_with_report(
     data: Any,
-    max_chars: int,
+    max_chars: int = 10_000,
     *,
-    format: str = "json",
-    input_format: str = "json",
+    format: str = "auto",
+    input_format: str = "auto",
     **options: Any,
 ) -> ShrinkResult:
     """Shrink ``data`` to at most ``max_chars`` characters.
@@ -106,7 +106,8 @@ def shrink_with_report(
     ``input_format="yaml"`` (parsed natively by the core). Non-JSON values such as
     datetimes are converted with ``str()``.
 
-    ``format`` is the output format, ``"json"`` or ``"yaml"``. Other keyword
+    ``format`` is the output format: ``"auto"`` (default, same as the input),
+    ``"json"`` or ``"yaml"``; ``max_chars`` defaults to 10000, ``indent`` to 2. Other keyword
     options are passed to the core unchanged: ``indent``,
     ``string_head_chars``, ``string_section_chars``,
     ``string_min_section_chars``, ``keep_last_item``, ``max_samples``,
@@ -128,7 +129,7 @@ def shrink_with_report(
     return ShrinkResult(text=envelope["text"], report=envelope["report"])
 
 
-def shrink(data: Any, max_chars: int, **kwargs: Any) -> str:
+def shrink(data: Any, max_chars: int = 10_000, **kwargs: Any) -> str:
     """Like :func:`shrink_with_report` but returns only the text."""
     return shrink_with_report(data, max_chars, **kwargs).text
 
