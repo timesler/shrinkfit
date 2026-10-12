@@ -215,6 +215,14 @@ The same fields are kept in every record. What was dropped is reported in
 `/issues/*/avatarUrls`, with the number of records that had each), not
 inserted into the data, so typed arrays stay homogeneous.
 
+Quality gates keep `condense` from doing worse than sampling: the plan must
+include at least one informative scalar field, and the single best-scoring
+field must fit (otherwise the budget per record is too small and the array is
+sampled instead). Spare budget beyond what the chosen fields' values can still
+grow into is spent on further fields, but only ones scoring at least 0.3.
+`explain: true` (CLI `--explain`) lists every field's score and keep/drop
+decision, which is how the heuristic is tuned.
+
 Known limitations: rich-text structures such as Atlassian Document Format
 keep their text several levels deep, so a body field is expensive and is often
 dropped; a plain-text projection of such fields is the main planned

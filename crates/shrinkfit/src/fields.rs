@@ -47,6 +47,11 @@ pub struct ColumnInfo<'a> {
     /// Every present value is a number or a string of digits (an opaque id
     /// rather than something readable like `OPS-12`).
     pub numeric_like: bool,
+    /// Every present value is a string starting with an ISO date (`2024-05-01...`).
+    pub timestamp_like: bool,
+    /// Most string values look machine-generated (UUIDs, hashes, random
+    /// ids) rather than readable like `OPS-12`.
+    pub opaque_like: bool,
     /// Average rendered size of the value, in characters.
     pub avg_chars: f64,
     /// Average position of the key among its siblings (0 = first).
@@ -199,10 +204,18 @@ const IDENTITY: &[&str] = &[
     "identifier",
 ];
 /// What a record is called: the best single thing to show about it.
+/// How to reach a person or place.
+const CONTACT: &[&str] = &["email", "phone", "mobile", "telephone", "address"];
 const TITLE: &[&str] = &[
     "title", "summary", "subject", "headline", "heading", "caption",
 ];
 const LABEL: &[&str] = &[
+    "firstname",
+    "lastname",
+    "givenname",
+    "familyname",
+    "surname",
+    "nickname",
     "name",
     "label",
     "displayname",
@@ -222,6 +235,12 @@ const WRAPPERS: &[&str] = &[
     "record",
 ];
 const STATUS: &[&str] = &[
+    "phase",
+    "health",
+    "condition",
+    "conditions",
+    "availability",
+    "verdict",
     "status",
     "state",
     "type",
@@ -271,6 +290,7 @@ const PEOPLE: &[&str] = &[
     "createdby",
 ];
 const TIME: &[&str] = &[
+    "ts",
     "created",
     "updated",
     "modified",
@@ -287,6 +307,14 @@ const TIME: &[&str] = &[
     "resolved",
 ];
 const METRIC: &[&str] = &[
+    "points",
+    "comments",
+    "replies",
+    "downloads",
+    "followers",
+    "forks",
+    "watchers",
+    "upvotes",
     "count",
     "total",
     "score",
@@ -361,9 +389,75 @@ fn any(ws: &[String], list: &[&str]) -> bool {
     ws.iter().any(|w| list.contains(&w.as_str()))
 }
 
+/// Tier of a set of words, checking the list order below.
+fn tier_of(ws: &[String]) -> Option<f64> {
+    // Identity first: tiny, and what a reader needs to refer to a record.
+    if any(ws, IDENTITY) {
+        Some(0.98)
+    } else if any(ws, TITLE) {
+        Some(0.95)
+    } else if any(ws, LABEL) {
+        Some(0.9)
+    } else if any(ws, STATUS) {
+        Some(0.85)
+    } else if any(ws, CONTACT) {
+        Some(0.75)
+    } else if any(ws, CONTENT) {
+        Some(0.7)
+    } else if any(ws, PEOPLE) {
+        Some(0.65)
+    } else if any(ws, METRIC) || any(ws, LINK) {
+        Some(0.6)
+    } else if any(ws, TIME) {
+        Some(0.55)
+    } else {
+        None
+    }
+}
+
+/// Tier of a field name. The last word is the head noun and decides first
+/// (`overall_state_modified` is a time, not a state); run-together names
+/// (`firstname`, `jobtitle`, `lastmodifieddate`) are matched by their ending.
+fn tier(ws: &[String], joined: &str) -> Option<f64> {
+    if let Some(last) = ws.last() {
+        if let Some(t) = tier_of(std::slice::from_ref(last)) {
+            // `branchName`, `projectName`: a name of something else, not of the
+            // record. Person-name qualifiers (`displayName`) keep the full tier.
+            const OWN_NAME: &[&str] = &[
+                "display", "full", "first", "last", "given", "family", "user", "nick", "short",
+                "sur", "login",
+            ];
+            let qualified = LABEL.contains(&last.as_str())
+                && ws.len() > 1
+                && !ws[..ws.len() - 1]
+                    .iter()
+                    .all(|w| OWN_NAME.contains(&w.as_str()));
+            return Some(if qualified { t.min(0.78) } else { t });
+        }
+    }
+    if let Some(t) = tier_of(ws) {
+        return Some(t);
+    }
+    if ws.len() == 1 && joined.len() > 5 {
+        let lists: [&[&str]; 9] = [
+            TITLE, LABEL, STATUS, CONTACT, CONTENT, PEOPLE, METRIC, LINK, TIME,
+        ];
+        let best = lists
+            .iter()
+            .flat_map(|l| l.iter())
+            .filter(|w| w.len() >= 4 && joined.ends_with(**w))
+            .max_by_key(|w| w.len());
+        if let Some(w) = best {
+            return tier_of(&[w.to_string()]);
+        }
+    }
+    None
+}
+
 impl HeuristicScorer {
     /// Prior from the field's name (and its ancestors').
-    fn name_prior(&self, c: &ColumnInfo<'_>) -> f64 {
+    /// Returns the prior and whether the name (or its values) identified the kind of field.
+    fn name_prior(&self, c: &ColumnInfo<'_>) -> (f64, bool) {
         let own = words(c.name());
         let joined = own.concat();
         let ancestors: Vec<String> = c
@@ -375,10 +469,11 @@ impl HeuristicScorer {
 
         // Anything inside a boilerplate container (`_links`, `avatarUrls`) is noise.
         if !ancestors.is_empty() && any(&ancestors, NOISE) {
-            return 0.08;
+            return (0.08, true);
         }
-        if own.iter().any(|w| w.starts_with('_') || w.is_empty()) {
-            return 0.1;
+        // `_links`, `_highlightResult`, `__typename`: API plumbing, not data.
+        if c.path.iter().any(|k| k.starts_with('_') || k.is_empty()) {
+            return (0.08, true);
         }
         if any(&own, NOISE) || NOISE.contains(&joined.as_str()) {
             // `html_url` / `webui` are real links even though they contain "url".
@@ -396,11 +491,11 @@ impl HeuristicScorer {
                     ],
                 )
             {
-                return 0.1;
+                return (0.1, true);
             }
         }
         if any(&own, SECONDARY) {
-            return 0.25;
+            return (0.25, true);
         }
         // Nesting inside a real sub-object (not an envelope like `fields`).
         let nested = c
@@ -408,30 +503,12 @@ impl HeuristicScorer {
             .iter()
             .take(c.path.len().saturating_sub(1))
             .any(|k| !words(k).iter().all(|w| WRAPPERS.contains(&w.as_str())));
-        // The deepest word usually carries the meaning (`createdBy` -> by).
-        let tier = |ws: &[String]| -> Option<f64> {
-            // Identity first: tiny, and what a reader needs to refer to a record.
-            if any(ws, IDENTITY) {
-                Some(0.98)
-            } else if any(ws, TITLE) {
-                Some(0.95)
-            } else if any(ws, LABEL) {
-                Some(0.9)
-            } else if any(ws, STATUS) {
-                Some(0.85)
-            } else if any(ws, PEOPLE) {
-                Some(0.65)
-            } else if any(ws, CONTENT) {
-                Some(0.7)
-            } else if any(ws, METRIC) || any(ws, LINK) {
-                Some(0.6)
-            } else if any(ws, TIME) {
-                Some(0.55)
-            } else {
-                None
-            }
-        };
-        let mut p = tier(&own).unwrap_or(0.5);
+        let tiered = tier(&own, &joined);
+        let mut p = tiered.unwrap_or(0.5);
+        // Unknown name but ISO dates inside: it is a timestamp.
+        if tiered.is_none() && c.timestamp_like {
+            p = 0.55;
+        }
         // Among identifiers, readable ones (`OPS-12`) beat opaque numbers.
         if c.numeric_like && any(&own, IDENTITY) {
             p -= 0.04;
@@ -439,10 +516,12 @@ impl HeuristicScorer {
         if any(&own, IDENTITY) {
             // `node_id`, `place_id`, `userId`: references to something else.
             if own.len() > 1 && own.last().map(String::as_str) == Some("id") {
-                p = p.min(0.72);
+                // ...and opaque ones (`client_msg_id`) are plumbing.
+                p = p.min(if c.opaque_like { 0.3 } else { 0.72 });
             }
-            // Long ids (`tblP1F8hoChkS253A`) are opaque; names read better.
-            if c.avg_chars > 16.0 {
+            // Machine-generated ids (`tblP1F8hoChkS253A`, UUIDs) are opaque;
+            // names and readable keys read better.
+            if c.opaque_like || c.avg_chars > 16.0 {
                 p -= 0.1;
             }
         }
@@ -452,7 +531,7 @@ impl HeuristicScorer {
         if nested {
             p *= if any(&own, IDENTITY) { 0.6 } else { 0.88 };
         }
-        p
+        (p, tiered.is_some() || c.timestamp_like)
     }
 }
 
@@ -462,12 +541,17 @@ impl FieldScorer for HeuristicScorer {
     }
 
     fn score(&self, c: &ColumnInfo<'_>) -> f64 {
-        let mut s = self.name_prior(c);
+        let (mut s, known) = self.name_prior(c);
         let status_like = any(&words(c.name()), STATUS);
 
         // Always empty: nothing to read.
         if c.present > 0 && c.empty == c.present {
             return (s * 0.03).min(0.05);
+        }
+        // Mostly empty: little to read in most records.
+        let empty_fraction = c.empty as f64 / c.present.max(1) as f64;
+        if empty_fraction > 0.3 {
+            s *= 1.0 - 0.7 * empty_fraction;
         }
         // Identical everywhere: no per-record information.
         if c.constant && c.total >= 3 && c.scalars == c.present {
@@ -478,8 +562,15 @@ impl FieldScorer for HeuristicScorer {
             s *= 0.8;
         }
         // Unknown names: let the data decide.
-        let unknown = s > 0.45 && s < 0.55;
-        if unknown && c.scalars >= 3 && c.scalars == c.present {
+        let unknown = !known;
+        // (Only strings: unique numbers are as likely measurements as ids.)
+        // (Numbers written as text are measurements, not names or ids.)
+        if unknown
+            && c.scalars >= 3
+            && c.scalars == c.present
+            && c.kinds.string == c.present
+            && !c.numeric_like
+        {
             let ratio = c.distinct as f64 / c.scalars as f64;
             if ratio >= 0.9 && c.avg_chars <= 40.0 {
                 s = 0.7; // looks like an identifier
@@ -517,6 +608,8 @@ impl FieldScorer for HeuristicScorer {
             Some("title")
         } else if any(&own, TIME) {
             Some("time")
+        } else if any(&own, LINK) {
+            Some("link")
         } else {
             None
         }
@@ -541,6 +634,8 @@ mod tests {
             scalars: 10,
             constant: false,
             numeric_like: false,
+            timestamp_like: false,
+            opaque_like: false,
             avg_chars: 12.0,
             avg_position: 3.0,
         }
@@ -594,6 +689,32 @@ mod tests {
         assert!(score(&["zzz"], none) >= 0.7);
         // Unknown name, low variety -> category-like.
         assert!(score(&["zzz"], |c| c.distinct = 2) >= 0.6);
+    }
+
+    #[test]
+    fn spot_check_regressions() {
+        let none = |_: &mut ColumnInfo<'_>| {};
+        // Run-together names are recognised by their ending (HubSpot).
+        assert!(score(&["properties", "firstname"], none) > 0.7);
+        assert!(score(&["properties", "email"], none) > 0.6);
+        // The last word decides: a state's modification time is a time (Datadog).
+        assert!(score(&["overall_state_modified"], none) < score(&["overall_state"], none));
+        // Kubernetes phase is a status.
+        assert!(score(&["status", "phase"], none) > 0.7);
+        // `branchName` names something else, below a plain `name`.
+        assert!(score(&["branchName"], none) < score(&["name"], none));
+        // Timestamps with unknown names are not identifiers (Salesforce).
+        let ts = score(&["SystemModstamp"], |c| c.timestamp_like = true);
+        assert!(ts < 0.6, "{ts}");
+        // Decimal numbers as text are measurements, not ids (OHLC prices).
+        let price = score(&["close"], |c| c.numeric_like = true);
+        assert!(price <= 0.5, "{price}");
+        // Opaque references are plumbing.
+        assert!(score(&["client_msg_id"], |c| c.opaque_like = true) < 0.35);
+        // API plumbing keys are noise at any depth.
+        assert!(score(&["_highlightResult", "title", "value"], none) < 0.1);
+        // Mostly-empty fields lose to full ones.
+        assert!(score(&["priority"], |c| c.empty = 7) < score(&["priority"], none) * 0.6);
     }
 
     #[test]

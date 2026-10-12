@@ -30,6 +30,8 @@ options:
                                every item and drop the same low-value fields
       --field-scorer NAME      field ranking for condense: heuristic (default),
                                compact, key_order
+      --explain                print every field's score and keep/drop decision
+                               (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
       --report                 print a JSON report to stderr
 
@@ -65,6 +67,7 @@ fn run() -> Result<ExitCode, String> {
     let mut head = None;
     let mut section = None;
     let mut keep_last = true;
+    let mut explain = false;
     let mut array_strategy = ArrayStrategy::Sample;
     let mut field_scorer = ScorerKind::Heuristic;
     let mut report = false;
@@ -105,6 +108,7 @@ fn run() -> Result<ExitCode, String> {
             "--head" => head = Some(num(&a, args.next())?),
             "--section" => section = Some(num(&a, args.next())?),
             "--no-keep-last" => keep_last = false,
+            "--explain" => explain = true,
             "--array-strategy" => {
                 array_strategy = match args.next().as_deref() {
                     Some("sample") => ArrayStrategy::Sample,
@@ -167,6 +171,7 @@ fn run() -> Result<ExitCode, String> {
         opts.text.section = s;
     }
     opts.keep_last_item = keep_last;
+    opts.explain = explain;
     opts.array_strategy = array_strategy;
     opts.field_scorer = field_scorer;
     opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {
@@ -185,6 +190,15 @@ fn run() -> Result<ExitCode, String> {
             "{}",
             json::to_string(&out.report.to_value(), json::Layout::Compact)
         );
+    }
+    if explain {
+        for (path, score, kept) in &out.report.stats.field_decisions {
+            eprintln!(
+                "{:>5.3} {} {path}",
+                *score as f64 / 1000.0,
+                if *kept { "keep" } else { "drop" }
+            );
+        }
     }
     if out.report.pruned && notice {
         let ext = if out.report.input_format == InputFormat::Yaml {

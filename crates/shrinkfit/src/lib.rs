@@ -159,6 +159,25 @@ impl Report {
                 n(self.stats.containers_collapsed),
             ),
             ("arrays_condensed".into(), n(self.stats.arrays_condensed)),
+            (
+                "field_decisions".into(),
+                Value::Array(
+                    self.stats
+                        .field_decisions
+                        .iter()
+                        .map(|(path, score, kept)| {
+                            Value::Object(vec![
+                                ("path".into(), Value::String(path.clone())),
+                                (
+                                    "score".into(),
+                                    Value::Number(format!("{:.3}", *score as f64 / 1000.0)),
+                                ),
+                                ("kept".into(), Value::Bool(*kept)),
+                            ])
+                        })
+                        .collect(),
+                ),
+            ),
             ("fields_dropped".into(), n(self.stats.fields_dropped)),
             (
                 "dropped_fields".into(),

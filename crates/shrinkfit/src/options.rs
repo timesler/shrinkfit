@@ -62,6 +62,9 @@ pub struct Options {
     pub array_strategy: ArrayStrategy,
     /// Which scorer ranks fields for [`ArrayStrategy::Condense`].
     pub field_scorer: ScorerKind,
+    /// Record every field's score and keep/drop decision in the report
+    /// (`condense` only). For tuning and debugging.
+    pub explain: bool,
 }
 
 /// Default output budget, in characters.
@@ -86,6 +89,7 @@ impl Options {
             min_partial_chars: 40,
             array_strategy: ArrayStrategy::Sample,
             field_scorer: ScorerKind::Heuristic,
+            explain: false,
         }
     }
 
@@ -153,6 +157,7 @@ impl Options {
                 "keep_last_item" => o.keep_last_item = boolean()?,
                 "max_samples" => o.max_samples = uint()?,
                 "min_partial_chars" => o.min_partial_chars = uint()?,
+                "explain" => o.explain = boolean()?,
                 "array_strategy" => {
                     o.array_strategy = match val {
                         Value::String(s) if s.eq_ignore_ascii_case("sample") => {

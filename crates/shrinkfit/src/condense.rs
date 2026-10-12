@@ -36,7 +36,12 @@ use std::hash::{Hash, Hasher};
 /// Deepest field path (in keys) that is walked into.
 const MAX_PATH_DEPTH: usize = 4;
 /// Preview lengths tried, in order, for the floor of a long string.
-const FLOOR_LEVELS: [usize; 3] = [24, 12, 6];
+const FLOOR_LEVELS: [usize; 2] = [24, 12];
+/// Spare budget is spent on extra fields only if they score at least this:
+/// room is no reason to add junk.
+const MIN_FILL_SCORE: f64 = 0.3;
+/// A plan must keep at least one scalar field scoring this or more.
+const INFORMATIVE_SCORE: f64 = 0.45;
 /// Fields scoring at least this are the "core" a plan should include.
 const CORE_SCORE: f64 = 0.8;
 /// Budget a field may use, by score: weaker fields leave more of the budget
@@ -76,6 +81,10 @@ struct Column {
     all_same: bool,
     /// Some value was not a number or a digits-only string.
     non_numeric: bool,
+    /// Some value was not a string starting with an ISO date.
+    non_iso: bool,
+    /// Strings that look machine-generated.
+    opaque: usize,
     /// Order-independent fingerprint of (record, value) pairs: equal for two
     /// fields that hold the same value in every record.
     seq: u64,
@@ -97,6 +106,41 @@ fn hash_scalar(v: &Value) -> Option<u64> {
         _ => return None,
     }
     Some(h.finish())
+}
+
+/// `2024-05-01` or `2024-05-01T10:00:00Z` and the like.
+fn iso_date_prefix(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() >= 10
+        && b[..4].iter().all(u8::is_ascii_digit)
+        && b[4] == b'-'
+        && b[5..7].iter().all(u8::is_ascii_digit)
+        && b[7] == b'-'
+        && b[8..10].iter().all(u8::is_ascii_digit)
+}
+
+/// `123`, `-4.5`, `0.25`: a number written as text.
+fn numeric_text(s: &str) -> bool {
+    let t = s.strip_prefix('-').unwrap_or(s);
+    !t.is_empty()
+        && t.bytes().any(|b| b.is_ascii_digit())
+        && t.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+        && t.bytes().filter(|&b| b == b'.').count() <= 1
+}
+
+/// Machine-generated looking: hex/UUID-like, or long mixed-case alphanumerics.
+fn looks_opaque(s: &str) -> bool {
+    if s.len() < 8 || s.bytes().any(|b| b.is_ascii_whitespace()) {
+        return false;
+    }
+    let hexish = s
+        .bytes()
+        .all(|b| b.is_ascii_hexdigit() || b == b'-' || b == b'_');
+    let mixed = s.len() >= 12
+        && s.bytes().any(|b| b.is_ascii_digit())
+        && s.bytes().any(|b| b.is_ascii_uppercase())
+        && s.bytes().any(|b| b.is_ascii_lowercase());
+    (hexish && s.bytes().any(|b| b.is_ascii_digit())) || mixed
 }
 
 fn mix(i: usize, h: u64) -> u64 {
@@ -196,10 +240,20 @@ impl<'a> Pruner<'a> {
             }
             let digits = match v {
                 Value::Number(_) => true,
-                Value::String(s) => !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()),
+                Value::String(s) => numeric_text(s),
                 _ => false,
             };
             c.non_numeric |= !digits;
+            c.non_iso |= !matches!(v, Value::String(s) if iso_date_prefix(s));
+            let opaque = match v {
+                Value::String(s) => looks_opaque(s),
+                // Very long integers are surrogate keys, not quantities.
+                Value::Number(n) => n.len() >= 9 && n.bytes().all(|b| b.is_ascii_digit()),
+                _ => false,
+            };
+            if opaque {
+                c.opaque += 1;
+            }
             if let Some(h) = hash_scalar(v) {
                 c.scalars += 1;
                 c.seq = c.seq.wrapping_add(mix(item, h));
@@ -502,6 +556,8 @@ impl<'a> Pruner<'a> {
                 scalars: c.scalars,
                 constant: c.scalars == c.present && c.all_same,
                 numeric_like: c.scalars == c.present && !c.non_numeric,
+                timestamp_like: c.scalars == c.present && !c.non_iso,
+                opaque_like: c.present > 0 && c.opaque * 5 >= c.present * 4,
                 avg_chars: c.full_sum as f64 / c.present.max(1) as f64,
                 avg_position: c.pos_sum as f64 / c.present.max(1) as f64,
             };
@@ -521,7 +577,9 @@ impl<'a> Pruner<'a> {
         let mut est = m.overhead(n, depth) + n * base(item_depth);
         let mut activated: HashSet<usize> = HashSet::new();
         let mut selected: Vec<usize> = Vec::new();
-        for &(i, score) in &leaves {
+        let mut chosen: HashSet<usize> = HashSet::new();
+        // Cost of adding field `i` (with the branches leading to it, if new).
+        let cost_of = |i: usize, activated: &HashSet<usize>| -> (usize, Vec<usize>) {
             let c = &cols[i];
             let mut delta = c.key_sum + c.present * per(depth + c.path.len()) + c.floor_sum;
             let mut chain = Vec::new();
@@ -535,11 +593,35 @@ impl<'a> Pruner<'a> {
                 }
                 p = cols[b].parent;
             }
+            (delta, chain)
+        };
+        // Pass 1: best fields first; weaker fields may use only part of the
+        // budget so that better ones have room to show fuller values.
+        for &(i, score) in &leaves {
+            let (delta, chain) = cost_of(i, &activated);
             let limit = (budget as f64 * budget_share(score)) as usize;
             if est + delta <= limit {
                 est += delta;
                 activated.extend(chain);
                 selected.push(i);
+                chosen.insert(i);
+            }
+        }
+        // Pass 2: that room is only worth keeping for values that can still
+        // grow (long strings). Spend whatever exceeds their growth on more fields.
+        let growth = |i: usize| cols[i].full_sum.saturating_sub(cols[i].floor_sum);
+        let mut demand: usize = selected.iter().map(|&i| growth(i)).sum();
+        for &(i, score) in &leaves {
+            if chosen.contains(&i) || score < MIN_FILL_SCORE {
+                continue;
+            }
+            let (delta, chain) = cost_of(i, &activated);
+            if est + delta + demand + growth(i) <= budget {
+                est += delta;
+                demand += growth(i);
+                activated.extend(chain);
+                selected.push(i);
+                chosen.insert(i);
             }
         }
 
@@ -576,6 +658,23 @@ impl<'a> Pruner<'a> {
                 continue;
             }
             let kept: HashSet<usize> = selected.iter().copied().collect();
+            // A plan that keeps nothing a reader can use (only junk, or only
+            // containers shown as markers) is worse than sampling real items.
+            let score_of: HashMap<usize, f64> = leaves.iter().copied().collect();
+            let informative = selected.iter().any(|i| {
+                let c = &cols[*i];
+                let scalar = c.kinds.string + c.kinds.number + c.kinds.bool_;
+                score_of[i] >= INFORMATIVE_SCORE && scalar * 2 > c.present
+            });
+            // And the single best field must fit: if even that is too big for
+            // every record, the budget per record is too small for this strategy.
+            let top = leaves.iter().map(|l| l.1).fold(0.0f64, f64::max);
+            let top_kept = leaves
+                .iter()
+                .any(|(i, sc)| *sc >= top - 1e-9 && kept.contains(i));
+            if !informative || !top_kept {
+                return Planned::NoFit;
+            }
             let core_complete = leaves
                 .iter()
                 .filter(|&&(_, s)| s >= CORE_SCORE)
@@ -626,6 +725,21 @@ impl<'a> Pruner<'a> {
             }
         }
         dropped.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        if self.opts.explain {
+            let mut decisions: Vec<(String, u32, bool)> = plan
+                .leaves
+                .iter()
+                .map(|&(i, score)| {
+                    (
+                        self.path_string(&cols[i].path),
+                        (score * 1000.0).round() as u32,
+                        plan.kept.contains(&i),
+                    )
+                })
+                .collect();
+            decisions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+            self.stats.field_decisions.extend(decisions);
+        }
         self.stats.arrays_condensed += 1;
         self.stats.fields_dropped += dropped.len();
         for entry in dropped {
