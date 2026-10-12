@@ -118,6 +118,24 @@ shrinkfit [--max-chars 10000] [--format auto|json|yaml] [--input-format auto|jso
 The input format is auto-detected (JSON first, then YAML) and the output uses
 the same format unless `--format` says otherwise.
 
+#### Telling the caller it was shrunk
+
+stdout is always just the (valid) JSON/YAML. When something was cut, the CLI
+also writes a one-line notice to **stderr** saying what was cut and where the
+full document is:
+
+```text
+shrinkfit: output was shrunk to fit 400 chars: 392 of 81,717 chars kept (298 array
+items omitted, 2 object keys omitted). Cuts are marked in place with "…". Full
+document: /tmp/shrinkfit-alice/shrinkfit-1791773177649-41772.json
+```
+
+The full document is the input file itself when you passed one; for piped input
+a private (0600) temp copy is saved and old copies (over 24 h) are cleaned up.
+Configure with `--no-notice` / `SHRINKFIT_NOTICE=0`, `--no-save-full` /
+`SHRINKFIT_SAVE_FULL=0`, or `--save-full PATH`. Agents that only read stdout
+can turn the notice off and rely on the in-place `…` markers.
+
 ### Playground
 
 ```sh

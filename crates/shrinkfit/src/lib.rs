@@ -55,6 +55,8 @@ pub struct Report {
     pub max_chars: usize,
     /// The output format that was used (never `Auto`).
     pub format: Format,
+    /// The input format that was read (never `Auto`; JSON for in-memory values).
+    pub input_format: InputFormat,
     /// Whether anything was removed.
     pub pruned: bool,
     /// Whether the output is within `max_chars`. Only false when the budget
@@ -64,7 +66,45 @@ pub struct Report {
     pub stats: Stats,
 }
 
+fn group(n: usize) -> String {
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
 impl Report {
+    /// One-line, human- and agent-readable description of what was cut, e.g.
+    /// `9,981 of 197,236 chars kept (180 array items omitted, 12 strings
+    /// truncated)`. Meant for notices next to the shrunk output.
+    pub fn summary(&self) -> String {
+        let st = &self.stats;
+        let mut parts = Vec::new();
+        let mut add = |n: usize, what: &str| {
+            if n > 0 {
+                parts.push(format!("{} {what}", group(n)));
+            }
+        };
+        add(st.items_omitted, "array items omitted");
+        add(st.keys_omitted, "object keys omitted");
+        add(st.strings_truncated, "strings truncated");
+        add(st.containers_collapsed, "containers collapsed");
+        let mut out = format!(
+            "{} of {} chars kept",
+            group(self.output_chars),
+            group(self.input_chars)
+        );
+        if !parts.is_empty() {
+            out.push_str(&format!(" ({})", parts.join(", ")));
+        }
+        out
+    }
+
     /// The report as a JSON-compatible value (used by the C ABI).
     pub fn to_value(&self) -> Value {
         let n = |x: usize| Value::Number(x.to_string());
@@ -75,6 +115,16 @@ impl Report {
             (
                 "format".into(),
                 Value::String(format_name(self.format).into()),
+            ),
+            (
+                "input_format".into(),
+                Value::String(
+                    format_name(match self.input_format {
+                        InputFormat::Yaml => Format::Yaml,
+                        _ => Format::Json,
+                    })
+                    .into(),
+                ),
             ),
             ("pruned".into(), Value::Bool(self.pruned)),
             ("fits".into(), Value::Bool(self.fits)),
@@ -175,7 +225,9 @@ pub fn shrink_str(input: &str, opts: &Options) -> Result<Shrunk, Error> {
         InputFormat::Yaml => Format::Yaml,
         _ => Format::Json,
     };
-    Ok(shrink(&v, &effective(opts, fallback)))
+    let mut out = shrink(&v, &effective(opts, fallback));
+    out.report.input_format = detected;
+    Ok(out)
 }
 
 #[cfg(feature = "yaml")]
@@ -230,6 +282,7 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
                 output_chars: input_chars,
                 max_chars: opts.max_chars,
                 format: opts.format,
+                input_format: InputFormat::Json,
                 pruned: false,
                 fits: true,
                 stats: Stats::default(),
@@ -313,6 +366,7 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
             output_chars,
             max_chars: max,
             format: opts.format,
+            input_format: InputFormat::Json,
             pruned: true,
             fits,
             stats,

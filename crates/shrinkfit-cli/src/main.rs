@@ -4,10 +4,12 @@
 //! shrinkfit [--max-chars 10000] [--format auto|json|yaml] [--indent N] [--report] [FILE|-]
 //! ```
 
+mod full_copy;
 mod serve;
 
 use shrinkfit::{json, shrink_str, Format, InputFormat, Options};
 use std::io::Read;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 const USAGE: &str = "\
@@ -25,6 +27,14 @@ options:
       --section N              chars shown per later string section (default 100)
       --no-keep-last           don't prefer the last item when sampling arrays
       --report                 print a JSON report to stderr
+
+When the output was shrunk, a one-line notice goes to stderr (stdout stays
+clean JSON/YAML) saying what was cut and where the full document is: the
+input file itself, or, for piped input, a private temp copy.
+      --no-notice              don't print the stderr notice (env: SHRINKFIT_NOTICE=0)
+      --save-full PATH         write the full input to PATH and reference it
+      --no-save-full           don't keep a temp copy of piped input
+                               (env: SHRINKFIT_SAVE_FULL=0)
   -h, --help                   show this help";
 
 fn main() -> ExitCode {
@@ -51,6 +61,9 @@ fn run() -> Result<ExitCode, String> {
     let mut section = None;
     let mut keep_last = true;
     let mut report = false;
+    let mut notice = !env_off("SHRINKFIT_NOTICE");
+    let mut save_full = !env_off("SHRINKFIT_SAVE_FULL");
+    let mut save_to: Option<PathBuf> = None;
     let mut path: Option<String> = None;
 
     let num = |flag: &str, v: Option<String>| -> Result<usize, String> {
@@ -86,6 +99,14 @@ fn run() -> Result<ExitCode, String> {
             "--section" => section = Some(num(&a, args.next())?),
             "--no-keep-last" => keep_last = false,
             "--report" => report = true,
+            "--no-notice" => notice = false,
+            "--no-save-full" => save_full = false,
+            "--save-full" => {
+                save_to = Some(PathBuf::from(
+                    args.next().ok_or("--save-full needs a path")?,
+                ));
+                save_full = true;
+            }
             s if s.starts_with('-') && s != "-" => {
                 return Err(format!("unknown option {s}\n\n{USAGE}"))
             }
@@ -140,9 +161,71 @@ fn run() -> Result<ExitCode, String> {
             json::to_string(&out.report.to_value(), json::Layout::Compact)
         );
     }
+    if out.report.pruned && notice {
+        let ext = if out.report.input_format == InputFormat::Yaml {
+            "yaml"
+        } else {
+            "json"
+        };
+        let full = full_document(&input, path.as_deref(), ext, save_full, save_to.as_deref());
+        eprintln!("{}", notice_line(&out.report, full));
+    }
     Ok(if out.report.fits {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
     })
+}
+
+/// True when an environment variable is set to a "disabled" value.
+fn env_off(name: &str) -> bool {
+    matches!(
+        std::env::var(name)
+            .map(|v| v.to_ascii_lowercase())
+            .as_deref(),
+        Ok("0") | Ok("false") | Ok("no") | Ok("off") | Ok("never")
+    )
+}
+
+/// Where the full document can be read: the input file itself when there is
+/// one (unless `--save-full` asked for a copy), otherwise a saved copy.
+fn full_document(
+    input: &str,
+    path: Option<&str>,
+    ext: &str,
+    save: bool,
+    dest: Option<&std::path::Path>,
+) -> Result<Option<PathBuf>, String> {
+    if dest.is_none() {
+        if let Some(p) = path.filter(|p| *p != "-") {
+            let abs = std::fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p));
+            // Strip Windows' verbatim prefix so the path is usable as printed.
+            let shown = abs
+                .to_string_lossy()
+                .trim_start_matches("\\\\?\\")
+                .to_string();
+            return Ok(Some(PathBuf::from(shown)));
+        }
+    }
+    if !save {
+        return Ok(None);
+    }
+    full_copy::save(input, ext, dest).map(Some)
+}
+
+fn notice_line(report: &shrinkfit::Report, full: Result<Option<PathBuf>, String>) -> String {
+    let mut line = format!(
+        "shrinkfit: output was shrunk to fit {} chars: {}. Cuts are marked in place with \"…\".",
+        report.max_chars,
+        report.summary()
+    );
+    if !report.fits {
+        line.push_str(" The budget is smaller than the minimum possible output.");
+    }
+    match full {
+        Ok(Some(p)) => line.push_str(&format!(" Full document: {}", p.display())),
+        Ok(None) => {}
+        Err(e) => line.push_str(&format!(" (could not save the full document: {e})")),
+    }
+    line
 }
