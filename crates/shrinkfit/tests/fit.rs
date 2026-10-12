@@ -647,3 +647,66 @@ fn custom_scorer_can_be_swapped_in() {
     assert!(!builtin.text.contains("status") || builtin.text.contains("summary"));
     assert!(builtin.text.contains("summary"), "{}", builtin.text);
 }
+
+fn condense_opts(max: usize) -> Options {
+    Options {
+        indent: 0,
+        array_strategy: shrinkfit::ArrayStrategy::Condense,
+        ..Options::new(max)
+    }
+}
+
+#[test]
+fn condense_falls_back_when_it_would_keep_only_categories_or_ids() {
+    // Rich-text nodes: `type` is a category and the text is nested deeper.
+    let nodes: Vec<String> = (0..40)
+        .map(|i| {
+            let kind = if i % 3 == 0 { "bulletList" } else { "paragraph" };
+            format!(
+                r#"{{"type":"{kind}","content":[{{"type":"text","text":"Sentence number {i} about the autoscaler."}}]}}"#
+            )
+        })
+        .collect();
+    let src = format!("[{}]", nodes.join(","));
+    let out = shrink_json(&src, &condense_opts(900)).unwrap();
+    assert_eq!(out.report.stats.arrays_condensed, 0, "{}", out.text);
+    assert!(out.text.contains("Sentence number"), "{}", out.text);
+
+    // Records that would shrink to nothing but ids.
+    let rows: Vec<String> = (0..60)
+        .map(|i| format!(r#"{{"id":{i},"body":"{}"}}"#, "text ".repeat(60)))
+        .collect();
+    let src = format!("[{}]", rows.join(","));
+    let out = shrink_json(&src, &condense_opts(400)).unwrap();
+    assert_eq!(out.report.stats.arrays_condensed, 0, "{}", out.text);
+}
+
+#[test]
+fn condense_chooses_object_keys_by_value_not_position() {
+    // One big object that must lose keys: the useful ones are at the end.
+    let mut fields: Vec<String> = (0..30)
+        .map(|i| format!(r#""zz_internal_{i}":"{}""#, "x".repeat(40)))
+        .collect();
+    fields.push(r#""title":"Autoscaler oscillates""#.into());
+    fields.push(r#""status":"Open""#.into());
+    let src = format!("{{{}}}", fields.join(","));
+    let sampled = shrink_json(
+        &src,
+        &Options {
+            indent: 0,
+            ..Options::new(260)
+        },
+    )
+    .unwrap();
+    let condensed = shrink_json(&src, &condense_opts(260)).unwrap();
+    assert!(
+        !sampled.text.contains("\"title\""),
+        "prefix trimming keeps the first keys"
+    );
+    assert!(
+        condensed.text.contains("\"title\":") && condensed.text.contains("\"status\":\"Open\""),
+        "{}",
+        condensed.text
+    );
+    assert!(condensed.report.fits);
+}

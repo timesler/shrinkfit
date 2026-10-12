@@ -223,6 +223,10 @@ grow into is spent on further fields, but only ones scoring at least 0.3.
 `explain: true` (CLI `--explain`) lists every field's score and keep/drop
 decision, which is how the heuristic is tuned.
 
+Under `condense` an object that must lose keys also uses the scorer to decide
+which keys survive (rather than keeping the first ones), and plans made only of
+categories or identifiers fall back to sampling.
+
 Known limitations: rich-text structures such as Atlassian Document Format
 keep their text several levels deep, so a body field is expensive and is often
 dropped; a plain-text projection of such fields is the main planned

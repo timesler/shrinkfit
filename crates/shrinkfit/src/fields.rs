@@ -80,7 +80,7 @@ pub trait FieldScorer: Send + Sync {
     /// Optional role of the field (e.g. `"identity"`). Fields sharing a role
     /// are partly redundant for a reader, so after the best one the others
     /// are discounted. `None` (the default) means no role.
-    fn role(&self, _column: &ColumnInfo<'_>) -> Option<&'static str> {
+    fn role(&self, _column: &ColumnInfo<'_>) -> Option<String> {
         None
     }
 }
@@ -165,6 +165,15 @@ impl FieldScorer for CompactScorer {
 ///    like categories; very long fields are costly.
 pub struct HeuristicScorer;
 
+/// Mongo extended JSON wraps values (`{"$oid": ..}`, `{"$date": ..}`): score the
+/// field that holds the wrapper, not the wrapper key.
+fn eff_path(path: &[String]) -> &[String] {
+    match path.split_last() {
+        Some((last, rest)) if last.starts_with('$') && !rest.is_empty() => rest,
+        _ => path,
+    }
+}
+
 /// Split a key into lowercase words: `html_url`, `htmlUrl`, `HTML-URL`.
 fn words(key: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -191,6 +200,9 @@ fn words(key: &str) -> Vec<String> {
 }
 
 const IDENTITY: &[&str] = &[
+    "gid",
+    "sha",
+    "oid",
     "id",
     "key",
     "uuid",
@@ -226,6 +238,11 @@ const LABEL: &[&str] = &[
 ];
 /// Envelope keys that only wrap a record's real fields (`fields/summary`).
 const WRAPPERS: &[&str] = &[
+    "source",
+    "embedded",
+    "doc",
+    "document",
+    "properties",
     "fields",
     "attributes",
     "data",
@@ -235,6 +252,13 @@ const WRAPPERS: &[&str] = &[
     "record",
 ];
 const STATUS: &[&str] = &[
+    "completed",
+    "done",
+    "active",
+    "archived",
+    "enabled",
+    "verified",
+    "paid",
     "phase",
     "health",
     "condition",
@@ -427,6 +451,9 @@ fn tier(ws: &[String], joined: &str) -> Option<f64> {
                 "display", "full", "first", "last", "given", "family", "user", "nick", "short",
                 "sur", "login",
             ];
+            if last == "login" && ws.len() > 1 {
+                return Some(0.55); // lastLogin, loginAt: a time
+            }
             let qualified = LABEL.contains(&last.as_str())
                 && ws.len() > 1
                 && !ws[..ws.len() - 1]
@@ -458,7 +485,8 @@ impl HeuristicScorer {
     /// Prior from the field's name (and its ancestors').
     /// Returns the prior and whether the name (or its values) identified the kind of field.
     fn name_prior(&self, c: &ColumnInfo<'_>) -> (f64, bool) {
-        let own = words(c.name());
+        let path = eff_path(c.path);
+        let own = words(path.last().map(String::as_str).unwrap_or(""));
         let joined = own.concat();
         let ancestors: Vec<String> = c
             .path
@@ -472,7 +500,12 @@ impl HeuristicScorer {
             return (0.08, true);
         }
         // `_links`, `_highlightResult`, `__typename`: API plumbing, not data.
-        if c.path.iter().any(|k| k.starts_with('_') || k.is_empty()) {
+        // (`_id` and `_source` are Mongo/Elasticsearch data.)
+        let plumbing = |k: &String| {
+            k.is_empty()
+                || (k.starts_with('_') && !matches!(k.as_str(), "_id" | "_source" | "_embedded"))
+        };
+        if path.iter().any(plumbing) {
             return (0.08, true);
         }
         if any(&own, NOISE) || NOISE.contains(&joined.as_str()) {
@@ -498,10 +531,9 @@ impl HeuristicScorer {
             return (0.25, true);
         }
         // Nesting inside a real sub-object (not an envelope like `fields`).
-        let nested = c
-            .path
+        let nested = path
             .iter()
-            .take(c.path.len().saturating_sub(1))
+            .take(path.len().saturating_sub(1))
             .any(|k| !words(k).iter().all(|w| WRAPPERS.contains(&w.as_str())));
         let tiered = tier(&own, &joined);
         let mut p = tiered.unwrap_or(0.5);
@@ -557,10 +589,14 @@ impl FieldScorer for HeuristicScorer {
         if c.constant && c.total >= 3 && c.scalars == c.present {
             s *= 0.2;
         }
-        // Rare fields: possible exceptions (keep status-like), else mild penalty.
-        if c.presence() < 0.5 && !status_like {
-            s *= 0.8;
-        }
+        // Fields only some records have say less about the array as a whole;
+        // status-like ones (errors, reasons) are kept for the exceptions.
+        let presence = c.presence();
+        s *= if status_like {
+            0.85 + 0.15 * presence
+        } else {
+            0.55 + 0.45 * presence
+        };
         // Unknown names: let the data decide.
         let unknown = !known;
         // (Only strings: unique numbers are as likely measurements as ids.)
@@ -572,7 +608,9 @@ impl FieldScorer for HeuristicScorer {
             && !c.numeric_like
         {
             let ratio = c.distinct as f64 / c.scalars as f64;
-            if ratio >= 0.9 && c.avg_chars <= 40.0 {
+            if c.opaque_like {
+                s = 0.3; // machine-generated (cursors, tokens, hashes): plumbing
+            } else if ratio >= 0.9 && c.avg_chars <= 40.0 {
                 s = 0.7; // looks like an identifier
             } else if ratio <= 0.2 && c.avg_chars <= 24.0 && !c.constant {
                 s = 0.65; // looks like a category
@@ -591,25 +629,35 @@ impl FieldScorer for HeuristicScorer {
         s.clamp(0.0, 1.0)
     }
 
-    fn role(&self, c: &ColumnInfo<'_>) -> Option<&'static str> {
-        // Top-level identifiers (`id`, `key`, `number`) tell a reader the
-        // same thing: which record this is.
-        let top = c
-            .path
+    fn role(&self, c: &ColumnInfo<'_>) -> Option<String> {
+        let path = eff_path(c.path);
+        let parents = &path[..path.len().saturating_sub(1)];
+        let real: Vec<&String> = parents
             .iter()
-            .take(c.path.len().saturating_sub(1))
-            .all(|k| words(k).iter().all(|w| WRAPPERS.contains(&w.as_str())));
-        let own = words(c.name());
-        if !top {
-            None
-        } else if any(&own, IDENTITY) {
-            Some("identity")
+            .filter(|k| !words(k).iter().all(|w| WRAPPERS.contains(&w.as_str())))
+            .collect();
+        if !real.is_empty() {
+            // Several fields about the same sub-object (`author/login`,
+            // `author/name`, `author/email`) mostly say the same thing.
+            return Some(format!(
+                "group:{}",
+                real.iter()
+                    .map(|k| k.as_str())
+                    .collect::<Vec<_>>()
+                    .join("/")
+            ));
+        }
+        // Top-level identifiers (`id`, `key`, `number`) tell a reader the
+        // same thing: which record this is. Likewise titles, times, links.
+        let own = words(path.last().map(String::as_str).unwrap_or(""));
+        if any(&own, IDENTITY) {
+            Some("identity".into())
         } else if any(&own, TITLE) {
-            Some("title")
+            Some("title".into())
         } else if any(&own, TIME) {
-            Some("time")
+            Some("time".into())
         } else if any(&own, LINK) {
-            Some("link")
+            Some("link".into())
         } else {
             None
         }

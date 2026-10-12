@@ -300,10 +300,16 @@ impl<'a> Pruner<'a> {
                 .map(|(k, km)| k + km.min)
                 .sum::<usize>();
 
-        // How many leading entries to keep, and the fixed cost of that layout
+        // Which entries to keep, and the fixed cost of that layout
         // (overhead + keys + children at minimum + marker entry if any).
-        let (kept, base) = if skeleton <= budget {
-            (n, skeleton)
+        let (idx, base): (Vec<usize>, usize) = if skeleton <= budget {
+            ((0..n).collect(), skeleton)
+        } else if self.opts.array_strategy == ArrayStrategy::Condense {
+            // Keep the most valuable keys, not merely the first ones.
+            match self.select_keys(entries, meta, &key_costs, budget, depth) {
+                Some(r) => r,
+                None => return self.minimal(whole, meta, depth),
+            }
         } else {
             let marker_cost = |omitted: usize| m.key(MARKER_KEY) + m.string(&keys_marker(omitted));
             let mut acc = 0;
@@ -318,22 +324,22 @@ impl<'a> Pruner<'a> {
                 }
             }
             match best {
-                Some(b) => b,
+                Some((kept, c)) => ((0..kept).collect(), c),
                 None => return self.minimal(whole, meta, depth),
             }
         };
+        let kept = idx.len();
 
-        let kids: Vec<(&Value, &Meta)> = entries[..kept]
+        let kids: Vec<(&Value, &Meta)> = idx
             .iter()
-            .map(|(_, v)| v)
-            .zip(&meta.kids[..kept])
+            .map(|&i| (&entries[i].1, &meta.kids[i]))
             .collect();
-        let fixed = base - meta.kids[..kept].iter().map(|k| k.min).sum::<usize>();
-        let labels: Vec<String> = entries[..kept].iter().map(|(k, _)| k.clone()).collect();
+        let fixed = base - idx.iter().map(|&i| meta.kids[i].min).sum::<usize>();
+        let labels: Vec<String> = idx.iter().map(|&i| entries[i].0.clone()).collect();
         let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1, &labels);
-        let mut out: Vec<(String, Value)> = entries[..kept]
+        let mut out: Vec<(String, Value)> = idx
             .iter()
-            .map(|(k, _)| k.clone())
+            .map(|&i| entries[i].0.clone())
             .zip(values)
             .collect();
         if kept < n {

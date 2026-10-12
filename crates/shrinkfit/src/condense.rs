@@ -37,6 +37,10 @@ use std::hash::{Hash, Hasher};
 const MAX_PATH_DEPTH: usize = 4;
 /// Preview lengths tried, in order, for the floor of a long string.
 const FLOOR_LEVELS: [usize; 2] = [24, 12];
+/// Only fields scoring at least this try to evict weaker ones, and only fields
+/// scoring below this share of theirs.
+const SWAP_MIN_SCORE: f64 = 0.6;
+const SWAP_RATIO: f64 = 0.85;
 /// Spare budget is spent on extra fields only if they score at least this:
 /// room is no reason to add junk.
 const MIN_FILL_SCORE: f64 = 0.3;
@@ -290,11 +294,7 @@ impl<'a> Pruner<'a> {
 
     /// Lower the score of fields that repeat what a better field already says:
     /// identical values in every record, or the same declared role.
-    fn discount_redundant(
-        cols: &[Column],
-        roles: &[Option<&'static str>],
-        leaves: &mut [(usize, f64)],
-    ) {
+    fn discount_redundant(cols: &[Column], roles: &[Option<String>], leaves: &mut [(usize, f64)]) {
         let by_idx: HashMap<usize, usize> = leaves
             .iter()
             .enumerate()
@@ -325,7 +325,7 @@ impl<'a> Pruner<'a> {
         // Same role: each further field is worth less.
         let mut by_role: HashMap<&str, Vec<usize>> = HashMap::new();
         for &(i, _) in leaves.iter() {
-            if let Some(r) = roles[i] {
+            if let Some(r) = roles[i].as_deref() {
                 by_role.entry(r).or_default().push(i);
             }
         }
@@ -375,6 +375,86 @@ impl<'a> Pruner<'a> {
             prefix.pop();
         }
         out
+    }
+
+    /// For an object that must lose keys: pick the keys worth keeping by
+    /// score (not simply the first ones), in their original order. Returns the
+    /// kept indices and the fixed layout cost, or `None` if nothing fits.
+    pub(crate) fn select_keys(
+        &self,
+        entries: &[(String, Value)],
+        meta: &Meta,
+        key_costs: &[usize],
+        budget: usize,
+        depth: usize,
+    ) -> Option<(Vec<usize>, usize)> {
+        let m = self.model;
+        let n = entries.len();
+        let marker_cost = |omitted: usize| {
+            m.key(crate::prune::MARKER_KEY) + m.string(&crate::prune::keys_marker(omitted))
+        };
+        let mut scored: Vec<(usize, f64)> = entries
+            .iter()
+            .enumerate()
+            .map(|(i, (k, v))| {
+                let path = [k.clone()];
+                let mut kinds = KindCounts::default();
+                let (mut scalars, mut text) = (0, None);
+                match v {
+                    Value::Null => (kinds.null, scalars) = (1, 1),
+                    Value::Bool(_) => (kinds.bool_, scalars) = (1, 1),
+                    Value::Number(_) => (kinds.number, scalars) = (1, 1),
+                    Value::String(s) => (kinds.string, scalars, text) = (1, 1, Some(s.as_str())),
+                    Value::Array(_) => kinds.array = 1,
+                    Value::Object(_) => kinds.object = 1,
+                }
+                let info = ColumnInfo {
+                    path: &path,
+                    total: 1,
+                    present: 1,
+                    kinds,
+                    empty: usize::from(is_empty_value(v)),
+                    distinct: scalars,
+                    scalars,
+                    constant: false,
+                    numeric_like: matches!(v, Value::Number(_)) || text.is_some_and(numeric_text),
+                    timestamp_like: text.is_some_and(iso_date_prefix),
+                    opaque_like: text.is_some_and(looks_opaque),
+                    avg_chars: meta.kids[i].full as f64,
+                    avg_position: i as f64,
+                };
+                (i, self.scorer.score(&info))
+            })
+            .collect();
+        scored.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.0.cmp(&b.0))
+        });
+        let mut chosen: Vec<usize> = Vec::new();
+        let mut acc = 0usize;
+        for &(i, score) in &scored {
+            let add = key_costs[i] + meta.kids[i].min;
+            let k = chosen.len() + 1;
+            let cost = m.overhead(k + usize::from(k < n), depth)
+                + acc
+                + add
+                + if k < n { marker_cost(n - k) } else { 0 };
+            // Weaker keys leave room for the stronger ones' values (as in arrays).
+            if cost <= (budget as f64 * budget_share(score)) as usize {
+                acc += add;
+                chosen.push(i);
+            }
+        }
+        if chosen.is_empty() {
+            return None;
+        }
+        chosen.sort_unstable();
+        let k = chosen.len();
+        let base = m.overhead(k + usize::from(k < n), depth)
+            + acc
+            + if k < n { marker_cost(n - k) } else { 0 };
+        Some((chosen, base))
     }
 
     /// Fit `v` into `budget` keeping every object key: values shrink (long
@@ -541,7 +621,7 @@ impl<'a> Pruner<'a> {
         let per = |dep: usize| m.overhead(2, dep) - m.overhead(1, dep);
         let base = |dep: usize| m.overhead(1, dep).saturating_sub(per(dep));
         let mut leaves: Vec<(usize, f64)> = Vec::new();
-        let mut roles: Vec<Option<&'static str>> = vec![None; cols.len()];
+        let mut roles: Vec<Option<String>> = vec![None; cols.len()];
         for (i, c) in cols.iter().enumerate() {
             if c.is_branch() || !Self::usable(cols, i) {
                 continue;
@@ -607,6 +687,71 @@ impl<'a> Pruner<'a> {
                 chosen.insert(i);
             }
         }
+        // Swap step: a strong field that did not fit may evict several weaker
+        // ones if that raises the total value (cubed scores, so one good field
+        // outweighs a handful of mediocre ones).
+        let value = |sel: &[usize]| -> f64 {
+            sel.iter()
+                .map(|i| {
+                    leaves
+                        .iter()
+                        .find(|l| l.0 == *i)
+                        .map_or(0.0, |l| l.1.powi(3))
+                })
+                .sum()
+        };
+        let estimate = |sel: &[usize]| -> usize {
+            let mut act: HashSet<usize> = HashSet::new();
+            let mut total = m.overhead(n, depth) + n * base(item_depth);
+            for &i in sel {
+                let (delta, chain) = cost_of(i, &act);
+                total += delta;
+                act.extend(chain);
+            }
+            total
+        };
+        for &(i, score) in &leaves {
+            if chosen.contains(&i) || score < SWAP_MIN_SCORE {
+                continue;
+            }
+            let limit = (budget as f64 * budget_share(score)) as usize;
+            let mut trial: Vec<usize> = selected.clone();
+            let score_of = |x: usize| leaves.iter().find(|l| l.0 == x).map_or(0.0, |l| l.1);
+            trial.push(i);
+            // Evict the weakest first, but only fields clearly weaker than this one.
+            let mut order: Vec<usize> = selected
+                .iter()
+                .copied()
+                .filter(|&x| score_of(x) < score * SWAP_RATIO)
+                .collect();
+            order.sort_by(|&x, &y| {
+                score_of(x)
+                    .partial_cmp(&score_of(y))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let mut evicted = false;
+            while estimate(&trial) > limit {
+                match order.first().copied() {
+                    Some(x) => {
+                        order.remove(0);
+                        trial.retain(|&t| t != x);
+                        evicted = true;
+                    }
+                    None => break,
+                }
+            }
+            if evicted && estimate(&trial) <= limit && value(&trial) > value(&selected) {
+                selected = trial;
+                chosen = selected.iter().copied().collect();
+                activated.clear();
+                est = m.overhead(n, depth) + n * base(item_depth);
+                for &x in &selected {
+                    let (delta, chain) = cost_of(x, &activated);
+                    est += delta;
+                    activated.extend(chain);
+                }
+            }
+        }
         // Pass 2: that room is only worth keeping for values that can still
         // grow (long strings). Spend whatever exceeds their growth on more fields.
         let growth = |i: usize| cols[i].full_sum.saturating_sub(cols[i].floor_sum);
@@ -664,7 +809,12 @@ impl<'a> Pruner<'a> {
             let informative = selected.iter().any(|i| {
                 let c = &cols[*i];
                 let scalar = c.kinds.string + c.kinds.number + c.kinds.bool_;
-                score_of[i] >= INFORMATIVE_SCORE && scalar * 2 > c.present
+                // Categories alone (a few distinct values) tell a reader nothing
+                // about individual records: need identifiers or text.
+                let varied = c.distinct.len() * 2 >= c.present || c.full_sum >= 20 * c.present;
+                // Ids alone say how many records there are, not what they are.
+                let identity = roles[*i].as_deref() == Some("identity");
+                score_of[i] >= INFORMATIVE_SCORE && scalar * 2 > c.present && varied && !identity
             });
             // And the single best field must fit: if even that is too big for
             // every record, the budget per record is too small for this strategy.
