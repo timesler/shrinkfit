@@ -215,9 +215,9 @@ jobs:
           path: npm-dist
       - name: Publish (skipped if this version is already on npm)
         run: |
-          version=$(tar -xzOf npm-dist/*.tgz package/package.json | node -p 'JSON.parse(require("fs").readFileSync(0)).version')
+          version=$(tar -xzOf ./npm-dist/*.tgz package/package.json | node -p 'JSON.parse(require("fs").readFileSync(0)).version')
           if npm view "shrinkfit@$version" version >/dev/null 2>&1; then
             echo "shrinkfit@$version is already published; skipping"
           else
-            npm publish npm-dist/*.tgz --access public
+            npm publish ./npm-dist/*.tgz --access public
           fi
