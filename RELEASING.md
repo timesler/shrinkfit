@@ -65,10 +65,11 @@ then waits for a manual approval click, a cheap safety net.
 That is all. Watch the run under the **Actions** tab. To rehearse without
 publishing, tick **Set as a pre-release** (use a tag like `v0.2.0-rc1`).
 
-Note that the version numbers inside the repository stay at whatever was last
-committed (they are only rewritten on the build machines), so the files on
-`main` can lag behind the latest release. Published packages and registry
-metadata always carry the release tag's version.
+The version fields in the repository are deliberately `0.0.0`: they are
+placeholders, rewritten on the build machines from the release tag. Published
+packages and registry metadata always carry the release tag's version, and a
+local build (`cargo install --path ...`, `pip install ./bindings/python`)
+reports `0.0.0`.
 
 ## If something goes wrong
 

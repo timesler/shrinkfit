@@ -21,7 +21,7 @@ from typing import Any, Dict, Optional
 
 __all__ = ["shrink", "shrink_with_report", "ShrinkResult", "ShrinkError", "__version__"]
 
-__version__ = "0.1.0"
+__version__ = "0.0.0"
 
 
 class ShrinkError(ValueError):

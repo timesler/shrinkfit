@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shrinkfit"
-version = "0.1.0"
+version = "0.0.0"
 description = "Shrink JSON/YAML payloads to fit a character budget while preserving their schema and structure"
 readme = "README.md"
 license = { text = "Apache-2.0" }

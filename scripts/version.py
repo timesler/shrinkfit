@@ -5,6 +5,9 @@
     python scripts/version.py 0.2.0      # set them all to 0.2.0
     python scripts/version.py --check-tag v0.2.0   # CI: fail unless all == tag
 
+The committed versions are the placeholder 0.0.0; the release workflow stamps the
+real version from the release tag on the CI runner.
+
 Files covered: the Cargo workspace version, the shrinkfit-cli dependency pin
 on shrinkfit, the Python pyproject and __version__, and the npm package.json.
 """
