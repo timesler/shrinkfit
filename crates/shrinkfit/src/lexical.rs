@@ -51,6 +51,38 @@ pub(crate) fn words(text: &str) -> Vec<String> {
     out
 }
 
+/// A query word occurring in a text: `(char start, char length, word index)`.
+pub(crate) type Hit = (usize, usize, usize);
+
+/// Like [`words`], with each word's starting character index.
+pub(crate) fn words_at(text: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut start = 0usize;
+    let mut prev_lower = false;
+    for (i, ch) in text.chars().enumerate() {
+        if ch.is_alphanumeric() {
+            if ch.is_uppercase() && prev_lower && !cur.is_empty() {
+                out.push((start, std::mem::take(&mut cur)));
+            }
+            if cur.is_empty() {
+                start = i;
+            }
+            cur.extend(ch.to_lowercase());
+            prev_lower = ch.is_lowercase() || ch.is_numeric();
+        } else {
+            if !cur.is_empty() {
+                out.push((start, std::mem::take(&mut cur)));
+            }
+            prev_lower = false;
+        }
+    }
+    if !cur.is_empty() {
+        out.push((start, cur));
+    }
+    out
+}
+
 /// Normalise a word for matching: strip a plural `s`.
 pub(crate) fn norm(w: &str) -> String {
     if w.len() > 3 && w.ends_with('s') && !w.ends_with("ss") {
@@ -98,6 +130,7 @@ fn within_one_edit(a: &str, b: &str) -> bool {
 }
 
 /// The informative words of a tool call's arguments.
+#[derive(Clone, Debug)]
 pub(crate) struct Query {
     tokens: Vec<String>,
     set: HashSet<String>,
@@ -152,6 +185,37 @@ impl Query {
         } else {
             0.5 + 0.5 * hits as f64 / self.tokens.len() as f64
         }
+    }
+
+    /// Where query words occur in `text`: `(char start, char length, query
+    /// word index)` for each matching word, in text order.
+    pub(crate) fn positions(&self, text: &str) -> Vec<Hit> {
+        let mut out = Vec::new();
+        for (start, w) in words_at(text) {
+            if !informative(&w) {
+                continue;
+            }
+            let n = norm(&w);
+            let idx = self
+                .tokens
+                .iter()
+                .position(|t| *t == n || (t.len() >= 6 && n.len() >= 5 && within_one_edit(&n, t)));
+            if let Some(i) = idx {
+                out.push((start, w.chars().count(), i));
+            }
+        }
+        out
+    }
+
+    /// Bitmask of the query words (the first 64) occurring among these values.
+    pub(crate) fn hit_mask(&self, values: &HashSet<String>) -> u64 {
+        let mut mask = 0u64;
+        for (i, t) in self.tokens.iter().enumerate().take(64) {
+            if token_hit(t, values) {
+                mask |= 1 << i;
+            }
+        }
+        mask
     }
 
     /// Does any query word occur among these values?

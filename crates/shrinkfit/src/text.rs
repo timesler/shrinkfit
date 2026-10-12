@@ -16,11 +16,18 @@
 //! allowance lasts, then a `…[+K lines, N chars]` marker. The outline of its
 //! lines survives, not just its opening.
 //!
+//! **Query focus.** When the caller's arguments are known, a cut keeps what
+//! they asked about: if the query's words occur beyond the opening of a string
+//! (or of a section), the preview is the start, a gap marker, and a window
+//! around the densest cluster of matches, instead of only the start.
+//!
 //! `head` and `section` scale together (keeping their ratio) so that the
 //! result uses as much of the budget as possible: a generous budget shows
 //! longer previews, a tight one shorter previews, and only a very tight one
 //! starts dropping sections. Separators (newlines, blank lines) are kept
 //! verbatim so the outline of the text survives.
+
+use crate::lexical::{Hit, Query};
 
 /// Tunables for string truncation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,11 +66,13 @@ pub fn lines_marker(k: usize, n: usize) -> String {
 }
 
 /// One section: the content and the separator that followed it.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Section<'a> {
     content: &'a str,
     sep: &'a str,
     chars: usize,
+    /// Query words in `content` (empty without a query).
+    hits: Vec<Hit>,
 }
 
 fn nchars(s: &str) -> usize {
@@ -154,18 +163,19 @@ fn split_sentences(s: &str) -> Vec<(&str, &str)> {
 }
 
 /// Pick the coarsest segmentation that yields at least two sections.
-fn mk_sections<'a>(v: Vec<(&'a str, &'a str)>) -> Vec<Section<'a>> {
+fn mk_sections<'a>(v: Vec<(&'a str, &'a str)>, focus: Option<&Query>) -> Vec<Section<'a>> {
     v.into_iter()
         .map(|(content, sep)| Section {
             content,
             sep,
             chars: nchars(content) + nchars(sep),
+            hits: focus.map_or_else(Vec::new, |q| q.positions(content)),
         })
         .collect()
 }
 
-fn segment(s: &str) -> Vec<Section<'_>> {
-    let mk = mk_sections;
+fn segment<'a>(s: &'a str, focus: Option<&Query>) -> Vec<Section<'a>> {
+    let mk = |v| mk_sections(v, focus);
     let p = split_paragraphs(s);
     if p.len() >= 2 {
         return mk(p);
@@ -204,25 +214,90 @@ fn cut(s: &str, max: usize) -> (&str, usize) {
     (&s[..end], count)
 }
 
+/// Cut `s` to about `limit` characters and mark what was removed. Plain
+/// start-of-string cut, unless query words occur well beyond the start: then the
+/// start (a third of the room), a gap marker, and a window around the densest
+/// cluster of matches (the rest), with a trailing marker if text follows.
+fn shorten(s: &str, limit: usize, hits: &[Hit]) -> String {
+    let total = nchars(s);
+    if total <= limit {
+        return s.to_string();
+    }
+    if let Some(&(first, _, _)) = hits.first() {
+        if first * 5 > limit * 4 && limit >= 24 {
+            let head_n = limit / 3;
+            let win_n = limit - head_n;
+            // Window start: the match that has the most distinct query words
+            // within `win_n` after it (earliest on ties), a little earlier for context.
+            let best = hits
+                .iter()
+                .map(|&(p, _, _)| {
+                    let mut seen = std::collections::HashSet::new();
+                    for &(q, _, t) in hits.iter().filter(|h| h.0 >= p && h.0 < p + win_n) {
+                        let _ = q;
+                        seen.insert(t);
+                    }
+                    (seen.len(), std::cmp::Reverse(p))
+                })
+                .max()
+                .map_or(first, |(_, std::cmp::Reverse(p))| p);
+            let chars: Vec<char> = s.chars().collect();
+            let mut ws = best.saturating_sub(win_n / 4).max(head_n + 1);
+            // Start the window at a word boundary.
+            while ws > head_n + 1 && !chars[ws - 1].is_whitespace() && best - ws < 24 {
+                ws -= 1;
+            }
+            let mut we = (ws + win_n).min(total);
+            if we < total {
+                let floor = ws + win_n * 3 / 4;
+                while we > floor && !chars[we].is_whitespace() {
+                    we -= 1;
+                }
+            }
+            if ws < we && ws > head_n {
+                let (head, hk) = cut(s, head_n);
+                let window: String = chars[ws..we].iter().collect();
+                let mut out = String::with_capacity(head.len() + window.len() + 32);
+                out.push_str(head);
+                out.push_str(&chars_marker(ws - hk));
+                out.push_str(window.trim_end());
+                let kept_end = we - (window.len() - window.trim_end().len()).min(we - ws);
+                if kept_end < total {
+                    out.push_str(&chars_marker(total - kept_end));
+                }
+                return out;
+            }
+        }
+    }
+    let (head, kept) = cut(s, limit);
+    let mut out = String::with_capacity(head.len() + 16);
+    out.push_str(head);
+    out.push_str(&chars_marker(total - kept));
+    out
+}
+
 /// Preview of one section's content: first `max` chars + omission marker,
 /// unless truncating would not actually save anything.
-fn preview(content: &str, max: usize, cost: &dyn Fn(&str) -> usize) -> String {
+fn preview(
+    content: &str,
+    max: usize,
+    cost: &dyn Fn(&str) -> usize,
+    focus: Option<&Query>,
+    hits: &[Hit],
+) -> String {
     let total = nchars(content);
     if total <= max {
         return content.to_string();
     }
     let lines = split_lines(content);
     if lines.len() >= 2 {
-        let out = preview_lines(&lines, total, max, cost);
+        let out = preview_lines(&lines, total, max, cost, focus);
         if cost(&out) < cost(content) {
             return out;
         }
         return content.to_string();
     }
-    let (head, kept) = cut(content, max);
-    let mut out = String::with_capacity(head.len() + 16);
-    out.push_str(head);
-    out.push_str(&chars_marker(total - kept));
+    let out = shorten(content, max, hits);
     if cost(&out) >= cost(content) {
         return content.to_string();
     }
@@ -237,27 +312,57 @@ fn preview_lines(
     total: usize,
     max: usize,
     cost: &dyn Fn(&str) -> usize,
+    focus: Option<&Query>,
 ) -> String {
     let per_line = (max / 4).max(8);
     let allowance = max.saturating_mul(2);
-    let mut out = String::new();
+    let n = lines.len();
+    // Show the first line, then (with a query) lines that mention it, then the
+    // rest in order, while the allowance lasts. Output stays in text order.
+    let mut order: Vec<usize> = (0..n).collect();
+    if let Some(q) = focus {
+        let hit: Vec<bool> = lines.iter().map(|l| !q.positions(l.0).is_empty()).collect();
+        order.sort_by_key(|&i| (i != 0 && !hit[i], i));
+    }
+    let mut previews: Vec<Option<String>> = vec![None; n];
     let mut used = 0;
-    let mut shown_chars = 0;
-    let mut shown = 0;
-    for (i, (content, sep)) in lines.iter().enumerate() {
-        let p = preview(content, if i == 0 { max } else { per_line }, cost);
+    for &i in &order {
+        let (content, sep) = lines[i];
+        let line_hits = focus.map_or_else(Vec::new, |q| q.positions(content));
+        let p = preview(
+            content,
+            if i == 0 { max } else { per_line },
+            cost,
+            focus,
+            &line_hits,
+        );
         let cost_here = nchars(&p) + nchars(sep);
         if i > 0 && used + cost_here > allowance {
             break;
         }
-        out.push_str(&p);
-        out.push_str(sep);
         used += cost_here;
-        shown_chars += nchars(content) + nchars(sep);
-        shown += 1;
+        previews[i] = Some(p);
     }
-    if shown < lines.len() {
-        out.push_str(&lines_marker(lines.len() - shown, total - shown_chars));
+    let _ = total;
+    let mut out = String::new();
+    let mut i = 0;
+    while i < n {
+        if let Some(p) = &previews[i] {
+            out.push_str(p);
+            out.push_str(lines[i].1);
+            i += 1;
+        } else {
+            let start = i;
+            let mut chars = 0;
+            while i < n && previews[i].is_none() {
+                chars += nchars(lines[i].0) + nchars(lines[i].1);
+                i += 1;
+            }
+            out.push_str(&lines_marker(i - start, chars));
+            if i < n {
+                out.push('\n');
+            }
+        }
     }
     out
 }
@@ -269,6 +374,7 @@ fn render_pieces(
     head: usize,
     section: usize,
     cost: &dyn Fn(&str) -> usize,
+    focus: Option<&Query>,
 ) -> Vec<String> {
     let mut pieces = Vec::with_capacity(secs.len());
     let mut consumed = 0;
@@ -283,13 +389,23 @@ fn render_pieces(
         // the larger of the two limits so the opening is never starved.
         pieces.push(format!(
             "{}{}",
-            preview(secs[0].content, head.max(section), cost),
+            preview(
+                secs[0].content,
+                head.max(section),
+                cost,
+                focus,
+                &secs[0].hits
+            ),
             secs[0].sep
         ));
         i = 1;
     }
     for s in &secs[i..] {
-        pieces.push(format!("{}{}", preview(s.content, section, cost), s.sep));
+        pieces.push(format!(
+            "{}{}",
+            preview(s.content, section, cost, focus, &s.hits),
+            s.sep
+        ));
     }
     pieces
 }
@@ -301,12 +417,17 @@ fn pieces_cost(pieces: &[String], cost: &dyn Fn(&str) -> usize) -> usize {
 }
 
 /// Head-only truncation for text with no internal structure.
-fn fit_flat(s: &str, total: usize, budget: usize, cost: &dyn Fn(&str) -> usize) -> String {
-    // Largest prefix length L with cost(prefix + marker) <= budget.
-    let render = |l: usize| -> String {
-        let (p, kept) = cut(s, l);
-        format!("{}{}", p, chars_marker(total - kept))
-    };
+fn fit_flat(
+    s: &str,
+    total: usize,
+    budget: usize,
+    cost: &dyn Fn(&str) -> usize,
+    focus: Option<&Query>,
+) -> String {
+    // Largest prefix length L with cost(prefix + marker) <= budget (or, with
+    // a query, the same for the start-plus-match-window excerpt).
+    let hits = focus.map_or_else(Vec::new, |q| q.positions(s));
+    let render = |l: usize| -> String { shorten(s, l, &hits) };
     let (mut lo, mut hi) = (0usize, total);
     if cost(&render(0)) > budget {
         return render(0);
@@ -329,13 +450,24 @@ fn fit_flat(s: &str, total: usize, budget: usize, cost: &dyn Fn(&str) -> usize) 
 /// `…[+N chars]` does not fit, that marker is returned (callers treat it as
 /// the string's minimum representation).
 pub fn fit_text(s: &str, budget: usize, p: &TextParams, cost: &dyn Fn(&str) -> usize) -> String {
+    fit_text_focus(s, budget, p, cost, None)
+}
+
+/// Like [`fit_text`], keeping what the query asked about when it is known.
+pub(crate) fn fit_text_focus(
+    s: &str,
+    budget: usize,
+    p: &TextParams,
+    cost: &dyn Fn(&str) -> usize,
+    focus: Option<&Query>,
+) -> String {
     if cost(s) <= budget {
         return s.to_string();
     }
     let total = nchars(s);
-    let secs = segment(s);
+    let secs = segment(s, focus);
     if secs.len() < 2 {
-        return fit_flat(s, total, budget, cost);
+        return fit_flat(s, total, budget, cost, focus);
     }
 
     let section_unit = p.section.max(1);
@@ -349,7 +481,7 @@ pub fn fit_text(s: &str, budget: usize, p: &TextParams, cost: &dyn Fn(&str) -> u
         .max(min_section);
 
     let fits = |section: usize| -> Option<Vec<String>> {
-        let pieces = render_pieces(&secs, head_for(section), section, cost);
+        let pieces = render_pieces(&secs, head_for(section), section, cost, focus);
         if pieces_cost(&pieces, cost) <= budget {
             Some(pieces)
         } else {
@@ -375,7 +507,7 @@ pub fn fit_text(s: &str, budget: usize, p: &TextParams, cost: &dyn Fn(&str) -> u
 
     // Even minimal previews are too long: keep a prefix of the minimal
     // rendering and elide the remaining sections behind one marker.
-    let pieces = render_pieces(&secs, head_for(min_section), min_section, cost);
+    let pieces = render_pieces(&secs, head_for(min_section), min_section, cost, focus);
     let mut used = 2;
     let mut omitted_chars: usize = total;
     let mut best_m = 0;
@@ -383,7 +515,7 @@ pub fn fit_text(s: &str, budget: usize, p: &TextParams, cost: &dyn Fn(&str) -> u
     if used + cost(&best_marker) - 2 > budget {
         // Not even the marker fits on its own; fall back to flat truncation,
         // which degrades to the shortest possible marker.
-        return fit_flat(s, total, budget, cost);
+        return fit_flat(s, total, budget, cost, focus);
     }
     for (m, piece) in pieces.iter().enumerate() {
         used += cost(piece) - 2;
@@ -515,12 +647,47 @@ mod tests {
             "",
             "\n\n\n",
         ] {
-            let joined: String = segment(s)
+            let joined: String = segment(s, None)
                 .iter()
                 .map(|x| format!("{}{}", x.content, x.sep))
                 .collect();
             assert_eq!(joined, s, "{s:?}");
         }
+    }
+
+    #[test]
+    fn query_focus_keeps_the_window_around_the_match() {
+        let filler = "lorem ipsum dolor sit amet consectetur ";
+        let text = format!(
+            "{}The Great Recession officially ended in June 2009, per the NBER. {}",
+            filler.repeat(40),
+            filler.repeat(40)
+        );
+        let q = Query::new("great recession official end").unwrap();
+        let budget = 400;
+        let plain = fit_text(&text, budget, &TextParams::default(), &cost);
+        let focused = fit_text_focus(&text, budget, &TextParams::default(), &cost, Some(&q));
+        assert!(cost(&focused) <= budget, "{}", cost(&focused));
+        assert!(!plain.contains("Recession"), "head cut misses the match");
+        assert!(
+            focused.contains("Great Recession officially ended in June 2009"),
+            "{focused}"
+        );
+        // Opening kept, with markers on both sides of the window.
+        assert!(focused.starts_with("lorem ipsum"), "{focused}");
+        assert!(focused.matches("chars]").count() >= 2, "{focused}");
+    }
+
+    #[test]
+    fn query_focus_is_a_no_op_when_the_match_is_already_visible() {
+        let text = format!(
+            "great recession begins here. {}",
+            "filler words go here ".repeat(80)
+        );
+        let q = Query::new("great recession").unwrap();
+        let a = fit_text(&text, 300, &TextParams::default(), &cost);
+        let b = fit_text_focus(&text, 300, &TextParams::default(), &cost, Some(&q));
+        assert_eq!(a, b);
     }
 
     #[test]

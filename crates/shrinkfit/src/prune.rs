@@ -86,6 +86,8 @@ pub struct Pruner<'a> {
     pub floor_chars: usize,
     /// Plan as if no arguments were given (a fallback, see `try_condense`).
     pub ignore_query: bool,
+    /// The call's arguments as a matcher, built once (None if not given).
+    pub(crate) focus: Option<crate::lexical::Query>,
 }
 
 fn shape_of(v: &Value) -> u64 {
@@ -115,6 +117,10 @@ impl<'a> Pruner<'a> {
             path: Vec::new(),
             floor_chars: 24,
             ignore_query: false,
+            focus: opts
+                .arguments
+                .as_deref()
+                .and_then(crate::lexical::Query::new),
         }
     }
 
@@ -241,7 +247,13 @@ impl<'a> Pruner<'a> {
         match v {
             Value::String(s) => {
                 let model = self.model;
-                let out = text::fit_text(s, budget, &self.opts.text, &|x: &str| model.string(x));
+                let out = text::fit_text_focus(
+                    s,
+                    budget,
+                    &self.opts.text,
+                    &|x: &str| model.string(x),
+                    self.focus.as_ref(),
+                );
                 self.stats.strings_truncated += 1;
                 let size = model.string(&out);
                 (Value::String(out), size)
@@ -467,6 +479,19 @@ impl<'a> Pruner<'a> {
             }
         };
         push(0, &mut order, &mut taken);
+        // With the call's arguments: the items that mention them come next.
+        if let Some(q) = self.focus.as_ref() {
+            let mut scored: Vec<(u32, usize)> = items
+                .iter()
+                .enumerate()
+                .map(|(i, v)| (item_match(q, v), i))
+                .filter(|(m, _)| *m > 0)
+                .collect();
+            scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            for &(_, i) in scored.iter().take(MAX_MATCHED_ITEMS) {
+                push(i, &mut order, &mut taken);
+            }
+        }
         let mut seen = HashSet::new();
         seen.insert(meta.kids[0].shape);
         for i in 1..n {
@@ -485,6 +510,29 @@ impl<'a> Pruner<'a> {
         }
         order
     }
+}
+
+/// Most query-matching items promoted ahead of the diversity picks.
+const MAX_MATCHED_ITEMS: usize = 8;
+
+/// How many distinct query words occur among an item's text values.
+fn item_match(q: &crate::lexical::Query, v: &Value) -> u32 {
+    fn walk(v: &Value, out: &mut HashSet<String>, budget: &mut usize) {
+        if *budget == 0 {
+            return;
+        }
+        match v {
+            Value::String(s) => crate::lexical::value_tokens(s, out, 2048),
+            Value::Array(a) => a.iter().for_each(|x| walk(x, out, budget)),
+            Value::Object(o) => o.iter().for_each(|(_, x)| walk(x, out, budget)),
+            _ => {}
+        }
+        *budget = budget.saturating_sub(1);
+    }
+    let mut tokens = HashSet::new();
+    let mut budget = 4096;
+    walk(v, &mut tokens, &mut budget);
+    q.hit_mask(&tokens).count_ones()
 }
 
 /// An incrementally maintained selection of array indices, with the exact
