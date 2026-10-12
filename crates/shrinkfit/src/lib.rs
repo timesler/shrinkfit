@@ -28,6 +28,7 @@
 mod condense;
 pub mod fields;
 pub mod json;
+mod lexical;
 pub mod options;
 pub mod prune;
 pub mod size;
@@ -39,7 +40,7 @@ pub mod yaml_in;
 
 pub use fields::{ColumnInfo, FieldScorer, ScorerKind};
 pub use json::{Layout, ParseError};
-pub use options::{ArrayStrategy, Format, InputFormat, Options, DEFAULT_MAX_CHARS};
+pub use options::{arguments_text, ArrayStrategy, Format, InputFormat, Options, DEFAULT_MAX_CHARS};
 pub use prune::Stats;
 pub use text::TextParams;
 pub use value::Value;
@@ -165,7 +166,7 @@ impl Report {
                     self.stats
                         .field_decisions
                         .iter()
-                        .map(|(path, score, kept)| {
+                        .map(|(path, score, kept, rel)| {
                             Value::Object(vec![
                                 ("path".into(), Value::String(path.clone())),
                                 (
@@ -173,6 +174,10 @@ impl Report {
                                     Value::Number(format!("{:.3}", *score as f64 / 1000.0)),
                                 ),
                                 ("kept".into(), Value::Bool(*kept)),
+                                (
+                                    "relevance".into(),
+                                    Value::Number(format!("{:.3}", *rel as f64 / 1000.0)),
+                                ),
                             ])
                         })
                         .collect(),

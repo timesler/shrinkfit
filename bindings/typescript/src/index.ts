@@ -34,6 +34,8 @@ export interface ShrinkOptions {
   minPartialChars?: number;
   /** How big arrays shrink: sample whole items (default) or keep every item and drop the same low-value fields. */
   arrayStrategy?: "sample" | "condense";
+  /** The tool call's arguments (string, or an object whose values are used): fields they mention are boosted by `condense`. */
+  arguments?: unknown;
   /** Field ranking used by `condense`: "heuristic" (default), "compact" or "key_order". */
   fieldScorer?: "heuristic" | "compact" | "key_order";
 }
@@ -122,6 +124,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     minPartialChars: "min_partial_chars",
     arrayStrategy: "array_strategy",
     fieldScorer: "field_scorer",
+    arguments: "arguments",
   };
   for (const [k, v] of Object.entries(o)) {
     if (v === undefined) continue;

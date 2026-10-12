@@ -215,6 +215,19 @@ The same fields are kept in every record. What was dropped is reported in
 `/issues/*/avatarUrls`, with the number of records that had each), not
 inserted into the data, so typed arrays stay homogeneous.
 
+**Using the tool call's arguments.** With the `arguments` option (the call's
+argument values as text, or a JSON value whose values are used), fields
+that the call mentions are boosted: a field whose name words appear in the
+arguments (the columns of a `SELECT`), or whose values contain the arguments'
+words (a search term; `status = 'In Progress'`). Matching is lexical and
+cheap (`lexical.rs`): lowercase words, plurals folded, a one-letter typo
+allowed in longer words, stop words and query keywords ignored. Argument
+*names* and the tool name are deliberately not used: they add generic words
+and server names (`github`, `query`) that match unrelated fields. Fields that
+are identical in every record are not boosted (they are the filter itself, an
+echo), and the boost scales with the field's own prior so it cannot turn
+plumbing such as avatar URLs into content.
+
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring
 field must fit (otherwise the budget per record is too small and the array is

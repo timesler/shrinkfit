@@ -59,8 +59,8 @@ pub struct Stats {
     /// any array index, e.g. `/results/*/avatar_url`.
     pub dropped_fields: Vec<(String, usize)>,
     /// With `Options::explain`: every scored field as `(path, score x 1000,
-    /// kept)`, best first, for each condensed array.
-    pub field_decisions: Vec<(String, u32, bool)>,
+    /// kept, relevance x 1000)`, best first, for each condensed array.
+    pub field_decisions: Vec<(String, u32, bool, u32)>,
 }
 
 /// Precomputed sizes for a subtree, mirroring the value tree.

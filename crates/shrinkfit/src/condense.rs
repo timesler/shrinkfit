@@ -26,6 +26,7 @@
 //! [`Stats::dropped_fields`](crate::prune::Stats), not inside the data.
 
 use crate::fields::{ColumnInfo, KindCounts};
+use crate::lexical::{self, Query};
 use crate::prune::{Meta, Pruner};
 use crate::text;
 use crate::value::Value;
@@ -89,6 +90,9 @@ struct Column {
     non_iso: bool,
     /// Strings that look machine-generated.
     opaque: usize,
+    /// Normalised informative words of the field's values (only collected
+    /// when the call's arguments were given).
+    tokens: HashSet<String>,
     /// Order-independent fingerprint of (record, value) pairs: equal for two
     /// fields that hold the same value in every record.
     seq: u64,
@@ -121,6 +125,35 @@ fn iso_date_prefix(s: &str) -> bool {
         && b[5..7].iter().all(u8::is_ascii_digit)
         && b[7] == b'-'
         && b[8..10].iter().all(u8::is_ascii_digit)
+}
+
+/// Words naming a field for argument matching: its last segments, minus
+/// envelope keys that say nothing about the field (`properties`, `fields`).
+fn name_words(path: &[String]) -> Vec<String> {
+    const ENVELOPE: &[&str] = &[
+        "properties",
+        "fields",
+        "attributes",
+        "data",
+        "nodes",
+        "items",
+        "results",
+        "records",
+        "values",
+        "value",
+    ];
+    let mut out: Vec<String> = Vec::new();
+    for seg in path.iter().rev().take(3) {
+        for w in lexical::words(seg) {
+            if !ENVELOPE.contains(&w.as_str()) && !out.contains(&w) {
+                out.push(w);
+            }
+        }
+    }
+    if out.is_empty() {
+        out = lexical::words(path.last().map_or("", String::as_str));
+    }
+    out
 }
 
 /// `123`, `-4.5`, `0.25`: a number written as text.
@@ -167,7 +200,12 @@ fn is_empty_value(v: &Value) -> bool {
 struct Discovery {
     cols: Vec<Column>,
     index: HashMap<Vec<String>, usize>,
+    /// The tool call's argument words, if given.
+    query: Option<Query>,
 }
+
+/// Value words kept per field for argument matching.
+const TOKEN_CAP: usize = 256;
 
 impl<'a> Pruner<'a> {
     /// Size of the smallest form of `v` that keeps all of its object keys:
@@ -207,6 +245,7 @@ impl<'a> Pruner<'a> {
         obj_depth: usize,
         item: usize,
     ) {
+        let want_tokens = d.query.is_some();
         for (pos, ((k, v), km)) in entries.iter().zip(&meta.kids).enumerate() {
             let mut path = prefix.to_vec();
             path.push(k.clone());
@@ -241,6 +280,13 @@ impl<'a> Pruner<'a> {
             }
             if is_empty_value(v) {
                 c.empty += 1;
+            }
+            if want_tokens {
+                match v {
+                    Value::String(s) => lexical::value_tokens(s, &mut c.tokens, TOKEN_CAP),
+                    Value::Number(n) => lexical::value_tokens(n, &mut c.tokens, TOKEN_CAP),
+                    _ => {}
+                }
             }
             let digits = match v {
                 Value::Number(_) => true,
@@ -283,6 +329,7 @@ impl<'a> Pruner<'a> {
         let mut d = Discovery {
             cols: Vec::new(),
             index: HashMap::new(),
+            query: self.opts.arguments.as_deref().and_then(Query::new),
         };
         for (n, (item, im)) in items.iter().zip(&meta.kids).enumerate() {
             if let Value::Object(entries) = item {
@@ -393,6 +440,7 @@ impl<'a> Pruner<'a> {
         let marker_cost = |omitted: usize| {
             m.key(crate::prune::MARKER_KEY) + m.string(&crate::prune::keys_marker(omitted))
         };
+        let query = self.opts.arguments.as_deref().and_then(Query::new);
         let mut scored: Vec<(usize, f64)> = entries
             .iter()
             .enumerate()
@@ -420,6 +468,15 @@ impl<'a> Pruner<'a> {
                     numeric_like: matches!(v, Value::Number(_)) || text.is_some_and(numeric_text),
                     timestamp_like: text.is_some_and(iso_date_prefix),
                     opaque_like: text.is_some_and(looks_opaque),
+                    relevance: query.as_ref().map_or(0.0, |q| {
+                        let mut toks = HashSet::new();
+                        match v {
+                            Value::String(s) => lexical::value_tokens(s, &mut toks, TOKEN_CAP),
+                            Value::Number(n) => lexical::value_tokens(n, &mut toks, TOKEN_CAP),
+                            _ => {}
+                        }
+                        q.relevance(&lexical::words(k), &toks)
+                    }),
                     avg_chars: meta.kids[i].full as f64,
                     avg_position: i as f64,
                 };
@@ -622,6 +679,7 @@ impl<'a> Pruner<'a> {
         let base = |dep: usize| m.overhead(1, dep).saturating_sub(per(dep));
         let mut leaves: Vec<(usize, f64)> = Vec::new();
         let mut roles: Vec<Option<String>> = vec![None; cols.len()];
+        let mut rels: Vec<f64> = vec![0.0; cols.len()];
         for (i, c) in cols.iter().enumerate() {
             if c.is_branch() || !Self::usable(cols, i) {
                 continue;
@@ -638,10 +696,15 @@ impl<'a> Pruner<'a> {
                 numeric_like: c.scalars == c.present && !c.non_numeric,
                 timestamp_like: c.scalars == c.present && !c.non_iso,
                 opaque_like: c.present > 0 && c.opaque * 5 >= c.present * 4,
+                relevance: d
+                    .query
+                    .as_ref()
+                    .map_or(0.0, |q| q.relevance(&name_words(&c.path), &c.tokens)),
                 avg_chars: c.full_sum as f64 / c.present.max(1) as f64,
                 avg_position: c.pos_sum as f64 / c.present.max(1) as f64,
             };
             roles[i] = self.scorer.role(&info);
+            rels[i] = info.relevance;
             leaves.push((i, self.scorer.score(&info)));
         }
         Self::discount_redundant(cols, &roles, &mut leaves);
@@ -837,6 +900,7 @@ impl<'a> Pruner<'a> {
                 reduced,
                 metas,
                 floors,
+                rels,
                 budget_left: budget - total_floor,
                 core_complete,
                 floor_chars: self.floor_chars,
@@ -876,7 +940,7 @@ impl<'a> Pruner<'a> {
         }
         dropped.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         if self.opts.explain {
-            let mut decisions: Vec<(String, u32, bool)> = plan
+            let mut decisions: Vec<(String, u32, bool, u32)> = plan
                 .leaves
                 .iter()
                 .map(|&(i, score)| {
@@ -884,6 +948,7 @@ impl<'a> Pruner<'a> {
                         self.path_string(&cols[i].path),
                         (score * 1000.0).round() as u32,
                         plan.kept.contains(&i),
+                        (plan.rels[i] * 1000.0).round() as u32,
                     )
                 })
                 .collect();
@@ -916,6 +981,8 @@ struct Plan {
     reduced: Vec<Value>,
     metas: Vec<Meta>,
     floors: Vec<usize>,
+    /// Relevance of each column to the call's arguments (for `explain`).
+    rels: Vec<f64>,
     /// Budget left over for expanding values beyond their floors.
     budget_left: usize,
     core_complete: bool,

@@ -117,6 +117,11 @@ class ShrinkTests(unittest.TestCase):
         with self.assertRaises(ShrinkError):
             shrink(rows, 500, array_strategy="nope")
 
+    def test_arguments_option_is_accepted(self):
+        rows = [{"id": str(i), "title": f"Row {i}", "amount": 1000 + i * 37, "note": "x" * 30} for i in range(120)]
+        r = shrink_with_report(rows, 2500, array_strategy="condense", indent=0, arguments={"soql": "SELECT amount FROM deals"})
+        self.assertIn("amount", json.loads(r.text)[0])
+
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}
         out = json.loads(shrink(doc, 2500, string_section_chars=40))

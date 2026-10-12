@@ -49,6 +49,9 @@ pub struct ColumnInfo<'a> {
     pub numeric_like: bool,
     /// Every present value is a string starting with an ISO date (`2024-05-01...`).
     pub timestamp_like: bool,
+    /// How strongly the field's name or values mention what the caller asked
+    /// for (`0.0..=1.0`; 0 when no arguments were given). See `lexical`.
+    pub relevance: f64,
     /// Most string values look machine-generated (UUIDs, hashes, random
     /// ids) rather than readable like `OPS-12`.
     pub opaque_like: bool,
@@ -173,6 +176,9 @@ fn eff_path(path: &[String]) -> &[String] {
         _ => path,
     }
 }
+
+/// How much a field mentioned by the call's arguments gains, at full relevance.
+const RELEVANCE_BOOST: f64 = 0.4;
 
 /// Split a key into lowercase words: `html_url`, `htmlUrl`, `HTML-URL`.
 fn words(key: &str) -> Vec<String> {
@@ -616,6 +622,13 @@ impl FieldScorer for HeuristicScorer {
                 s = 0.65; // looks like a category
             }
         }
+        // Mentioned by the tool call's arguments: what the caller asked about.
+        // (Identical in every record means it is the filter itself, an echo.)
+        // The boost scales with the field's own prior, so a match inside an
+        // avatar URL does not turn plumbing into content.
+        if c.relevance > 0.0 && !c.constant {
+            s += RELEVANCE_BOOST * c.relevance * (2.0 * s).clamp(0.25, 1.0);
+        }
         // Costly values: still useful (they can be shortened) but later.
         if c.avg_chars > 2000.0 {
             s *= 0.7;
@@ -684,6 +697,7 @@ mod tests {
             numeric_like: false,
             timestamp_like: false,
             opaque_like: false,
+            relevance: 0.0,
             avg_chars: 12.0,
             avg_position: 3.0,
         }

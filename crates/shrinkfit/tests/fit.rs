@@ -710,3 +710,42 @@ fn condense_chooses_object_keys_by_value_not_position() {
     );
     assert!(condensed.report.fits);
 }
+
+#[test]
+fn arguments_boost_the_fields_a_call_mentions() {
+    // Records whose `amount` field is unremarkable by name or value.
+    let rows: Vec<String> = (0..80)
+        .map(|i| {
+            format!(
+                r#"{{"id":"R-{i}","title":"Item number {i}","amount":{},"region":"north","owner":"person {i}"}}"#,
+                1000 + i * 37
+            )
+        })
+        .collect();
+    let src = format!("[{}]", rows.join(","));
+    let at = |budget: usize, args: Option<&str>| -> String {
+        let opts = Options {
+            indent: 0,
+            array_strategy: shrinkfit::ArrayStrategy::Condense,
+            arguments: args.map(String::from),
+            ..Options::new(budget)
+        };
+        shrink_json(&src, &opts).unwrap().text
+    };
+    // Somewhere in the tight range, the plain heuristic drops `amount` but a
+    // call that asked for it keeps it.
+    let found = (1500..4000).step_by(100).any(|b| {
+        !at(b, None).contains("amount")
+            && at(b, Some("SELECT amount FROM deals")).contains("amount")
+    });
+    assert!(found, "arguments never changed which fields were kept");
+    // Argument *names* are ignored: only values count.
+    let v = json::parse(r#"{"amount": "nothing here", "q": ["title"]}"#).unwrap();
+    assert_eq!(shrinkfit::arguments_text(&v).unwrap(), "nothing here title");
+    // And options parse them from a string or an object.
+    for a in [r#""amount""#, r#"{"column":"amount"}"#] {
+        let o =
+            Options::from_value(&json::parse(&format!(r#"{{"arguments":{a}}}"#)).unwrap()).unwrap();
+        assert_eq!(o.arguments.as_deref(), Some("amount"));
+    }
+}

@@ -52,6 +52,8 @@
     <label>min_partial_chars<small>smallest budget for a partial item</small><input type="number" id="min_partial_chars" min="0" value="40"></label>
     <label>array_strategy<small>sample = whole items; condense = every item, fewer fields</small>
       <select id="array_strategy"><option>sample</option><option>condense</option></select></label>
+    <label>arguments<small>the tool call's arguments (text or JSON; values only): fields they mention are boosted</small>
+      <input type="text" id="arguments" placeholder='{"jql": "status = Open"}'></label>
     <label>field_scorer<small>how condense ranks fields</small>
       <select id="field_scorer"><option>heuristic</option><option>compact</option><option>key_order</option></select></label>
     <label><input type="checkbox" id="keep_last_item" checked>keep_last_item</label>
@@ -79,6 +81,8 @@ function options() {
   const o = {};
   for (const k of NUM) { const v = $(k).value; if (v !== "") o[k] = Number(v); }
   for (const k of SEL) o[k] = $(k).value;
+  const args = $("arguments").value.trim();
+  if (args) { try { o.arguments = JSON.parse(args); } catch { o.arguments = args; } }
   o.keep_last_item = $("keep_last_item").checked;
   return o;
 }
@@ -133,6 +137,7 @@ for (const make of EXAMPLES) {
   b.onclick = () => {
     $("input").value = ex.text;
     if (ex.max_chars) $("max_chars").value = ex.max_chars;
+    $("arguments").value = ex.arguments ? JSON.stringify(ex.arguments) : "";
     schedule();
   };
   $("examples").append(b);

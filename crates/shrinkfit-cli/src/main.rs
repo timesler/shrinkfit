@@ -30,6 +30,8 @@ options:
                                every item and drop the same low-value fields
       --field-scorer NAME      field ranking for condense: heuristic (default),
                                compact, key_order
+      --arguments TEXT|JSON    the tool call's arguments (only their values are used):
+                               fields they mention are boosted by condense
       --explain                print every field's score and keep/drop decision
                                (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -68,6 +70,7 @@ fn run() -> Result<ExitCode, String> {
     let mut section = None;
     let mut keep_last = true;
     let mut explain = false;
+    let mut arguments: Option<String> = None;
     let mut array_strategy = ArrayStrategy::Sample;
     let mut field_scorer = ScorerKind::Heuristic;
     let mut report = false;
@@ -109,6 +112,13 @@ fn run() -> Result<ExitCode, String> {
             "--section" => section = Some(num(&a, args.next())?),
             "--no-keep-last" => keep_last = false,
             "--explain" => explain = true,
+            "--arguments" => {
+                let raw = args.next().ok_or("--arguments needs a value")?;
+                arguments = match json::parse(&raw) {
+                    Ok(v) => shrinkfit::arguments_text(&v),
+                    Err(_) => Some(raw),
+                };
+            }
             "--array-strategy" => {
                 array_strategy = match args.next().as_deref() {
                     Some("sample") => ArrayStrategy::Sample,
@@ -172,6 +182,7 @@ fn run() -> Result<ExitCode, String> {
     }
     opts.keep_last_item = keep_last;
     opts.explain = explain;
+    opts.arguments = arguments;
     opts.array_strategy = array_strategy;
     opts.field_scorer = field_scorer;
     opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {
@@ -192,9 +203,14 @@ fn run() -> Result<ExitCode, String> {
         );
     }
     if explain {
-        for (path, score, kept) in &out.report.stats.field_decisions {
+        for (path, score, kept, rel) in &out.report.stats.field_decisions {
+            let rel = if *rel > 0 {
+                format!("  [rel {:.2}]", *rel as f64 / 1000.0)
+            } else {
+                String::new()
+            };
             eprintln!(
-                "{:>5.3} {} {path}",
+                "{:>5.3} {} {path}{rel}",
                 *score as f64 / 1000.0,
                 if *kept { "keep" } else { "drop" }
             );

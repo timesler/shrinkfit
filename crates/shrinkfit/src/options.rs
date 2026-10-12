@@ -62,6 +62,10 @@ pub struct Options {
     pub array_strategy: ArrayStrategy,
     /// Which scorer ranks fields for [`ArrayStrategy::Condense`].
     pub field_scorer: ScorerKind,
+    /// What the caller asked for: the tool call's argument *values* as text
+    /// (names are ignored). Fields whose names or values mention these words
+    /// are boosted by the `condense` strategy's heuristic scorer.
+    pub arguments: Option<String>,
     /// Record every field's score and keep/drop decision in the report
     /// (`condense` only). For tuning and debugging.
     pub explain: bool,
@@ -69,6 +73,25 @@ pub struct Options {
 
 /// Default output budget, in characters.
 pub const DEFAULT_MAX_CHARS: usize = 10_000;
+
+/// The values inside tool arguments, as text: a string is used as is, objects
+/// and arrays contribute their values (keys are dropped), numbers and
+/// booleans their literal text.
+pub fn arguments_text(v: &Value) -> Option<String> {
+    fn go(v: &Value, out: &mut Vec<String>) {
+        match v {
+            Value::String(s) => out.push(s.clone()),
+            Value::Number(n) => out.push(n.clone()),
+            Value::Array(a) => a.iter().for_each(|x| go(x, out)),
+            Value::Object(o) => o.iter().for_each(|(_, x)| go(x, out)),
+            Value::Bool(_) | Value::Null => {}
+        }
+    }
+    let mut parts = Vec::new();
+    go(v, &mut parts);
+    let text = parts.join(" ");
+    (!text.trim().is_empty()).then_some(text)
+}
 
 impl Default for Options {
     fn default() -> Self {
@@ -90,6 +113,7 @@ impl Options {
             array_strategy: ArrayStrategy::Sample,
             field_scorer: ScorerKind::Heuristic,
             explain: false,
+            arguments: None,
         }
     }
 
@@ -158,6 +182,7 @@ impl Options {
                 "max_samples" => o.max_samples = uint()?,
                 "min_partial_chars" => o.min_partial_chars = uint()?,
                 "explain" => o.explain = boolean()?,
+                "arguments" => o.arguments = arguments_text(val),
                 "array_strategy" => {
                     o.array_strategy = match val {
                         Value::String(s) if s.eq_ignore_ascii_case("sample") => {

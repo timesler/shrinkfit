@@ -204,7 +204,7 @@ function jiraSearch() {
       customfield_10020: null, customfield_10021: null, customfield_10022: [], customfield_10023: null, customfield_10024: null,
     },
   }));
-  return { name: "Jira search (JQL)", desc: "GET /rest/api/3/search: 50 issues, mostly nested boilerplate around key, summary, status, assignee", max_chars: 10000, text: pj({ expand: "names,schema", startAt: 0, maxResults: 50, total: 214, issues }) };
+  return { name: "Jira search (JQL)", arguments: { jql: "project = OPS AND status = 'In Progress' ORDER BY priority DESC" }, desc: "GET /rest/api/3/search: 50 issues, mostly nested boilerplate around key, summary, status, assignee", max_chars: 10000, text: pj({ expand: "names,schema", startAt: 0, maxResults: 50, total: 214, issues }) };
 }
 
 function confluenceSearch() {
@@ -218,7 +218,7 @@ function confluenceSearch() {
       entityType: "content", iconCssClass: "aui-icon content-type-page", lastModified: iso(r, 2024), friendlyLastModified: "Oct 10, 2024", timestamp: 1728000000000 + i,
     };
   });
-  return { name: "Confluence search (CQL)", desc: "GET /wiki/rest/api/search: 25 pages with duplicated titles and link boilerplate", max_chars: 10000, text: pj({ results, start: 0, limit: 25, size: 25, totalSize: 340, cqlQuery: 'siteSearch ~ "autoscaler" AND type = page', searchDuration: 71, _links: { base: "https://example.atlassian.net/wiki", context: "/wiki", next: "/rest/api/search?cursor=abc123&limit=25", self: "https://example.atlassian.net/wiki/rest/api/search?cql=x" } }) };
+  return { name: "Confluence search (CQL)", arguments: { cql: 'siteSearch ~ "autoscaler" AND type = page' }, desc: "GET /wiki/rest/api/search: 25 pages with duplicated titles and link boilerplate", max_chars: 10000, text: pj({ results, start: 0, limit: 25, size: 25, totalSize: 340, cqlQuery: 'siteSearch ~ "autoscaler" AND type = page', searchDuration: 71, _links: { base: "https://example.atlassian.net/wiki", context: "/wiki", next: "/rest/api/search?cursor=abc123&limit=25", self: "https://example.atlassian.net/wiki/rest/api/search?cql=x" } }) };
 }
 
 function jiraComments() {
