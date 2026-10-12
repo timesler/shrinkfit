@@ -1,6 +1,7 @@
 //! User-facing options, constructible in Rust or parsed from a JSON object
 //! (which is how the C ABI and the language bindings pass them).
 
+use crate::fields::ScorerKind;
 use crate::text::TextParams;
 use crate::value::Value;
 
@@ -21,6 +22,16 @@ pub enum InputFormat {
     Json,
     /// Requires the `yaml` cargo feature.
     Yaml,
+}
+
+/// How an array that is too big is reduced.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArrayStrategy {
+    /// Keep a sample of whole items and mark the gaps (the default).
+    Sample,
+    /// Keep every item and drop the same low-value fields from all of them
+    /// (falls back to `Sample` for arrays that are not uniform records).
+    Condense,
 }
 
 /// Options controlling how a document is shrunk.
@@ -47,6 +58,10 @@ pub struct Options {
     /// Smallest budget worth spending on one extra, partially pruned array
     /// item after the whole items that fit.
     pub min_partial_chars: usize,
+    /// How oversized arrays are reduced (default: sample items).
+    pub array_strategy: ArrayStrategy,
+    /// Which scorer ranks fields for [`ArrayStrategy::Condense`].
+    pub field_scorer: ScorerKind,
 }
 
 /// Default output budget, in characters.
@@ -69,6 +84,8 @@ impl Options {
             keep_last_item: true,
             max_samples: 3,
             min_partial_chars: 40,
+            array_strategy: ArrayStrategy::Sample,
+            field_scorer: ScorerKind::Heuristic,
         }
     }
 
@@ -136,6 +153,25 @@ impl Options {
                 "keep_last_item" => o.keep_last_item = boolean()?,
                 "max_samples" => o.max_samples = uint()?,
                 "min_partial_chars" => o.min_partial_chars = uint()?,
+                "array_strategy" => {
+                    o.array_strategy = match val {
+                        Value::String(s) if s.eq_ignore_ascii_case("sample") => {
+                            ArrayStrategy::Sample
+                        }
+                        Value::String(s) if s.eq_ignore_ascii_case("condense") => {
+                            ArrayStrategy::Condense
+                        }
+                        _ => return Err("array_strategy must be \"sample\" or \"condense\"".into()),
+                    }
+                }
+                "field_scorer" => {
+                    o.field_scorer = match val {
+                        Value::String(s) => ScorerKind::from_name(s).ok_or_else(|| {
+                            format!("field_scorer must be one of {:?}", ScorerKind::NAMES)
+                        })?,
+                        _ => return Err("field_scorer must be a string".into()),
+                    }
+                }
                 other => return Err(format!("unknown option: {other}")),
             }
         }

@@ -25,6 +25,8 @@
 //! `"…": "12 keys omitted"`, `…[+1234 chars]`) so a reader never mistakes a
 //! sample for the whole.
 
+mod condense;
+pub mod fields;
 pub mod json;
 pub mod options;
 pub mod prune;
@@ -35,8 +37,9 @@ pub mod yaml;
 #[cfg(feature = "yaml")]
 pub mod yaml_in;
 
+pub use fields::{ColumnInfo, FieldScorer, ScorerKind};
 pub use json::{Layout, ParseError};
-pub use options::{Format, InputFormat, Options, DEFAULT_MAX_CHARS};
+pub use options::{ArrayStrategy, Format, InputFormat, Options, DEFAULT_MAX_CHARS};
 pub use prune::Stats;
 pub use text::TextParams;
 pub use value::Value;
@@ -94,6 +97,24 @@ impl Report {
         add(st.keys_omitted, "object keys omitted");
         add(st.strings_truncated, "strings truncated");
         add(st.containers_collapsed, "containers collapsed");
+        if st.fields_dropped > 0 {
+            let shown: Vec<&str> = st
+                .dropped_fields
+                .iter()
+                .take(4)
+                .map(|(p, _)| p.as_str())
+                .collect();
+            let more = if st.fields_dropped > shown.len() {
+                ", ..."
+            } else {
+                ""
+            };
+            parts.push(format!(
+                "{} fields dropped from all items: {}{more}",
+                group(st.fields_dropped),
+                shown.join(", ")
+            ));
+        }
         let mut out = format!(
             "{} of {} chars kept",
             group(self.output_chars),
@@ -136,6 +157,23 @@ impl Report {
             (
                 "containers_collapsed".into(),
                 n(self.stats.containers_collapsed),
+            ),
+            ("arrays_condensed".into(), n(self.stats.arrays_condensed)),
+            ("fields_dropped".into(), n(self.stats.fields_dropped)),
+            (
+                "dropped_fields".into(),
+                Value::Array(
+                    self.stats
+                        .dropped_fields
+                        .iter()
+                        .map(|(path, items)| {
+                            Value::Object(vec![
+                                ("path".into(), Value::String(path.clone())),
+                                ("items".into(), n(*items)),
+                            ])
+                        })
+                        .collect(),
+                ),
             ),
         ])
     }
@@ -270,6 +308,12 @@ pub fn parse_input(input: &str, format: InputFormat) -> Result<(Value, InputForm
 
 /// Shrink a value so its rendering fits within `opts.max_chars`.
 pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
+    shrink_with(v, opts, opts.field_scorer.get())
+}
+
+/// Like [`shrink`] with a custom [`FieldScorer`] for the `condense` array
+/// strategy (instead of the built-in one named by `opts.field_scorer`).
+pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrunk {
     let opts = &effective(opts, Format::Json);
     let full_text = render(v, opts);
     let input_chars = chars(&full_text);
@@ -296,11 +340,11 @@ pub fn shrink(v: &Value, opts: &Options) -> Shrunk {
         Format::Json | Format::Auto => (Model::new(layout(opts)), true),
         Format::Yaml => (Model::new(Layout::Pretty(opts.indent.max(2))), false),
     };
-    let meta = Pruner::new(model, opts).analyze(v, 0);
+    let meta = Pruner::with_scorer(model, opts, scorer).analyze(v, 0);
     let max = opts.max_chars;
 
     let attempt = |budget: usize| -> (Value, String, usize, Stats) {
-        let mut p = Pruner::new(model, opts);
+        let mut p = Pruner::with_scorer(model, opts, scorer);
         let (out, _) = p.fit(v, &meta, budget, 0);
         let text = render(&out, opts);
         let n = chars(&text);

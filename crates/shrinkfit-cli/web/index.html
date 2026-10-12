@@ -50,6 +50,10 @@
     <label>string_min_section_chars<small>smallest preview before eliding</small><input type="number" id="string_min_section_chars" min="0" value="16"></label>
     <label>max_samples<small>shape-distinct samples when no item fits</small><input type="number" id="max_samples" min="0" value="3"></label>
     <label>min_partial_chars<small>smallest budget for a partial item</small><input type="number" id="min_partial_chars" min="0" value="40"></label>
+    <label>array_strategy<small>sample = whole items; condense = every item, fewer fields</small>
+      <select id="array_strategy"><option>sample</option><option>condense</option></select></label>
+    <label>field_scorer<small>how condense ranks fields</small>
+      <select id="field_scorer"><option>heuristic</option><option>compact</option><option>key_order</option></select></label>
     <label><input type="checkbox" id="keep_last_item" checked>keep_last_item</label>
   </section>
   <section>
@@ -67,7 +71,7 @@
 <script src="/examples.js"></script>
 <script>
 const NUM = ["max_chars","indent","string_head_chars","string_section_chars","string_min_section_chars","max_samples","min_partial_chars"];
-const SEL = ["input_format","format"];
+const SEL = ["input_format","format","array_strategy","field_scorer"];
 const $ = (id) => document.getElementById(id);
 const DEFAULTS = {}; [...NUM, ...SEL].forEach((k) => DEFAULTS[k] = $(k).value); DEFAULTS.keep_last_item = true;
 
@@ -101,7 +105,9 @@ async function run() {
   const cls = r.fits ? "ok" : "bad";
   $("stats").innerHTML = `<b class="${cls}">${r.output_chars.toLocaleString()}</b> / ${r.max_chars.toLocaleString()} chars `
     + `(input ${r.input_chars.toLocaleString()} as ${r.format}${r.pruned ? "" : ", not pruned"}${r.fits ? "" : ", DOES NOT FIT"})`;
-  $("report").textContent = JSON.stringify(r);
+  const dropped = (r.dropped_fields || []).map((d) => `${d.path} (${d.items})`).join("\n");
+  $("report").textContent = JSON.stringify({ ...r, dropped_fields: undefined })
+    + (r.fields_dropped ? `\n\n${r.fields_dropped} fields dropped from all items:\n${dropped}` : "");
 }
 
 function save() { try { localStorage.setItem("shrinkfit", JSON.stringify({ o: options(), input: $("input").value })); } catch {} }

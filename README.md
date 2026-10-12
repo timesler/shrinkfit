@@ -185,6 +185,8 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 | `string_head_chars` | `stringHeadChars` | 500 | text shown whole before section previews begin |
 | `string_section_chars` | `stringSectionChars` | 100 | preview length for each later section |
 | `string_min_section_chars` | `stringMinSectionChars` | 16 | smallest preview before sections are dropped |
+| `array_strategy` | `arrayStrategy` | `"sample"` | how oversized arrays shrink: `"sample"` keeps a few whole items; `"condense"` keeps every item and drops the same low-value fields from all of them (see [docs/ALGORITHM.md](docs/ALGORITHM.md)) |
+| `field_scorer` | `fieldScorer` | `"heuristic"` | field ranking for `condense`: `"heuristic"`, `"compact"` or `"key_order"` |
 | `keep_last_item` | `keepLastItem` | true | prefer keeping an array's last item |
 | `max_samples` | `maxSamples` | 3 | shape-distinct samples when no array item fits whole |
 | `min_partial_chars` | `minPartialChars` | 40 | smallest budget worth spending on an extra, reduced item |

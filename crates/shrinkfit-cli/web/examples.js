@@ -181,4 +181,50 @@ function auditEvents() {
   return { name: "Audit events", desc: "Heterogeneous event stream: several shapes in one array (tests shape-aware sampling)", max_chars: 6000, text: pj({ tenant: "acme", events }) };
 }
 
-const EXAMPLES = [searchResponse, confluencePage, jiraIssue, githubIssues, buildLog, k8sYaml, dbRows, auditEvents];
+function atlassianUser(r, n) {
+  const name = `${r.pick(["Ada", "Alan", "Grace", "Linus", "Edsger"])} ${r.pick(["Lovelace", "Turing", "Hopper", "Torvalds", "Dijkstra"])}`;
+  return { accountId: hex(r, 24), accountType: "atlassian", emailAddress: "", displayName: name, active: true, timeZone: "UTC", avatarUrls: { "48x48": `https://avatar.example.com/${n}/48`, "24x24": `https://avatar.example.com/${n}/24`, "16x16": `https://avatar.example.com/${n}/16`, "32x32": `https://avatar.example.com/${n}/32` }, self: `https://example.atlassian.net/rest/api/3/user?accountId=${n}` };
+}
+
+function jiraSearch() {
+  const r = rng(11);
+  const issues = Array.from({ length: 50 }, (_, i) => ({
+    expand: "operations,versionedRepresentations,editmeta,changelog,renderedFields",
+    id: String(10000 + i), self: `https://example.atlassian.net/rest/api/3/issue/${10000 + i}`, key: `OPS-${100 + i}`,
+    fields: {
+      summary: sentence(r, 6 + r.int(6)),
+      issuetype: { self: "https://example.atlassian.net/rest/api/3/issuetype/10004", id: "10004", description: "A problem or error.", iconUrl: "https://example.atlassian.net/images/bug.svg", name: "Bug", subtask: false, avatarId: 10303 },
+      status: { self: "https://example.atlassian.net/rest/api/3/status/3", description: "", iconUrl: "https://example.atlassian.net/images/inprogress.gif", name: r.pick(["To Do", "In Progress", "In Review", "Done"]), id: "3", statusCategory: { self: "https://example.atlassian.net/rest/api/3/statuscategory/4", id: 4, key: "indeterminate", colorName: "yellow", name: "In Progress" } },
+      priority: { self: "https://example.atlassian.net/rest/api/3/priority/2", iconUrl: "https://example.atlassian.net/images/high.svg", name: r.pick(["Highest", "High", "Medium", "Low"]), id: "2" },
+      assignee: atlassianUser(r, i), reporter: atlassianUser(r, 100 + i),
+      created: iso(r, 2024), updated: iso(r, 2024), labels: Array.from({ length: r.int(3) }, () => r.pick(WORDS)),
+      components: [{ self: "https://example.atlassian.net/rest/api/3/component/10010", id: "10010", name: "autoscaler", description: "Scaling logic" }],
+      project: { self: "https://example.atlassian.net/rest/api/3/project/10000", id: "10000", key: "OPS", name: "Operations", projectTypeKey: "software", simplified: true, avatarUrls: { "48x48": "https://example.atlassian.net/avatar/10000" } },
+      description: adf(r, 3), resolution: null, resolutiondate: null, duedate: null, timespent: null, workratio: -1,
+      customfield_10020: null, customfield_10021: null, customfield_10022: [], customfield_10023: null, customfield_10024: null,
+    },
+  }));
+  return { name: "Jira search (JQL)", desc: "GET /rest/api/3/search: 50 issues, mostly nested boilerplate around key, summary, status, assignee", max_chars: 10000, text: pj({ expand: "names,schema", startAt: 0, maxResults: 50, total: 214, issues }) };
+}
+
+function confluenceSearch() {
+  const r = rng(12);
+  const results = Array.from({ length: 25 }, (_, i) => {
+    const t = title(r);
+    return {
+      content: { id: String(5000 + i), type: "page", status: "current", title: t, macroRenderedOutput: {}, extensions: { position: i }, _expandable: { container: "/rest/api/space/ENG", metadata: "", restrictions: `/rest/api/content/${5000 + i}/restriction/byOperation`, history: `/rest/api/content/${5000 + i}/history` }, _links: { webui: `/spaces/ENG/pages/${5000 + i}`, self: `https://example.atlassian.net/wiki/rest/api/content/${5000 + i}`, tinyui: "/x/AwBp" } },
+      title: t, excerpt: paragraph(r, 3), url: `/spaces/ENG/pages/${5000 + i}/${t.replace(/ /g, "+")}`,
+      resultGlobalContainer: { title: "Engineering", displayUrl: "/spaces/ENG" }, breadcrumbs: [{ label: "Engineering", url: "/spaces/ENG", separator: "" }],
+      entityType: "content", iconCssClass: "aui-icon content-type-page", lastModified: iso(r, 2024), friendlyLastModified: "Oct 10, 2024", timestamp: 1728000000000 + i,
+    };
+  });
+  return { name: "Confluence search (CQL)", desc: "GET /wiki/rest/api/search: 25 pages with duplicated titles and link boilerplate", max_chars: 10000, text: pj({ results, start: 0, limit: 25, size: 25, totalSize: 340, cqlQuery: 'siteSearch ~ "autoscaler" AND type = page', searchDuration: 71, _links: { base: "https://example.atlassian.net/wiki", context: "/wiki", next: "/rest/api/search?cursor=abc123&limit=25", self: "https://example.atlassian.net/wiki/rest/api/search?cql=x" } }) };
+}
+
+function jiraComments() {
+  const r = rng(13);
+  const comments = Array.from({ length: 40 }, (_, i) => { const a = atlassianUser(r, i % 5); return { self: `https://example.atlassian.net/rest/api/3/issue/10001/comment/${100 + i}`, id: String(100 + i), author: a, body: adf(r, 2), updateAuthor: a, created: iso(r, 2024), updated: iso(r, 2024), jsdPublic: true }; });
+  return { name: "Jira comments", desc: "Issue comments with rich-text (ADF) bodies: the hard case, text is buried in nested nodes", max_chars: 10000, text: pj({ startAt: 0, maxResults: 40, total: 40, comments }) };
+}
+
+const EXAMPLES = [searchResponse, jiraSearch, confluenceSearch, jiraComments, confluencePage, jiraIssue, githubIssues, buildLog, k8sYaml, dbRows, auditEvents];

@@ -178,3 +178,47 @@ O(log L · output) per truncated string. A 41 MB payload shrinks in about
 - Duplicate object keys are preserved as-is. The `"…"` marker key is not
   deduplicated against a real `"…"` key.
 - Nesting deeper than 512 levels is rejected at parse time.
+
+## Condensing arrays of records (`array_strategy: "condense"`)
+
+The default array strategy samples whole items. For arrays of similar records
+(search results, issue lists, table rows) it is often more useful to keep
+**every** record and drop the same low-value **fields** from all of them.
+`condense` does this (module `condense.rs`; scoring in `fields.rs`):
+
+1. **Discover fields.** One pass collects, for every field path
+   (`/fields/assignee/displayName`) across all records: presence, value
+   kinds, empties, distinctness, average size, and its exact cost. Nested
+   objects are walked to depth 4; other values are leaf fields.
+2. **Uniformity check.** If most field occurrences do not belong to fields
+   most records share, or any element is not an object, fall back to `sample`.
+3. **Score** each leaf with a `FieldScorer`. The default heuristic combines a
+   *name tier* (identifiers and titles high, links/avatars/expansion hints
+   low, envelope keys like `fields` ignored) with *value statistics* (always
+   empty or identical in every record: nearly worthless; short and all-distinct:
+   identifier-like; low variety: category-like; opaque long ids and `*_id`
+   references: lower).
+4. **Discount redundancy.** Fields holding identical values in every record
+   keep only their best copy (score x 0.15 for the rest). Fields sharing a
+   role (identity, title, time) lose 25% per rank after the best one.
+5. **Select greedily** by score. A field costs its *floor* in every record
+   that has it (scalars in full, long strings as a short preview, arrays as a
+   one-line marker). Weaker fields may use only 70-90% of the budget so the
+   best fields have room to show fuller values. If the high-scoring "core"
+   fields do not all fit, the string-preview floor is shortened (24, 12, 6
+   characters) before giving up on one.
+6. **Project and fill.** Build the reduced records, verify their exact floor,
+   then share the remaining budget by water-filling over records and values.
+
+The same fields are kept in every record. What was dropped is reported in
+`Stats` (`fields_dropped`, `dropped_fields` as paths such as
+`/issues/*/avatarUrls`, with the number of records that had each), not
+inserted into the data, so typed arrays stay homogeneous.
+
+Known limitations: rich-text structures such as Atlassian Document Format
+keep their text several levels deep, so a body field is expensive and is often
+dropped; a plain-text projection of such fields is the main planned
+improvement. Redundancy detection only catches identical values (not, say,
+`name` versus `full_name`). The heuristic is untuned: it has been spot-checked
+on Jira, Confluence, GitHub, Notion, Airtable, arXiv and other tool outputs,
+not optimised against a dataset.

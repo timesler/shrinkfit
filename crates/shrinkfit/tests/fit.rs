@@ -498,3 +498,152 @@ fn yaml_input_roundtrips_and_shrinks() {
         }
     }
 }
+
+/// The `condense` strategy must keep every invariant of the default one.
+#[test]
+fn condense_output_always_parses_and_fits() {
+    let mut r = Rng(0xc0de_5eed_0000_0007);
+    let mut condensed = 0;
+    for doc in 0..100 {
+        let v = gen(&mut r, 0);
+        for indent in [0usize, 2] {
+            for scorer in [
+                shrinkfit::ScorerKind::Heuristic,
+                shrinkfit::ScorerKind::Compact,
+                shrinkfit::ScorerKind::KeyOrder,
+            ] {
+                let base = |b: usize| Options {
+                    indent,
+                    array_strategy: shrinkfit::ArrayStrategy::Condense,
+                    field_scorer: scorer,
+                    ..Options::new(b)
+                };
+                let full = shrink(&v, &base(usize::MAX)).report.input_chars;
+                for b in [60, 150, 400, 1000, 2500, full / 2, full.saturating_sub(1)] {
+                    let opts = base(b);
+                    let out = shrink(&v, &opts);
+                    let len = out.text.chars().count();
+                    let reparsed = json::parse(&out.text)
+                        .unwrap_or_else(|e| panic!("doc {doc} budget {b}: {e}\n{}", out.text));
+                    assert_eq!(reparsed, out.value);
+                    if b >= root_min(&v, &opts) {
+                        assert!(out.report.fits && len <= b, "doc {doc} budget {b}: {len}");
+                    }
+                    condensed += out.report.stats.arrays_condensed;
+                }
+            }
+        }
+    }
+    assert!(condensed > 50, "condense never kicked in ({condensed})");
+}
+
+fn issue_records(n: usize) -> String {
+    let rows: Vec<String> = (0..n)
+        .map(|i| {
+            format!(
+                r#"{{"id":"{}","key":"OPS-{i}","self":"https://x/api/{i}","fields":{{"summary":"Issue {i} autoscaler flaps under load","status":{{"name":"Open","iconUrl":"https://x/i.png","self":"https://x/s"}},"labels":[],"avatarUrls":{{"48x48":"https://a/48"}}}}}}"#,
+                10_000 + i
+            )
+        })
+        .collect();
+    format!(r#"{{"total":{n},"issues":[{}]}}"#, rows.join(","))
+}
+
+#[test]
+fn condense_keeps_every_record_with_the_same_fields() {
+    let src = issue_records(60);
+    let opts = Options {
+        indent: 0,
+        array_strategy: shrinkfit::ArrayStrategy::Condense,
+        ..Options::new(4000)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert!(out.report.fits && out.report.output_chars <= 4000);
+    let Value::Object(top) = &out.value else {
+        panic!()
+    };
+    let Value::Array(issues) = &top.iter().find(|(k, _)| k == "issues").unwrap().1 else {
+        panic!()
+    };
+    // Every record is kept, in order, with no gap markers.
+    assert_eq!(issues.len(), 60);
+    let keys = |v: &Value| -> Vec<String> {
+        let Value::Object(e) = v else { panic!("{v:?}") };
+        e.iter().map(|(k, _)| k.clone()).collect()
+    };
+    let first = keys(&issues[0]);
+    assert!(first.contains(&"key".to_string()), "{first:?}");
+    for it in issues {
+        assert_eq!(keys(it), first, "all records keep the same fields");
+    }
+    // Boilerplate goes first; what was dropped is reported, not hidden.
+    assert!(!out.text.contains("avatarUrls") && !out.text.contains("iconUrl"));
+    let st = &out.report.stats;
+    assert_eq!(st.arrays_condensed, 1);
+    assert!(st.fields_dropped > 0 && !st.dropped_fields.is_empty());
+    assert!(st
+        .dropped_fields
+        .iter()
+        .all(|(p, n)| p.starts_with("/issues/*/") && *n == 60));
+    assert!(out
+        .report
+        .summary()
+        .contains("fields dropped from all items"));
+    assert_eq!(st.items_omitted, 0);
+}
+
+#[test]
+fn condense_falls_back_to_sampling_for_non_uniform_arrays() {
+    // Mixed scalars and objects: not a table of records.
+    let src = format!(
+        "[{}]",
+        (0..200)
+            .map(|i| if i % 2 == 0 {
+                format!("{i}")
+            } else {
+                format!(r#"{{"a":{i}}}"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let opts = Options {
+        indent: 0,
+        array_strategy: shrinkfit::ArrayStrategy::Condense,
+        ..Options::new(120)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert_eq!(out.report.stats.arrays_condensed, 0);
+    assert!(out.text.contains("items omitted"), "{}", out.text);
+}
+
+#[test]
+fn custom_scorer_can_be_swapped_in() {
+    use shrinkfit::{shrink_with, ColumnInfo, FieldScorer};
+    // Likes only fields under `status`; everything else is equally unloved.
+    struct OnlyStatus;
+    impl FieldScorer for OnlyStatus {
+        fn name(&self) -> &'static str {
+            "only_status"
+        }
+        fn score(&self, c: &ColumnInfo<'_>) -> f64 {
+            if c.path.iter().any(|k| k == "status") {
+                1.0
+            } else {
+                0.1
+            }
+        }
+    }
+    let v = json::parse(&issue_records(60)).unwrap();
+    let opts = Options {
+        indent: 0,
+        array_strategy: shrinkfit::ArrayStrategy::Condense,
+        ..Options::new(7000)
+    };
+    let ours = shrink_with(&v, &opts, &OnlyStatus);
+    let builtin = shrink(&v, &opts);
+    assert!(ours.report.fits && builtin.report.fits);
+    assert_ne!(ours.text, builtin.text);
+    assert!(ours.text.contains("status"), "{}", ours.text);
+    assert!(!builtin.text.contains("status") || builtin.text.contains("summary"));
+    assert!(builtin.text.contains("summary"), "{}", builtin.text);
+}

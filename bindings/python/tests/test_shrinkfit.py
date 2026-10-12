@@ -102,6 +102,21 @@ class ShrinkTests(unittest.TestCase):
         with self.assertRaises(ShrinkError):
             shrink("{}", 100, input_format="toml")
 
+    def test_condense_strategy_keeps_every_record(self):
+        rows = [
+            {"id": str(i), "title": f"Row {i}", "avatar_url": "https://x/a.png", "etag": "abc" * 20}
+            for i in range(300)
+        ]
+        r = shrink_with_report(rows, 6000, array_strategy="condense", indent=0)
+        out = json.loads(r.text)
+        self.assertEqual(len(out), 300)  # every record kept, no gap markers
+        self.assertTrue(all(set(x) == set(out[0]) for x in out))  # same fields in each
+        self.assertIn("title", out[0])
+        self.assertNotIn("avatar_url", out[0])
+        self.assertGreater(r.report["fields_dropped"], 0)
+        with self.assertRaises(ShrinkError):
+            shrink(rows, 500, array_strategy="nope")
+
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}
         out = json.loads(shrink(doc, 2500, string_section_chars=40))

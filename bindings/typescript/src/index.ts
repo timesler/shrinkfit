@@ -32,6 +32,10 @@ export interface ShrinkOptions {
   maxSamples?: number;
   /** Smallest budget worth spending on a partially pruned item (default 40). */
   minPartialChars?: number;
+  /** How big arrays shrink: sample whole items (default) or keep every item and drop the same low-value fields. */
+  arrayStrategy?: "sample" | "condense";
+  /** Field ranking used by `condense`: "heuristic" (default), "compact" or "key_order". */
+  fieldScorer?: "heuristic" | "compact" | "key_order";
 }
 
 export interface Report {
@@ -116,6 +120,8 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     keepLastItem: "keep_last_item",
     maxSamples: "max_samples",
     minPartialChars: "min_partial_chars",
+    arrayStrategy: "array_strategy",
+    fieldScorer: "field_scorer",
   };
   for (const [k, v] of Object.entries(o)) {
     if (v === undefined) continue;

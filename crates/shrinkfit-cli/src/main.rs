@@ -7,7 +7,7 @@
 mod full_copy;
 mod serve;
 
-use shrinkfit::{json, shrink_str, Format, InputFormat, Options};
+use shrinkfit::{json, shrink_str, ArrayStrategy, Format, InputFormat, Options, ScorerKind};
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -25,6 +25,11 @@ options:
   -i, --indent N               indent width; 0 = compact JSON (default 2)
       --head N                 string head chars shown whole (default 500)
       --section N              chars shown per later string section (default 100)
+      --array-strategy sample|condense
+                               how big arrays shrink: sample items (default), or keep
+                               every item and drop the same low-value fields
+      --field-scorer NAME      field ranking for condense: heuristic (default),
+                               compact, key_order
       --no-keep-last           don't prefer the last item when sampling arrays
       --report                 print a JSON report to stderr
 
@@ -60,6 +65,8 @@ fn run() -> Result<ExitCode, String> {
     let mut head = None;
     let mut section = None;
     let mut keep_last = true;
+    let mut array_strategy = ArrayStrategy::Sample;
+    let mut field_scorer = ScorerKind::Heuristic;
     let mut report = false;
     let mut notice = !env_off("SHRINKFIT_NOTICE");
     let mut save_full = !env_off("SHRINKFIT_SAVE_FULL");
@@ -98,6 +105,22 @@ fn run() -> Result<ExitCode, String> {
             "--head" => head = Some(num(&a, args.next())?),
             "--section" => section = Some(num(&a, args.next())?),
             "--no-keep-last" => keep_last = false,
+            "--array-strategy" => {
+                array_strategy = match args.next().as_deref() {
+                    Some("sample") => ArrayStrategy::Sample,
+                    Some("condense") => ArrayStrategy::Condense,
+                    _ => return Err("--array-strategy must be sample or condense".into()),
+                }
+            }
+            "--field-scorer" => {
+                field_scorer = args
+                    .next()
+                    .as_deref()
+                    .and_then(ScorerKind::from_name)
+                    .ok_or_else(|| {
+                        format!("--field-scorer must be one of {:?}", ScorerKind::NAMES)
+                    })?
+            }
             "--report" => report = true,
             "--no-notice" => notice = false,
             "--no-save-full" => save_full = false,
@@ -144,6 +167,8 @@ fn run() -> Result<ExitCode, String> {
         opts.text.section = s;
     }
     opts.keep_last_item = keep_last;
+    opts.array_strategy = array_strategy;
+    opts.field_scorer = field_scorer;
     opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {
         Some(p) if p.ends_with(".yaml") || p.ends_with(".yml") => InputFormat::Yaml,
         Some(p) if p.ends_with(".json") => InputFormat::Json,

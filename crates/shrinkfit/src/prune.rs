@@ -22,7 +22,8 @@
 //! * A container that cannot fit at all collapses to a one-element marker
 //!   of the same type: `["…[N items omitted]"]` or `{"…": "N keys omitted"}`.
 
-use crate::options::Options;
+use crate::fields::FieldScorer;
+use crate::options::{ArrayStrategy, Options};
 use crate::size::Model;
 use crate::text;
 use crate::value::Value;
@@ -50,6 +51,13 @@ pub struct Stats {
     pub objects_trimmed: usize,
     pub keys_omitted: usize,
     pub containers_collapsed: usize,
+    /// Arrays handled by the `condense` strategy.
+    pub arrays_condensed: usize,
+    /// Distinct fields dropped from every record by `condense`.
+    pub fields_dropped: usize,
+    /// The first of those, as `(path, records that had it)`; `*` stands for
+    /// any array index, e.g. `/results/*/avatar_url`.
+    pub dropped_fields: Vec<(String, usize)>,
 }
 
 /// Precomputed sizes for a subtree, mirroring the value tree.
@@ -67,6 +75,12 @@ pub struct Pruner<'a> {
     pub model: Model,
     pub opts: &'a Options,
     pub stats: Stats,
+    /// Scores fields for the `condense` strategy.
+    pub scorer: &'a dyn FieldScorer,
+    /// Keys leading to the node being fitted (`*` for array elements).
+    pub path: Vec<String>,
+    /// Preview length used when costing long strings in `condense`.
+    pub floor_chars: usize,
 }
 
 fn shape_of(v: &Value) -> u64 {
@@ -83,10 +97,18 @@ fn shape_of(v: &Value) -> u64 {
 
 impl<'a> Pruner<'a> {
     pub fn new(model: Model, opts: &'a Options) -> Self {
+        Self::with_scorer(model, opts, opts.field_scorer.get())
+    }
+
+    /// Like [`Pruner::new`] with a custom field scorer.
+    pub fn with_scorer(model: Model, opts: &'a Options, scorer: &'a dyn FieldScorer) -> Self {
         Pruner {
             model,
             opts,
             stats: Stats::default(),
+            scorer,
+            path: Vec::new(),
+            floor_chars: 24,
         }
     }
 
@@ -233,6 +255,7 @@ impl<'a> Pruner<'a> {
         kids: &[(&Value, &Meta)],
         surplus: usize,
         depth: usize,
+        labels: &[String],
     ) -> (Vec<Value>, usize) {
         let mut order: Vec<usize> = (0..kids.len()).collect();
         order.sort_by_key(|&i| kids[i].1.full - kids[i].1.min);
@@ -244,7 +267,10 @@ impl<'a> Pruner<'a> {
             let (v, m) = kids[i];
             let extra = m.full - m.min;
             let alloc = extra.min(remaining / left.max(1));
+            self.path
+                .push(labels.get(i).cloned().unwrap_or_else(|| "*".into()));
             let (nv, size) = self.fit(v, m, m.min + alloc, depth);
+            self.path.pop();
             remaining = remaining.saturating_sub(size.saturating_sub(m.min));
             left -= 1;
             total += size;
@@ -300,7 +326,8 @@ impl<'a> Pruner<'a> {
             .zip(&meta.kids[..kept])
             .collect();
         let fixed = base - meta.kids[..kept].iter().map(|k| k.min).sum::<usize>();
-        let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1);
+        let labels: Vec<String> = entries[..kept].iter().map(|(k, _)| k.clone()).collect();
+        let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1, &labels);
         let mut out: Vec<(String, Value)> = entries[..kept]
             .iter()
             .map(|(k, _)| k.clone())
@@ -323,6 +350,11 @@ impl<'a> Pruner<'a> {
         depth: usize,
     ) -> (Value, usize) {
         let n = items.len();
+        if self.opts.array_strategy == ArrayStrategy::Condense {
+            if let Some(done) = self.try_condense(items, meta, budget, depth) {
+                return done;
+            }
+        }
         let order = self.priority(items, meta);
 
         // Phase A: whole items in priority order.
@@ -381,7 +413,8 @@ impl<'a> Pruner<'a> {
             let base = sel.cost();
             let kids: Vec<(&Value, &Meta)> =
                 reps.iter().map(|&i| (&items[i], &meta.kids[i])).collect();
-            let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1);
+            let labels = vec!["*".to_string(); reps.len()];
+            let (values, kids_size) = self.water_fill(&kids, budget - base, depth + 1, &labels);
             let mins: usize = reps.iter().map(|&i| meta.kids[i].min).sum();
             size = base - mins + kids_size;
             chosen = reps.into_iter().zip(values.into_iter().map(Some)).collect();
