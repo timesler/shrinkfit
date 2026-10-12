@@ -17,7 +17,7 @@ fn temp_dir() -> Result<PathBuf, String> {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
         .collect();
-    let dir = std::env::temp_dir().join(format!("shrinkfit-{user}"));
+    let dir = std::env::temp_dir().join(format!("full-outputs-{user}"));
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     #[cfg(unix)]
     {
@@ -37,7 +37,7 @@ fn remove_stale(dir: &Path) {
                 .ok()
                 .and_then(|t| now.duration_since(t).ok())
                 .is_some_and(|age| age > MAX_AGE);
-            if old && e.file_name().to_string_lossy().starts_with("shrinkfit-") {
+            if old && e.file_name().to_string_lossy().starts_with("full-output-") {
                 let _ = fs::remove_file(e.path());
             }
         }
@@ -55,7 +55,7 @@ pub fn save(text: &str, ext: &str, dest: Option<&Path>) -> Result<PathBuf, Strin
             let stamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |d| d.as_millis());
-            dir.join(format!("shrinkfit-{stamp}-{}.{ext}", std::process::id()))
+            dir.join(format!("full-output-{stamp}-{}.{ext}", std::process::id()))
         }
     };
     let mut opts = fs::OpenOptions::new();

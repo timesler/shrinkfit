@@ -41,7 +41,7 @@ fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("shrinkfit: {e}");
+            eprintln!("error: {e}");
             ExitCode::from(2)
         }
     }
@@ -215,7 +215,7 @@ fn full_document(
 
 fn notice_line(report: &shrinkfit::Report, full: Result<Option<PathBuf>, String>) -> String {
     let mut line = format!(
-        "shrinkfit: output was shrunk to fit {} chars: {}. Cuts are marked in place with \"…\".",
+        "Output was truncated to fit {} chars: {}. Truncated parts are marked in place with \"…\".",
         report.max_chars,
         report.summary()
     );

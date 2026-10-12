@@ -37,17 +37,31 @@ fn piped_input_notice_points_at_a_saved_full_copy() {
     let out = run(&["-n", "300"], &input, &[]);
     let (stdout, stderr) = (text(&out.stdout), text(&out.stderr));
     assert!(stdout.contains("items omitted"), "{stdout}");
-    assert!(!stdout.contains("shrinkfit:"), "stdout must stay clean");
-    assert!(
-        stderr.starts_with("shrinkfit: output was shrunk"),
-        "{stderr}"
-    );
+    assert!(!stdout.contains("truncated"), "stdout must stay clean");
+    assert!(stderr.starts_with("Output was truncated"), "{stderr}");
     assert!(stderr.contains("array items omitted"), "{stderr}");
     let path = stderr
         .split("Full document: ")
         .nth(1)
         .expect(&stderr)
         .trim();
+    // The tool's name is an internal detail: keep it out of what the agent sees.
+    let notice = stderr.split("Full document: ").next().unwrap();
+    assert!(!notice.to_lowercase().contains("shrinkfit"), "{notice}");
+    let file_name = std::path::Path::new(path).file_name().unwrap();
+    assert!(!file_name
+        .to_string_lossy()
+        .to_lowercase()
+        .contains("shrinkfit"));
+    let dir_name = std::path::Path::new(path)
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap();
+    assert!(!dir_name
+        .to_string_lossy()
+        .to_lowercase()
+        .contains("shrinkfit"));
     assert_eq!(std::fs::read_to_string(path).unwrap(), input);
     let _ = std::fs::remove_file(path);
 }
@@ -65,7 +79,7 @@ fn notice_and_copy_are_configurable() {
     let out = run(&["-n", "300", "--no-save-full"], &input, &[]);
     let stderr = text(&out.stderr);
     assert!(
-        stderr.contains("shrunk") && !stderr.contains("Full document"),
+        stderr.contains("truncated") && !stderr.contains("Full document"),
         "{stderr}"
     );
     // Explicit destination.
