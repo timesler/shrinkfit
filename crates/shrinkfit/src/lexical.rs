@@ -123,36 +123,53 @@ impl Query {
         }
     }
 
-    /// Relevance in `0..=1` of a field with these name words and these
-    /// (normalised) value words.
-    pub(crate) fn relevance(&self, name_words: &[String], values: &HashSet<String>) -> f64 {
-        // By name: the field is mentioned (`SELECT Amount, CloseDate`).
-        let name: Vec<String> = name_words.iter().map(|w| norm(w)).collect();
-        let name_hits = name.iter().filter(|w| self.set.contains(*w)).count();
-        let name_rel = if name.is_empty() || name_hits == 0 {
-            0.0
-        } else if name_hits == name.len() {
+    /// By name, in `0..=1`: does the caller mention this field (`SELECT
+    /// Amount, CloseDate`, `status.phase`)? Only the field's own name words
+    /// (`leaf`) count; words of its ancestors can only confirm a partial
+    /// match, so a query about `status.phase` does not credit `status.podIP`.
+    pub(crate) fn name_match(&self, leaf: &[String], ancestors: &[String]) -> f64 {
+        let leaf: Vec<String> = leaf.iter().map(|w| norm(w)).collect();
+        let hits = leaf.iter().filter(|w| self.set.contains(*w)).count();
+        if leaf.is_empty() || hits == 0 {
+            return 0.0;
+        }
+        let frac = hits as f64 / leaf.len() as f64;
+        if frac >= 1.0 {
             1.0
+        } else if ancestors.iter().any(|w| self.set.contains(&norm(w))) {
+            0.5 + 0.5 * frac
         } else {
-            0.5 * name_hits as f64 / name.len() as f64
-        };
-        // By value: query words occur among the field's values.
-        let hits = self
-            .tokens
-            .iter()
-            .filter(|t| {
-                values.contains(*t)
-                    || (t.len() >= 6
-                        && values.iter().any(|v| v.len() >= 5 && within_one_edit(v, t)))
-            })
-            .count();
-        let value_rel = if hits == 0 {
+            0.5 * frac
+        }
+    }
+
+    /// By value, in `0..=1`: how much of the query occurs among the field's
+    /// (normalised) values.
+    pub(crate) fn value_match(&self, values: &HashSet<String>) -> f64 {
+        let hits = self.tokens.iter().filter(|t| token_hit(t, values)).count();
+        if hits == 0 {
             0.0
         } else {
             0.5 + 0.5 * hits as f64 / self.tokens.len() as f64
-        };
-        name_rel.max(value_rel)
+        }
     }
+
+    /// Does any query word occur among these values?
+    pub(crate) fn mentions(&self, values: &HashSet<String>) -> bool {
+        self.tokens.iter().any(|t| token_hit(t, values))
+    }
+
+    /// Strongest of the name and value matches (name words given whole).
+    #[cfg(test)]
+    pub(crate) fn relevance(&self, name_words: &[String], values: &HashSet<String>) -> f64 {
+        self.name_match(name_words, &[])
+            .max(self.value_match(values))
+    }
+}
+
+fn token_hit(t: &str, values: &HashSet<String>) -> bool {
+    values.contains(t)
+        || (t.len() >= 6 && values.iter().any(|v| v.len() >= 5 && within_one_edit(v, t)))
 }
 
 /// Normalised informative words of a value, for matching against a query.
@@ -200,6 +217,22 @@ mod tests {
         // Plurals and one-letter typos in longer words.
         let q = Query::new("opportunities negociation").unwrap();
         assert!(q.relevance(&["x".into()], &set(&["negotiation"])) >= 0.5);
+    }
+
+    #[test]
+    fn name_matches_only_on_the_fields_own_name() {
+        let q = Query::new("status.phase=Failed namespace").unwrap();
+        let w = |x: &[&str]| -> Vec<String> { x.iter().map(|s| s.to_string()).collect() };
+        // The field the caller referred to.
+        assert_eq!(q.name_match(&w(&["phase"]), &w(&["status"])), 1.0);
+        // Siblings that merely share an ancestor word get nothing.
+        assert_eq!(q.name_match(&w(&["pod", "ip"]), &w(&["status"])), 0.0);
+        // A partly matching name is confirmed by a matching ancestor.
+        assert!(q.name_match(&w(&["namespace", "uid"]), &w(&["status"])) < 1.0);
+        assert!(
+            q.name_match(&w(&["phase", "x"]), &w(&["status"]))
+                > q.name_match(&w(&["phase", "x"]), &[])
+        );
     }
 
     #[test]

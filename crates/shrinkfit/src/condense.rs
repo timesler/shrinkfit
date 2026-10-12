@@ -93,6 +93,8 @@ struct Column {
     /// Normalised informative words of the field's values (only collected
     /// when the call's arguments were given).
     tokens: HashSet<String>,
+    /// Records whose value mentions a query word.
+    matched: usize,
     /// Order-independent fingerprint of (record, value) pairs: equal for two
     /// fields that hold the same value in every record.
     seq: u64,
@@ -129,7 +131,7 @@ fn iso_date_prefix(s: &str) -> bool {
 
 /// Words naming a field for argument matching: its last segments, minus
 /// envelope keys that say nothing about the field (`properties`, `fields`).
-fn name_words(path: &[String]) -> Vec<String> {
+fn name_words(path: &[String]) -> (Vec<String>, Vec<String>) {
     const ENVELOPE: &[&str] = &[
         "properties",
         "fields",
@@ -142,18 +144,46 @@ fn name_words(path: &[String]) -> Vec<String> {
         "values",
         "value",
     ];
-    let mut out: Vec<String> = Vec::new();
-    for seg in path.iter().rev().take(3) {
-        for w in lexical::words(seg) {
-            if !ENVELOPE.contains(&w.as_str()) && !out.contains(&w) {
-                out.push(w);
-            }
+    // Leaf names that say nothing without their parent (`Assignee/name`).
+    const GENERIC: &[&str] = &[
+        "name", "value", "id", "type", "key", "label", "text", "code",
+    ];
+    let segs: Vec<Vec<String>> = path
+        .iter()
+        .map(|k| {
+            lexical::words(k)
+                .into_iter()
+                .filter(|w| !ENVELOPE.contains(&w.as_str()))
+                .collect()
+        })
+        .collect();
+    let mut at = segs.len();
+    let mut leaf: Vec<String> = Vec::new();
+    while at > 0 {
+        at -= 1;
+        let own = &segs[at];
+        let generic = own.iter().all(|w| GENERIC.contains(&w.as_str()));
+        if own.is_empty() {
+            continue;
+        }
+        if !generic || leaf.is_empty() && at == 0 {
+            leaf.extend(own.iter().cloned());
+            break;
+        }
+        // Generic: defer to the parent's words as the field's name.
+        if at == 0 {
+            leaf.extend(own.iter().cloned());
         }
     }
-    if out.is_empty() {
-        out = lexical::words(path.last().map_or("", String::as_str));
+    if leaf.is_empty() {
+        leaf = lexical::words(path.last().map_or("", String::as_str));
     }
-    out
+    let ancestors: Vec<String> = segs[..at.min(segs.len())]
+        .iter()
+        .flatten()
+        .cloned()
+        .collect();
+    (leaf, ancestors)
 }
 
 /// `123`, `-4.5`, `0.25`: a number written as text.
@@ -245,7 +275,6 @@ impl<'a> Pruner<'a> {
         obj_depth: usize,
         item: usize,
     ) {
-        let want_tokens = d.query.is_some();
         for (pos, ((k, v), km)) in entries.iter().zip(&meta.kids).enumerate() {
             let mut path = prefix.to_vec();
             path.push(k.clone());
@@ -281,11 +310,18 @@ impl<'a> Pruner<'a> {
             if is_empty_value(v) {
                 c.empty += 1;
             }
-            if want_tokens {
+            if let Some(q) = d.query.as_ref() {
+                let mut here = HashSet::new();
                 match v {
-                    Value::String(s) => lexical::value_tokens(s, &mut c.tokens, TOKEN_CAP),
-                    Value::Number(n) => lexical::value_tokens(n, &mut c.tokens, TOKEN_CAP),
+                    Value::String(s) => lexical::value_tokens(s, &mut here, TOKEN_CAP),
+                    Value::Number(n) => lexical::value_tokens(n, &mut here, TOKEN_CAP),
                     _ => {}
+                }
+                if q.mentions(&here) {
+                    c.matched += 1;
+                }
+                if c.tokens.len() < TOKEN_CAP {
+                    c.tokens.extend(here);
                 }
             }
             let digits = match v {
@@ -456,6 +492,19 @@ impl<'a> Pruner<'a> {
                     Value::Array(_) => kinds.array = 1,
                     Value::Object(_) => kinds.object = 1,
                 }
+                let mut toks = HashSet::new();
+                match v {
+                    Value::String(s) => lexical::value_tokens(s, &mut toks, TOKEN_CAP),
+                    Value::Number(n) => lexical::value_tokens(n, &mut toks, TOKEN_CAP),
+                    _ => {}
+                }
+                let (name_m, value_m, mentioned) = query.as_ref().map_or((0.0, 0.0, false), |q| {
+                    (
+                        q.name_match(&lexical::words(k), &[]),
+                        q.value_match(&toks),
+                        q.mentions(&toks),
+                    )
+                });
                 let info = ColumnInfo {
                     path: &path,
                     total: 1,
@@ -468,15 +517,10 @@ impl<'a> Pruner<'a> {
                     numeric_like: matches!(v, Value::Number(_)) || text.is_some_and(numeric_text),
                     timestamp_like: text.is_some_and(iso_date_prefix),
                     opaque_like: text.is_some_and(looks_opaque),
-                    relevance: query.as_ref().map_or(0.0, |q| {
-                        let mut toks = HashSet::new();
-                        match v {
-                            Value::String(s) => lexical::value_tokens(s, &mut toks, TOKEN_CAP),
-                            Value::Number(n) => lexical::value_tokens(n, &mut toks, TOKEN_CAP),
-                            _ => {}
-                        }
-                        q.relevance(&lexical::words(k), &toks)
-                    }),
+                    relevance: name_m.max(value_m),
+                    name_match: name_m,
+                    value_match: value_m,
+                    match_fraction: if mentioned { 1.0 } else { 0.0 },
                     avg_chars: meta.kids[i].full as f64,
                     avg_position: i as f64,
                 };
@@ -684,6 +728,10 @@ impl<'a> Pruner<'a> {
             if c.is_branch() || !Self::usable(cols, i) {
                 continue;
             }
+            let (name_m, value_m) = d.query.as_ref().map_or((0.0, 0.0), |q| {
+                let (leaf, anc) = name_words(&c.path);
+                (q.name_match(&leaf, &anc), q.value_match(&c.tokens))
+            });
             let info = ColumnInfo {
                 path: &c.path,
                 total: n,
@@ -696,10 +744,10 @@ impl<'a> Pruner<'a> {
                 numeric_like: c.scalars == c.present && !c.non_numeric,
                 timestamp_like: c.scalars == c.present && !c.non_iso,
                 opaque_like: c.present > 0 && c.opaque * 5 >= c.present * 4,
-                relevance: d
-                    .query
-                    .as_ref()
-                    .map_or(0.0, |q| q.relevance(&name_words(&c.path), &c.tokens)),
+                relevance: name_m.max(value_m),
+                name_match: name_m,
+                value_match: value_m,
+                match_fraction: c.matched as f64 / c.present.max(1) as f64,
                 avg_chars: c.full_sum as f64 / c.present.max(1) as f64,
                 avg_position: c.pos_sum as f64 / c.present.max(1) as f64,
             };
@@ -987,4 +1035,27 @@ struct Plan {
     budget_left: usize,
     core_complete: bool,
     floor_chars: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::name_words;
+
+    fn path(p: &[&str]) -> Vec<String> {
+        p.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn name_words_split_leaf_from_ancestors() {
+        // Generic leaves defer to their parent: `Assignee/name` is "assignee".
+        let (leaf, anc) = name_words(&path(&["fields", "Assignee", "name"]));
+        assert_eq!((leaf, anc.is_empty()), (vec!["assignee".to_string()], true));
+        // Ordinary leaves keep their own words; ancestors are separate.
+        let (leaf, anc) = name_words(&path(&["status", "podIP"]));
+        assert_eq!(leaf, ["pod", "ip"]);
+        assert_eq!(anc, ["status"]);
+        // Envelope keys carry no meaning.
+        let (leaf, _) = name_words(&path(&["properties", "Amount"]));
+        assert_eq!(leaf, ["amount"]);
+    }
 }

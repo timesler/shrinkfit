@@ -228,6 +228,21 @@ are identical in every record are not boosted (they are the filter itself, an
 echo), and the boost scales with the field's own prior so it cannot turn
 plumbing such as avatar URLs into content.
 
+The boost is deliberately bounded so it helps the heuristic instead of
+overriding it:
+
+* **Name matches use the field's own name.** `status.phase` credits
+  `status/phase`, not every sibling under `status`; ancestor words only
+  confirm a partial match. Generic leaf names (`name`, `value`, `id`) defer to
+  their parent, so `Assignee/name` is "assignee".
+* **Name and value matches are separate signals.** An explicit mention
+  (`SELECT Amount`) is strong. A value match is strong for content fields, but a
+  low-variety category field whose values match is mostly the filter coming
+  back, so its value boost fades to nothing when every record matches.
+* **A cap.** A boosted field never rises above 0.9 unless its own prior is
+  higher, so identifiers and titles always rank above something that was merely
+  mentioned, and a few mentioned categories cannot crowd out the record's title.
+
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring
 field must fit (otherwise the budget per record is too small and the array is

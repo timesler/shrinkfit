@@ -52,6 +52,12 @@ pub struct ColumnInfo<'a> {
     /// How strongly the field's name or values mention what the caller asked
     /// for (`0.0..=1.0`; 0 when no arguments were given). See `lexical`.
     pub relevance: f64,
+    /// The share of `relevance` that comes from the field's name (an explicit
+    /// mention) and from its values (the query words occur in them).
+    pub name_match: f64,
+    pub value_match: f64,
+    /// Fraction of the records whose value mentions a query word.
+    pub match_fraction: f64,
     /// Most string values look machine-generated (UUIDs, hashes, random
     /// ids) rather than readable like `OPS-12`.
     pub opaque_like: bool,
@@ -179,6 +185,9 @@ fn eff_path(path: &[String]) -> &[String] {
 
 /// How much a field mentioned by the call's arguments gains, at full relevance.
 const RELEVANCE_BOOST: f64 = 0.4;
+/// A boost never lifts a field above this (identity and titles stay above
+/// anything merely mentioned), unless its own prior is already higher.
+const BOOST_CAP: f64 = 0.9;
 
 /// Split a key into lowercase words: `html_url`, `htmlUrl`, `HTML-URL`.
 fn words(key: &str) -> Vec<String> {
@@ -627,7 +636,19 @@ impl FieldScorer for HeuristicScorer {
         // The boost scales with the field's own prior, so a match inside an
         // avatar URL does not turn plumbing into content.
         if c.relevance > 0.0 && !c.constant {
-            s += RELEVANCE_BOOST * c.relevance * (2.0 * s).clamp(0.25, 1.0);
+            // A category field whose values match the query is mostly the filter
+            // itself coming back; it says little unless only some records match.
+            let category = c.kinds.string == c.present
+                && c.distinct * 5 <= c.scalars.max(1)
+                && c.avg_chars <= 24.0;
+            let damp = if category {
+                2.0 * c.match_fraction * (1.0 - c.match_fraction)
+            } else {
+                1.0
+            };
+            let rel = (c.name_match + c.value_match * damp).min(1.0);
+            let boosted = s + RELEVANCE_BOOST * rel * (2.0 * s).clamp(0.25, 1.0);
+            s = boosted.min(s.max(BOOST_CAP));
         }
         // Costly values: still useful (they can be shortened) but later.
         if c.avg_chars > 2000.0 {
@@ -698,6 +719,9 @@ mod tests {
             timestamp_like: false,
             opaque_like: false,
             relevance: 0.0,
+            name_match: 0.0,
+            value_match: 0.0,
+            match_fraction: 0.0,
             avg_chars: 12.0,
             avg_position: 3.0,
         }
@@ -777,6 +801,41 @@ mod tests {
         assert!(score(&["_highlightResult", "title", "value"], none) < 0.1);
         // Mostly-empty fields lose to full ones.
         assert!(score(&["priority"], |c| c.empty = 7) < score(&["priority"], none) * 0.6);
+    }
+
+    #[test]
+    fn argument_boost_is_bounded_and_ignores_echoes() {
+        let none = |_: &mut ColumnInfo<'_>| {};
+        // An explicit mention helps, but never beyond the cap.
+        let named = |c: &mut ColumnInfo<'_>| {
+            c.relevance = 1.0;
+            c.name_match = 1.0;
+        };
+        assert!(score(&["zzz"], named) > score(&["zzz"], none));
+        assert!(score(&["zzz"], named) <= BOOST_CAP + 1e-9);
+        // The cap leaves identifiers and titles above anything merely mentioned.
+        assert!(score(&["id"], none) > score(&["zzz"], named));
+        // A category field whose values match the query is mostly the filter
+        // echoing back: no boost when every record matches, some when few do.
+        let category = |matched: f64, rel: f64| {
+            move |c: &mut ColumnInfo<'_>| {
+                c.kinds = KindCounts {
+                    string: 10,
+                    ..Default::default()
+                };
+                c.distinct = 2;
+                c.scalars = 10;
+                c.avg_chars = 8.0;
+                c.relevance = rel;
+                c.value_match = rel;
+                c.match_fraction = matched;
+            }
+        };
+        let plain = score(&["kind2"], category(0.0, 0.0));
+        let echo = score(&["kind2"], category(1.0, 1.0));
+        let partial = score(&["kind2"], category(0.5, 1.0));
+        assert!((echo - plain).abs() < 1e-9, "{echo} vs {plain}");
+        assert!(partial > echo, "{partial} vs {echo}");
     }
 
     #[test]
