@@ -1,8 +1,10 @@
 # Releasing shrinkfit
 
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which:
+Publishing a **GitHub release** runs `.github/workflows/release.yml`, which:
 
-1. checks that the tag matches every package version (`scripts/version.py`);
+1. takes the version from the release's tag (`v0.2.0` becomes `0.2.0`) and
+   stamps it into every package on the CI runner (`scripts/version.py`), so
+   **nothing needs to be committed to cut a release**;
 2. builds a Python wheel for each platform (Linux x86_64/aarch64 in manylinux
    containers, macOS arm64/x86_64, Windows x86_64), installs each and runs the
    Python tests; builds, type-checks and tests the npm package; dry-runs
@@ -10,8 +12,8 @@ Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which:
 3. only if all of that passed, publishes **crates.io** (`shrinkfit`, then
    `shrinkfit-cli`), **PyPI** and **npm** in parallel.
 
-Branches named `release-test/*`, pull requests touching the workflow, and manual
-runs do steps 1 and 2 but never publish.
+Releases marked **pre-release**, branches named `release-test/*`, pull requests
+touching the workflow, and manual runs do steps 1 and 2 but never publish.
 
 ## One-time setup
 
@@ -55,15 +57,18 @@ then waits for a manual approval click, a cheap safety net.
 
 ## Cutting a release
 
-```sh
-python scripts/version.py 0.2.0     # bumps all five version fields
-cargo update -w                     # refreshes Cargo.lock
-git commit -am "Release 0.2.0" && git push
-git tag v0.2.0 && git push origin v0.2.0
-```
+1. On GitHub: **Releases → Draft a new release**.
+2. **Choose a tag**: type a new tag `vMAJOR.MINOR.PATCH` (e.g. `v0.2.0`) and
+   pick "Create new tag on publish", targeting `main`.
+3. Use **Generate release notes**, then **Publish release**.
 
-Watch the run under the repo's **Actions** tab. To rehearse without publishing:
-`git push origin HEAD:refs/heads/release-test/try1`.
+That is all. Watch the run under the **Actions** tab. To rehearse without
+publishing, tick **Set as a pre-release** (use a tag like `v0.2.0-rc1`).
+
+Note that the version numbers inside the repository stay at whatever was last
+committed (they are only rewritten on the build machines), so the files on
+`main` can lag behind the latest release. Published packages and registry
+metadata always carry the release tag's version.
 
 ## If something goes wrong
 
