@@ -29,12 +29,26 @@ runs do steps 1 and 2 but never publish.
    `release.yml`, environment `pypi`.
 2. In GitHub, create the environment `pypi`.
 
-### npm
+### npm (trusted publishing, no token)
 
-1. Create an **automation** (or granular, publish-scoped) access token at
-   <https://www.npmjs.com/settings/~/tokens>.
-2. In GitHub, create the environment `npm` and add the secret `NPM_TOKEN`.
-   (Provenance statements are attached automatically.)
+npm's trusted-publisher setting is per package, so the package must exist
+before it can be configured. Do this once:
+
+1. **First publish, by hand** (from a machine logged in with `npm login`):
+   ```sh
+   cd bindings/typescript && npm install && npm run build && npm publish --access public
+   ```
+2. On <https://www.npmjs.com/package/shrinkfit/access> (Settings → Trusted
+   Publisher) choose GitHub Actions: owner `timesler`, repository `shrinkfit`,
+   workflow `release.yml`, environment `npm`.
+3. In GitHub, create the environment `npm`.
+4. Optionally set the package's publishing access to "Require two-factor
+   authentication and disallow tokens".
+
+From then on the workflow publishes with a short-lived OIDC credential and
+attaches provenance automatically. The workflow skips versions that are
+already on npm, so tagging the version you published by hand in step 1 still
+publishes crates.io and PyPI normally.
 
 Tip: on each environment add a **required reviewer** (yourself). Every publish
 then waits for a manual approval click, a cheap safety net.

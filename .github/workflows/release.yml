@@ -164,22 +164,30 @@ jobs:
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
 
+  # npm trusted publishing (OIDC): no token. Configure the trusted publisher
+  # on npmjs.com once the package exists (see RELEASING.md).
   publish-npm:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [wheels, npm-package, crate-check]
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      id-token: write # npm provenance
+      id-token: write # OIDC token exchanged for a short-lived publish credential
     steps:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+      - name: Trusted publishing needs npm >= 11.5.1
+        run: npm install -g npm@^11.5.1
       - uses: actions/download-artifact@v5
         with:
           name: npm-package
           path: npm-dist
-      - run: npm publish npm-dist/*.tgz --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish (skipped if this version is already on npm)
+        run: |
+          version=$(tar -xzOf npm-dist/*.tgz package/package.json | node -p 'JSON.parse(require("fs").readFileSync(0)).version')
+          if npm view "shrinkfit@$version" version >/dev/null 2>&1; then
+            echo "shrinkfit@$version is already published; skipping"
+          else
+            npm publish npm-dist/*.tgz --access public
+          fi
