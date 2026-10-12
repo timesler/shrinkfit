@@ -365,7 +365,7 @@ impl<'a> Pruner<'a> {
         let mut d = Discovery {
             cols: Vec::new(),
             index: HashMap::new(),
-            query: self.opts.arguments.as_deref().and_then(Query::new),
+            query: self.query(),
         };
         for (n, (item, im)) in items.iter().zip(&meta.kids).enumerate() {
             if let Value::Object(entries) = item {
@@ -426,6 +426,15 @@ impl<'a> Pruner<'a> {
         }
     }
 
+    /// The call's arguments as a matcher, unless planning without them.
+    fn query(&self) -> Option<Query> {
+        if self.ignore_query {
+            None
+        } else {
+            self.opts.arguments.as_deref().and_then(Query::new)
+        }
+    }
+
     /// A column is usable if every ancestor is a fully walked branch.
     fn usable(cols: &[Column], mut i: usize) -> bool {
         while let Some(p) = cols[i].parent {
@@ -476,7 +485,7 @@ impl<'a> Pruner<'a> {
         let marker_cost = |omitted: usize| {
             m.key(crate::prune::MARKER_KEY) + m.string(&crate::prune::keys_marker(omitted))
         };
-        let query = self.opts.arguments.as_deref().and_then(Query::new);
+        let query = self.query();
         let mut scored: Vec<(usize, f64)> = entries
             .iter()
             .enumerate()
@@ -665,20 +674,37 @@ impl<'a> Pruner<'a> {
         }
         let previous = self.floor_chars;
         let mut chosen: Option<Plan> = None;
-        for (level, &chars) in FLOOR_LEVELS.iter().enumerate() {
-            self.floor_chars = chars;
-            let plan = self.plan(items, meta, budget, depth, level == 0);
-            self.floor_chars = previous;
-            match plan {
-                Planned::NotUniform => return None,
-                Planned::NoFit => {}
-                Planned::Fit(p) => {
-                    let done = p.core_complete;
-                    chosen = Some(*p);
-                    if done {
-                        break;
+        // If the plan boosted by the call's arguments is rejected, plan again
+        // without them: the arguments may refine a result, never lose it.
+        for attempt in 0..2 {
+            if attempt == 1 {
+                if self.opts.arguments.is_none() {
+                    break;
+                }
+                self.ignore_query = true;
+            }
+            for (level, &chars) in FLOOR_LEVELS.iter().enumerate() {
+                self.floor_chars = chars;
+                let plan = self.plan(items, meta, budget, depth, level == 0);
+                self.floor_chars = previous;
+                match plan {
+                    Planned::NotUniform => {
+                        self.ignore_query = false;
+                        return None;
+                    }
+                    Planned::NoFit => {}
+                    Planned::Fit(p) => {
+                        let done = p.core_complete;
+                        chosen = Some(*p);
+                        if done {
+                            break;
+                        }
                     }
                 }
+            }
+            self.ignore_query = false;
+            if chosen.is_some() {
+                break;
             }
         }
         let plan = chosen?;

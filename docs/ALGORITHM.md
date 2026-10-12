@@ -239,9 +239,14 @@ overriding it:
   (`SELECT Amount`) is strong. A value match is strong for content fields, but a
   low-variety category field whose values match is mostly the filter coming
   back, so its value boost fades to nothing when every record matches.
-* **A cap.** A boosted field never rises above 0.9 unless its own prior is
-  higher, so identifiers and titles always rank above something that was merely
-  mentioned, and a few mentioned categories cannot crowd out the record's title.
+* **A cap on value matches.** A field boosted only because its values contain
+  query words never rises above 0.9 unless its own score is already higher, so
+  identifiers and titles rank above data that merely mentions the query. An
+  explicit name mention (`SELECT amount`) is a request and is not capped.
+* **The arguments can refine a result, never lose it.** If the plan boosted by
+  the arguments is rejected by the quality gates (say, a query naming many
+  category fields), the array is planned again without them before falling
+  back to sampling.
 
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring

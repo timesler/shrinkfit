@@ -749,3 +749,32 @@ fn arguments_boost_the_fields_a_call_mentions() {
         assert_eq!(o.arguments.as_deref(), Some("amount"));
     }
 }
+
+#[test]
+fn arguments_naming_many_category_fields_cannot_lose_the_condensed_result() {
+    // A query that names status, assignee and priority (as a JQL filter would)
+    // boosts three category fields. The boosted plan is rejected as category-only,
+    // so condense must retry without the arguments instead of dropping to sampling.
+    let people = ["ada", "alan", "grace", "linus"];
+    let rows: Vec<String> = (0..60)
+        .map(|i| {
+            format!(
+                r#"{{"key":"OPS-{i}","summary":"Autoscaler oscillates under load, case {i}","status":"{}","assignee":"{}","priority":"{}"}}"#,
+                ["Open", "Closed", "Review"][i % 3],
+                people[i % 4],
+                ["High", "Low"][i % 2]
+            )
+        })
+        .collect();
+    let src = format!("[{}]", rows.join(","));
+    let args = "status assignee priority";
+    let with = |a: Option<&str>| Options {
+        arguments: a.map(String::from),
+        ..condense_opts(4500)
+    };
+    let plain = shrink_json(&src, &with(None)).unwrap();
+    let boosted = shrink_json(&src, &with(Some(args))).unwrap();
+    assert_eq!(plain.report.stats.arrays_condensed, 1, "{}", plain.text);
+    assert_eq!(boosted.report.stats.arrays_condensed, 1, "{}", boosted.text);
+    assert!(boosted.text.contains("Autoscaler"), "{}", boosted.text);
+}

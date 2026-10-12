@@ -84,6 +84,8 @@ pub struct Pruner<'a> {
     pub path: Vec<String>,
     /// Preview length used when costing long strings in `condense`.
     pub floor_chars: usize,
+    /// Plan as if no arguments were given (a fallback, see `try_condense`).
+    pub ignore_query: bool,
 }
 
 fn shape_of(v: &Value) -> u64 {
@@ -112,6 +114,7 @@ impl<'a> Pruner<'a> {
             scorer,
             path: Vec::new(),
             floor_chars: 24,
+            ignore_query: false,
         }
     }
 

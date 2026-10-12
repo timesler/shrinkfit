@@ -185,8 +185,9 @@ fn eff_path(path: &[String]) -> &[String] {
 
 /// How much a field mentioned by the call's arguments gains, at full relevance.
 const RELEVANCE_BOOST: f64 = 0.4;
-/// A boost never lifts a field above this (identity and titles stay above
-/// anything merely mentioned), unless its own prior is already higher.
+/// A value match never lifts a field above this (identity and titles stay above
+/// anything whose values merely contain a query word), unless its score is
+/// already higher, e.g. because the caller named the field.
 const BOOST_CAP: f64 = 0.9;
 
 /// Split a key into lowercase words: `html_url`, `htmlUrl`, `HTML-URL`.
@@ -646,9 +647,13 @@ impl FieldScorer for HeuristicScorer {
             } else {
                 1.0
             };
-            let rel = (c.name_match + c.value_match * damp).min(1.0);
-            let boosted = s + RELEVANCE_BOOST * rel * (2.0 * s).clamp(0.25, 1.0);
-            s = boosted.min(s.max(BOOST_CAP));
+            // An explicit mention (a `SELECT` list, `fields=`) is a request: it
+            // may outrank anything. A value match is only evidence, so it is
+            // capped below identifiers and titles.
+            let scale = (2.0 * s).clamp(0.25, 1.0);
+            let named = (s + RELEVANCE_BOOST * c.name_match * scale).min(1.0);
+            let value_part = RELEVANCE_BOOST * (c.value_match * damp) * scale;
+            s = (named + value_part).min(named.max(BOOST_CAP));
         }
         // Costly values: still useful (they can be shortened) but later.
         if c.avg_chars > 2000.0 {
@@ -806,15 +811,24 @@ mod tests {
     #[test]
     fn argument_boost_is_bounded_and_ignores_echoes() {
         let none = |_: &mut ColumnInfo<'_>| {};
-        // An explicit mention helps, but never beyond the cap.
-        let named = |c: &mut ColumnInfo<'_>| {
+        let plain = score(&["zzz"], none);
+        // A value match helps, but never beyond the cap, so identifiers and
+        // titles stay on top...
+        let valued = score(&["zzz"], |c| {
+            c.relevance = 1.0;
+            c.value_match = 1.0;
+            c.match_fraction = 0.5;
+        });
+        assert!(valued > plain);
+        assert!(valued <= plain.max(BOOST_CAP) + 1e-9, "{valued}");
+        assert!(score(&["id"], none) > valued);
+        // ...while an explicit mention (`SELECT zzz`) is a request and may
+        // outrank anything.
+        let named = score(&["zzz"], |c| {
             c.relevance = 1.0;
             c.name_match = 1.0;
-        };
-        assert!(score(&["zzz"], named) > score(&["zzz"], none));
-        assert!(score(&["zzz"], named) <= BOOST_CAP + 1e-9);
-        // The cap leaves identifiers and titles above anything merely mentioned.
-        assert!(score(&["id"], none) > score(&["zzz"], named));
+        });
+        assert!(named > valued, "{named} vs {valued}");
         // A category field whose values match the query is mostly the filter
         // echoing back: no boost when every record matches, some when few do.
         let category = |matched: f64, rel: f64| {
