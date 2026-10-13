@@ -38,6 +38,8 @@ export interface ShrinkOptions {
   arguments?: unknown;
   /** Field ranking used by `condense`: "heuristic" (default), "compact" or "key_order". */
   fieldScorer?: "heuristic" | "compact" | "key_order";
+  /** Paths whose values must never be altered, e.g. ["/results/*/id", "ari"]. Kept exactly or the result reports no-fit. */
+  protect?: string[];
 }
 
 export interface Report {
@@ -124,6 +126,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     minPartialChars: "min_partial_chars",
     arrayStrategy: "array_strategy",
     fieldScorer: "field_scorer",
+    protect: "protect",
     arguments: "arguments",
   };
   for (const [k, v] of Object.entries(o)) {

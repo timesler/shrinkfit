@@ -32,6 +32,8 @@ options:
                                compact, key_order
       --arguments TEXT|JSON    the tool call's arguments (only their values are used):
                                fields they mention are boosted by condense
+      --protect PATTERN        never alter values at this path (repeatable): /results/*/id,
+                               ari, content/id. Kept exactly, or the result reports no-fit
       --explain                print every field's score and keep/drop decision
                                (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -70,6 +72,7 @@ fn run() -> Result<ExitCode, String> {
     let mut section = None;
     let mut keep_last = true;
     let mut explain = false;
+    let mut protect: Vec<String> = Vec::new();
     let mut arguments: Option<String> = None;
     let mut array_strategy = ArrayStrategy::Sample;
     let mut field_scorer = ScorerKind::Heuristic;
@@ -112,6 +115,7 @@ fn run() -> Result<ExitCode, String> {
             "--section" => section = Some(num(&a, args.next())?),
             "--no-keep-last" => keep_last = false,
             "--explain" => explain = true,
+            "--protect" => protect.push(args.next().ok_or("--protect needs a path pattern")?),
             "--arguments" => {
                 let raw = args.next().ok_or("--arguments needs a value")?;
                 arguments = match json::parse(&raw) {
@@ -182,6 +186,7 @@ fn run() -> Result<ExitCode, String> {
     }
     opts.keep_last_item = keep_last;
     opts.explain = explain;
+    opts.protect = protect;
     opts.arguments = arguments;
     opts.array_strategy = array_strategy;
     opts.field_scorer = field_scorer;

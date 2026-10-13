@@ -187,6 +187,7 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 | `string_min_section_chars` | `stringMinSectionChars` | 16 | smallest preview before sections are dropped |
 | `array_strategy` | `arrayStrategy` | `"sample"` | how oversized arrays shrink: `"sample"` keeps a few whole items; `"condense"` keeps every item and drops the same low-value fields from all of them (see [docs/ALGORITHM.md](docs/ALGORITHM.md)) |
 | `arguments` | `arguments` | none | the tool call's arguments (a string, or an object/array whose *values* are used; names are ignored). `condense` boosts fields whose names or values mention them, e.g. the columns in a `SELECT` or the matched field of a search |
+| `protect` | `protect` | `[]` | paths whose values are never altered: `/results/*/id`, `ari`, `content/id` (CLI: `--protect`, repeatable). Kept exactly, or the result reports `fits: false` |
 | `field_scorer` | `fieldScorer` | `"heuristic"` | field ranking for `condense`: `"heuristic"`, `"compact"` or `"key_order"` |
 | `keep_last_item` | `keepLastItem` | true | prefer keeping an array's last item |
 | `max_samples` | `maxSamples` | 3 | shape-distinct samples when no array item fits whole |
@@ -195,6 +196,18 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 The report includes `format` (the output format actually used), `input_chars`, `output_chars`, `fits`, `pruned`,
 `strings_truncated`, `arrays_sampled`, `items_omitted`, `objects_trimmed`,
 `keys_omitted` and `containers_collapsed`.
+
+## Integrating with a tool-result adapter
+
+* Prune the tool's result **document**, then build the MCP text block; shrinking
+  the already-serialized envelope breaks the embedded JSON.
+* Budget for escaping: a 10,000-character JSON body can exceed 10,000 characters
+  once escaped into a text block, so leave headroom.
+* Identifiers, URLs used as handles, cursors and snapshot tokens are kept exact
+  automatically when they are recognisable; name any others with `protect`.
+* `condense` records what it dropped in the report (`dropped_fields`,
+  `fields_dropped`), not in the data. Surface a short note to the model (for
+  example `Report::summary()`), bounded in size, so field loss is not silent.
 
 ## Repository layout
 

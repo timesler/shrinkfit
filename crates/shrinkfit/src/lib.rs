@@ -30,6 +30,7 @@ pub mod fields;
 pub mod json;
 mod lexical;
 pub mod options;
+mod protect;
 pub mod prune;
 pub mod size;
 pub mod text;

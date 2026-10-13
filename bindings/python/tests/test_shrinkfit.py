@@ -122,6 +122,21 @@ class ShrinkTests(unittest.TestCase):
         r = shrink_with_report(rows, 2500, array_strategy="condense", indent=0, arguments={"soql": "SELECT amount FROM deals"})
         self.assertIn("amount", json.loads(r.text)[0])
 
+    def test_protect_keeps_identifiers_exact(self):
+        rows = [
+            {"ari": "ari:cloud:loom::video/%032x" % (i * 7919), "name": f"Video number {i} about onboarding", "views": i}
+            for i in range(80)
+        ]
+        r = shrink_with_report(rows, 3000, array_strategy="condense", indent=0, protect=["ari"])
+        out = json.loads(r.text)
+        self.assertTrue(r.report["fits"])
+        records = [x for x in out if isinstance(x, dict)]  # the rest are omission markers
+        self.assertGreater(len(records), 5)
+        for row in records:
+            self.assertEqual(len(row["ari"]), len("ari:cloud:loom::video/") + 32)  # never shortened
+        with self.assertRaises(ShrinkError):
+            shrink(rows, 500, protect=[1])
+
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}
         out = json.loads(shrink(doc, 2500, string_section_chars=40))

@@ -24,9 +24,11 @@
 
 use crate::fields::FieldScorer;
 use crate::options::{ArrayStrategy, Options};
+use crate::protect::Pattern;
 use crate::size::Model;
 use crate::text;
 use crate::value::Value;
+use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
@@ -72,6 +74,11 @@ pub struct Meta {
     /// Shape signature, used to pick diverse array samples.
     pub shape: u64,
     pub kids: Vec<Meta>,
+    /// Protected: never altered (`min == full`).
+    pub pinned: bool,
+    /// Protected, or an object holding something protected that it must not
+    /// drop: such entries survive key trimming and collapsing.
+    pub must_keep: bool,
 }
 
 pub struct Pruner<'a> {
@@ -86,6 +93,10 @@ pub struct Pruner<'a> {
     pub floor_chars: usize,
     /// Plan as if no arguments were given (a fallback, see `try_condense`).
     pub ignore_query: bool,
+    /// Parsed `protect` patterns.
+    pub(crate) protect: Vec<Pattern>,
+    /// Absolute paths `condense` has marked exact for the array being planned.
+    pub(crate) exact_extra: RefCell<std::collections::HashSet<Vec<String>>>,
 }
 
 fn shape_of(v: &Value) -> u64 {
@@ -115,6 +126,12 @@ impl<'a> Pruner<'a> {
             path: Vec::new(),
             floor_chars: 24,
             ignore_query: false,
+            protect: opts
+                .protect
+                .iter()
+                .filter_map(|p| Pattern::parse(p))
+                .collect(),
+            exact_extra: RefCell::new(std::collections::HashSet::new()),
         }
     }
 
@@ -130,13 +147,64 @@ impl<'a> Pruner<'a> {
 
     /// Compute full/min sizes and shapes for every node.
     pub fn analyze(&self, v: &Value, depth: usize) -> Meta {
+        self.analyze_at(v, depth, &mut Vec::new(), false)
+    }
+
+    /// Is the node at this path protected (never altered)? Either named by the
+    /// `protect` option, or marked exact by `condense` for the current array.
+    pub(crate) fn is_pinned(&self, path: &[String]) -> bool {
+        self.protect.iter().any(|p| p.matches(path)) || self.exact_extra.borrow().contains(path)
+    }
+
+    /// Size of the smallest form of an object that still keeps the entries
+    /// at `kept` (each at its own minimum), behind an omission marker if
+    /// others are dropped.
+    fn pin_form_size(
+        &self,
+        entries: &[(String, Value)],
+        kids: &[Meta],
+        kept: &[usize],
+        depth: usize,
+    ) -> usize {
         let m = &self.model;
+        let omitted = entries.len() - kept.len();
+        m.overhead(kept.len() + usize::from(omitted > 0), depth)
+            + kept
+                .iter()
+                .map(|&i| m.key(&entries[i].0) + kids[i].min)
+                .sum::<usize>()
+            + if omitted > 0 {
+                m.key(MARKER_KEY) + m.string(&keys_marker(omitted))
+            } else {
+                0
+            }
+    }
+
+    /// `analyze` for a node at `path` (keys, `*` for array positions);
+    /// `forced` when an ancestor is protected, which protects everything below.
+    pub(crate) fn analyze_at(
+        &self,
+        v: &Value,
+        depth: usize,
+        path: &mut Vec<String>,
+        forced: bool,
+    ) -> Meta {
+        let m = &self.model;
+        let pinned = forced || self.is_pinned(path);
         match v {
             Value::Array(items) => {
-                let kids: Vec<Meta> = items.iter().map(|x| self.analyze(x, depth + 1)).collect();
+                let kids: Vec<Meta> = items
+                    .iter()
+                    .map(|x| {
+                        path.push("*".to_string());
+                        let k = self.analyze_at(x, depth + 1, path, pinned);
+                        path.pop();
+                        k
+                    })
+                    .collect();
                 let full =
                     m.overhead(items.len(), depth) + kids.iter().map(|k| k.full).sum::<usize>();
-                let min = if items.is_empty() {
+                let min = if items.is_empty() || pinned {
                     full
                 } else {
                     full.min(self.collapsed_array_size(items.len(), depth))
@@ -146,12 +214,19 @@ impl<'a> Pruner<'a> {
                     min,
                     shape: shape_of(v),
                     kids,
+                    pinned,
+                    must_keep: pinned,
                 }
             }
             Value::Object(entries) => {
                 let kids: Vec<Meta> = entries
                     .iter()
-                    .map(|(_, x)| self.analyze(x, depth + 1))
+                    .map(|(k, x)| {
+                        path.push(k.clone());
+                        let km = self.analyze_at(x, depth + 1, path, pinned);
+                        path.pop();
+                        km
+                    })
                     .collect();
                 let full = m.overhead(entries.len(), depth)
                     + entries
@@ -159,26 +234,37 @@ impl<'a> Pruner<'a> {
                         .zip(&kids)
                         .map(|((k, _), km)| m.key(k) + km.full)
                         .sum::<usize>();
-                let min = if entries.is_empty() {
+                let must: Vec<usize> = (0..kids.len()).filter(|&i| kids[i].must_keep).collect();
+                let min = if entries.is_empty() || pinned {
                     full
-                } else {
+                } else if must.is_empty() {
                     full.min(self.collapsed_object_size(entries.len(), depth))
+                } else {
+                    full.min(self.pin_form_size(entries, &kids, &must, depth))
                 };
                 Meta {
                     full,
                     min,
                     shape: shape_of(v),
                     kids,
+                    pinned,
+                    must_keep: pinned || !must.is_empty(),
                 }
             }
             Value::String(s) => {
                 let full = m.string(s);
-                let min = full.min(m.string(&text::chars_marker(s.chars().count())));
+                let min = if pinned {
+                    full
+                } else {
+                    full.min(m.string(&text::chars_marker(s.chars().count())))
+                };
                 Meta {
                     full,
                     min,
                     shape: shape_of(v),
                     kids: Vec::new(),
+                    pinned,
+                    must_keep: pinned,
                 }
             }
             other => {
@@ -188,6 +274,8 @@ impl<'a> Pruner<'a> {
                     min: full,
                     shape: shape_of(v),
                     kids: Vec::new(),
+                    pinned,
+                    must_keep: pinned,
                 }
             }
         }
@@ -209,14 +297,36 @@ impl<'a> Pruner<'a> {
             }
             Value::Object(entries) => {
                 self.stats.containers_collapsed += 1;
-                self.stats.keys_omitted += entries.len();
-                (
-                    Value::Object(vec![(
-                        MARKER_KEY.to_string(),
-                        Value::String(keys_marker(entries.len())),
-                    )]),
-                    self.collapsed_object_size(entries.len(), depth),
-                )
+                let must: Vec<usize> = (0..entries.len())
+                    .filter(|&i| meta.kids[i].must_keep)
+                    .collect();
+                if must.is_empty() {
+                    self.stats.keys_omitted += entries.len();
+                    return (
+                        Value::Object(vec![(
+                            MARKER_KEY.to_string(),
+                            Value::String(keys_marker(entries.len())),
+                        )]),
+                        self.collapsed_object_size(entries.len(), depth),
+                    );
+                }
+                // Keep what must survive (in its own minimal form), drop the rest.
+                let m = self.model;
+                let omitted = entries.len() - must.len();
+                let mut out: Vec<(String, Value)> = Vec::with_capacity(must.len() + 1);
+                let mut size = m.overhead(must.len() + usize::from(omitted > 0), depth);
+                for &i in &must {
+                    let (k, x) = &entries[i];
+                    let (nv, sz) = self.minimal(x, &meta.kids[i], depth + 1);
+                    size += m.key(k) + sz;
+                    out.push((k.clone(), nv));
+                }
+                if omitted > 0 {
+                    self.stats.keys_omitted += omitted;
+                    size += m.key(MARKER_KEY) + m.string(&keys_marker(omitted));
+                    out.push((MARKER_KEY.to_string(), Value::String(keys_marker(omitted))));
+                }
+                (Value::Object(out), size)
             }
             Value::String(s) => {
                 self.stats.strings_truncated += 1;
@@ -307,6 +417,35 @@ impl<'a> Pruner<'a> {
         // (overhead + keys + children at minimum + marker entry if any).
         let (idx, base): (Vec<usize>, usize) = if skeleton <= budget {
             ((0..n).collect(), skeleton)
+        } else if meta.kids.iter().any(|k| k.must_keep)
+            && self.opts.array_strategy != ArrayStrategy::Condense
+        {
+            // Protected entries first, then as many leading ones as fit.
+            let marker_cost = |omitted: usize| m.key(MARKER_KEY) + m.string(&keys_marker(omitted));
+            let mut order: Vec<usize> = (0..n).filter(|&i| meta.kids[i].must_keep).collect();
+            let pins = order.len();
+            order.extend((0..n).filter(|&i| !meta.kids[i].must_keep));
+            let (mut chosen, mut acc) = (Vec::new(), 0usize);
+            for (rank, &i) in order.iter().enumerate() {
+                let add = key_costs[i] + meta.kids[i].min;
+                let k = chosen.len() + 1;
+                let cost = m.overhead(k + usize::from(k < n), depth)
+                    + acc
+                    + add
+                    + if k < n { marker_cost(n - k) } else { 0 };
+                if cost <= budget || rank < pins {
+                    acc += add;
+                    chosen.push(i);
+                } else {
+                    break;
+                }
+            }
+            chosen.sort_unstable();
+            let k = chosen.len();
+            let base = m.overhead(k + usize::from(k < n), depth)
+                + acc
+                + if k < n { marker_cost(n - k) } else { 0 };
+            (chosen, base)
         } else if self.opts.array_strategy == ArrayStrategy::Condense {
             // Keep the most valuable keys, not merely the first ones.
             match self.select_keys(entries, meta, &key_costs, budget, depth) {

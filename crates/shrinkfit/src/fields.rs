@@ -86,6 +86,13 @@ pub trait FieldScorer: Send + Sync {
     /// Score in `0.0..=1.0`; higher means keep in preference to lower.
     fn score(&self, column: &ColumnInfo<'_>) -> f64;
 
+    /// Must this field's values come out exactly as they are (identifiers,
+    /// URLs used as handles, cursors)? Such values are never truncated; if they
+    /// do not fit, the field is dropped rather than corrupted. Default: no.
+    fn exact(&self, _column: &ColumnInfo<'_>) -> bool {
+        false
+    }
+
     /// Optional role of the field (e.g. `"identity"`). Fields sharing a role
     /// are partly redundant for a reader, so after the best one the others
     /// are discounted. `None` (the default) means no role.
@@ -216,6 +223,9 @@ fn words(key: &str) -> Vec<String> {
 }
 
 const IDENTITY: &[&str] = &[
+    "ari",
+    "arn",
+    "urn",
     "gid",
     "sha",
     "oid",
@@ -254,6 +264,9 @@ const LABEL: &[&str] = &[
 ];
 /// Envelope keys that only wrap a record's real fields (`fields/summary`).
 const WRAPPERS: &[&str] = &[
+    "content",
+    "resource",
+    "object",
     "source",
     "embedded",
     "doc",
@@ -557,6 +570,15 @@ impl HeuristicScorer {
         if tiered.is_none() && c.timestamp_like {
             p = 0.55;
         }
+        // A link that is different in every record is a retrieval handle for
+        // it (a page URL, an embed link): worth keeping like an identifier.
+        if any(&own, LINK)
+            && c.kinds.string == c.present
+            && c.scalars >= 3
+            && c.distinct * 10 >= c.scalars * 9
+        {
+            p = p.max(0.8);
+        }
         // Among identifiers, readable ones (`OPS-12`) beat opaque numbers.
         if c.numeric_like && any(&own, IDENTITY) {
             p -= 0.04;
@@ -666,6 +688,18 @@ impl FieldScorer for HeuristicScorer {
             s *= 0.85;
         }
         s.clamp(0.0, 1.0)
+    }
+
+    fn exact(&self, c: &ColumnInfo<'_>) -> bool {
+        if c.present == 0 || c.avg_chars > 300.0 || c.kinds.string + c.kinds.number != c.present {
+            return false;
+        }
+        let path = eff_path(c.path);
+        let own = words(path.last().map(String::as_str).unwrap_or(""));
+        let unique = c.scalars >= 3 && c.distinct * 10 >= c.scalars * 9;
+        // Identifiers, machine-generated ids and per-record links are worthless
+        // once shortened.
+        (any(&own, IDENTITY) && !c.constant) || (unique && (c.opaque_like || any(&own, LINK)))
     }
 
     fn role(&self, c: &ColumnInfo<'_>) -> Option<String> {

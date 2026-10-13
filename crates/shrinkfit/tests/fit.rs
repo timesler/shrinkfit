@@ -778,3 +778,227 @@ fn arguments_naming_many_category_fields_cannot_lose_the_condensed_result() {
     assert_eq!(boosted.report.stats.arrays_condensed, 1, "{}", boosted.text);
     assert!(boosted.text.contains("Autoscaler"), "{}", boosted.text);
 }
+
+fn find<'a>(v: &'a Value, key: &str) -> Option<&'a Value> {
+    match v {
+        Value::Object(e) => e.iter().find(|(k, _)| k == key).map(|(_, x)| x),
+        _ => None,
+    }
+}
+
+fn strings_of(v: &Value, key: &str) -> Vec<Option<String>> {
+    let Value::Array(items) = v else {
+        panic!("not an array")
+    };
+    items
+        .iter()
+        .map(|it| match find(it, key) {
+            Some(Value::String(s)) => Some(s.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Atlassian-style search results: the page id is nested in `content`, urls are
+/// relative, and container metadata competes for space.
+fn confluence_like(n: usize) -> String {
+    let words = [
+        "platform", "runbook", "capacity", "billing", "security", "roadmap",
+    ];
+    let rows: Vec<String> = (0..n)
+        .map(|i| {
+            let id = 3_100_000_000u64 + i as u64 * 7_919;
+            let title = format!("{} {} {} review {i}", words[i % 6], words[(i + 2) % 6], words[(i + 4) % 6]);
+            format!(
+                r#"{{"content":{{"id":"{id}","type":"page","status":"current","title":"{title}","space":{{"key":"ENG"}}}},"title":"{title}","excerpt":"{}","url":"/spaces/ENG/pages/{id}/{}","resultGlobalContainer":{{"title":"Engineering","displayUrl":"/spaces/ENG"}},"entityType":"content","lastModified":"2026-03-1{}T10:00:00.000Z","score":0.{i}}}"#,
+                "capacity planning notes for the platform team ".repeat(4),
+                title.replace(' ', "+"),
+                i % 9
+            )
+        })
+        .collect();
+    format!(
+        r#"{{"results":[{}],"start":0,"size":{n},"_links":{{"next":"/rest/api/search?cursor={}"}}}}"#,
+        rows.join(","),
+        "c".repeat(40)
+    )
+}
+
+#[test]
+fn nested_page_ids_survive_exactly_in_search_results() {
+    let src = confluence_like(100);
+    let original = json::parse(&src).unwrap();
+    let out = shrink_json(&src, &condense_opts(10_000)).unwrap();
+    assert!(out.report.fits);
+    let results = find(&out.value, "results").unwrap();
+    let Value::Array(items) = results else {
+        panic!()
+    };
+    assert_eq!(items.len(), 100, "every record is kept");
+    let ids = |v: &Value| -> Vec<Option<String>> {
+        let Value::Array(items) = find(v, "results").unwrap() else {
+            panic!()
+        };
+        items
+            .iter()
+            .map(|it| match find(it, "content").and_then(|c| find(c, "id")) {
+                Some(Value::String(s)) => Some(s.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(
+        ids(&out.value),
+        ids(&original),
+        "all page ids kept, byte for byte"
+    );
+    // The pagination link is untouched.
+    assert_eq!(find(&out.value, "_links"), find(&original, "_links"));
+}
+
+#[test]
+fn identifier_values_are_never_shortened() {
+    // Loom-like videos: long ARIs that are useless if cut.
+    let rows: Vec<String> = (0..50)
+        .map(|i| {
+            format!(
+                r#"{{"ari":"ari:cloud:loom::video/{:032x}","name":"Onboarding walkthrough number {i} for new hires","createdAt":"2026-01-1{}T09:30:00Z","duration":{},"embedUrl":"https://www.loom.com/embed/{:032x}"}}"#,
+                0xabcdef0123456789u128 * (i as u128 + 1),
+                i % 9,
+                30 + i * 17,
+                0x1234567890abcdefu128 * (i as u128 + 3)
+            )
+        })
+        .collect();
+    let src = format!(r#"{{"videos":[{}]}}"#, rows.join(","));
+    let original = json::parse(&src).unwrap();
+    let out = shrink_json(&src, &condense_opts(5_000)).unwrap();
+    assert!(out.report.fits);
+    let (a, b) = (
+        find(&original, "videos").unwrap(),
+        find(&out.value, "videos").unwrap(),
+    );
+    let (ori, got) = (strings_of(a, "ari"), strings_of(b, "ari"));
+    assert_eq!(ori.len(), got.len(), "all records kept");
+    assert!(
+        got.iter().all(|x| x.is_some()),
+        "every record keeps its ARI"
+    );
+    assert_eq!(ori, got, "ARIs are exact");
+    // Unique links, when kept, are exact as well (or dropped, never cut).
+    for (o, g) in strings_of(a, "embedUrl")
+        .iter()
+        .zip(strings_of(b, "embedUrl"))
+    {
+        if let Some(g) = g {
+            assert_eq!(o.as_ref(), Some(&g));
+        }
+    }
+}
+
+#[test]
+fn protect_keeps_named_values_exact_in_every_strategy() {
+    let rows: Vec<String> = (0..40)
+        .map(|i| {
+            format!(
+                r#"{{"ref":"R-{i}","token":"{}","note":"{}"}}"#,
+                format!("tok{i:04}").repeat(8),
+                "some descriptive text about the record ".repeat(6)
+            )
+        })
+        .collect();
+    let src = format!(r#"[{}]"#, rows.join(","));
+    for strategy in [
+        shrinkfit::ArrayStrategy::Sample,
+        shrinkfit::ArrayStrategy::Condense,
+    ] {
+        let opts = Options {
+            indent: 0,
+            array_strategy: strategy,
+            protect: vec!["token".into()],
+            ..Options::new(3_000)
+        };
+        let out = shrink_json(&src, &opts).unwrap();
+        assert!(out.report.fits, "{strategy:?}");
+        let Value::Array(items) = &out.value else {
+            panic!()
+        };
+        let mut checked = 0;
+        for it in items {
+            if let Some(Value::String(t)) = find(it, "token") {
+                assert_eq!(
+                    t.len(),
+                    56,
+                    "token must not be shortened ({strategy:?}): {t}"
+                );
+                assert!(!t.contains('…'));
+                checked += 1;
+            }
+        }
+        assert!(checked >= 2, "{strategy:?}: expected tokens to be present");
+    }
+}
+
+#[test]
+fn protected_keys_survive_trimming_and_overflow_reports_no_fit() {
+    // A wide object whose protected key is last: prefix trimming would drop it.
+    let mut fields: Vec<String> = (0..60)
+        .map(|i| format!(r#""field_{i:02}":"{}""#, "v".repeat(30)))
+        .collect();
+    fields.push(r#""snapshot_token":"snap-0123456789abcdef0123456789abcdef""#.into());
+    let src = format!("{{{}}}", fields.join(","));
+    let opts = Options {
+        indent: 0,
+        protect: vec!["/snapshot_token".into()],
+        ..Options::new(300)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert!(out.report.fits, "{}", out.text);
+    assert!(
+        out.text.contains("snap-0123456789abcdef0123456789abcdef"),
+        "{}",
+        out.text
+    );
+    // A protected value larger than the whole budget is not cut to fit: no-fit.
+    let big = format!(r#"{{"a":1,"cursor":"{}"}}"#, "x".repeat(500));
+    let opts = Options {
+        indent: 0,
+        protect: vec!["cursor".into()],
+        ..Options::new(100)
+    };
+    let out = shrink_json(&big, &opts).unwrap();
+    assert!(!out.report.fits);
+    assert!(
+        out.text.contains(&"x".repeat(500)),
+        "the protected value is never altered"
+    );
+}
+
+#[test]
+fn sorting_by_a_field_does_not_crowd_out_summaries_but_selecting_it_does_keep_it() {
+    let rows: Vec<String> = (0..60)
+        .map(|i| {
+            format!(
+                r#"{{"key":"OPS-{i}","summary":"Autoscaler oscillates under bursty load, case number {i}","updated":"2026-03-1{}T10:{:02}:00.000+0000"}}"#,
+                i % 9,
+                i % 60
+            )
+        })
+        .collect();
+    let src = format!("[{}]", rows.join(","));
+    let with = |a: &str| Options {
+        arguments: Some(a.into()),
+        ..condense_opts(4_800)
+    };
+    // Only a sort clause names `updated`: summaries come first.
+    let sorted = shrink_json(&src, &with("project = OPS ORDER BY updated DESC")).unwrap();
+    assert!(
+        sorted.text.contains("Autoscaler oscillates"),
+        "{}",
+        sorted.text
+    );
+    assert!(!sorted.text.contains("\"updated\""), "{}", sorted.text);
+    // Asking for the field in a select list keeps it.
+    let selected = shrink_json(&src, &with("SELECT key, updated FROM issues")).unwrap();
+    assert!(selected.text.contains("\"updated\""), "{}", selected.text);
+}

@@ -101,14 +101,51 @@ fn within_one_edit(a: &str, b: &str) -> bool {
 pub(crate) struct Query {
     tokens: Vec<String>,
     set: HashSet<String>,
+    /// Words that appear only in a sort clause (`ORDER BY updated DESC`): the
+    /// caller orders by them, which does not mean they want them displayed.
+    sort: HashSet<String>,
+}
+
+/// How much a field named only in a sort clause counts as "mentioned".
+const SORT_WEIGHT: f64 = 0.35;
+
+/// Split off the words of a trailing `ORDER BY ...` clause (up to `LIMIT`,
+/// `OFFSET`, `GROUP` or `HAVING`).
+fn split_sort_clause(text: &str) -> (String, String) {
+    let lower = text.to_lowercase();
+    let Some(at) = lower.find("order by") else {
+        return (text.to_string(), String::new());
+    };
+    // `to_lowercase` can change byte offsets for exotic characters; stay on
+    // char boundaries of the original text.
+    if !text.is_char_boundary(at) || !text.is_char_boundary(at + 8) {
+        return (text.to_string(), String::new());
+    }
+    let tail = &text[at + 8..];
+    let tail_lower = &lower[at + 8..];
+    let end = ["limit", "offset", "group by", "having"]
+        .iter()
+        .filter_map(|k| tail_lower.find(k))
+        .min()
+        .unwrap_or(tail.len());
+    let end = if tail.is_char_boundary(end) {
+        end
+    } else {
+        tail.len()
+    };
+    let mut main = text[..at].to_string();
+    main.push(' ');
+    main.push_str(&tail[end..]);
+    (main, tail[..end].to_string())
 }
 
 impl Query {
     /// `None` if the arguments contain no informative words.
     pub(crate) fn new(text: &str) -> Option<Query> {
+        let (main, sort_text) = split_sort_clause(text);
         let mut tokens = Vec::new();
         let mut set = HashSet::new();
-        for w in words(text) {
+        for w in words(&main) {
             if informative(&w) {
                 let n = norm(&w);
                 if set.insert(n.clone()) {
@@ -116,10 +153,19 @@ impl Query {
                 }
             }
         }
-        if tokens.is_empty() {
+        let mut sort = HashSet::new();
+        for w in words(&sort_text) {
+            if informative(&w) {
+                let n = norm(&w);
+                if !set.contains(&n) {
+                    sort.insert(n);
+                }
+            }
+        }
+        if tokens.is_empty() && sort.is_empty() {
             None
         } else {
-            Some(Query { tokens, set })
+            Some(Query { tokens, set, sort })
         }
     }
 
@@ -129,11 +175,23 @@ impl Query {
     /// match, so a query about `status.phase` does not credit `status.podIP`.
     pub(crate) fn name_match(&self, leaf: &[String], ancestors: &[String]) -> f64 {
         let leaf: Vec<String> = leaf.iter().map(|w| norm(w)).collect();
-        let hits = leaf.iter().filter(|w| self.set.contains(*w)).count();
-        if leaf.is_empty() || hits == 0 {
+        // Words named in the query count in full; words only sorted by, weakly.
+        let hits: f64 = leaf
+            .iter()
+            .map(|w| {
+                if self.set.contains(w) {
+                    1.0
+                } else if self.sort.contains(w) {
+                    SORT_WEIGHT
+                } else {
+                    0.0
+                }
+            })
+            .sum();
+        if leaf.is_empty() || hits == 0.0 {
             return 0.0;
         }
-        let frac = hits as f64 / leaf.len() as f64;
+        let frac = hits / leaf.len() as f64;
         if frac >= 1.0 {
             1.0
         } else if ancestors.iter().any(|w| self.set.contains(&norm(w))) {
@@ -233,6 +291,21 @@ mod tests {
             q.name_match(&w(&["phase", "x"]), &w(&["status"]))
                 > q.name_match(&w(&["phase", "x"]), &[])
         );
+    }
+
+    #[test]
+    fn sorting_by_a_field_is_weak_evidence_that_it_is_wanted() {
+        let q =
+            Query::new("project = OPS AND status = open ORDER BY updated DESC LIMIT 50").unwrap();
+        let w = |x: &[&str]| -> Vec<String> { x.iter().map(|s| s.to_string()).collect() };
+        assert_eq!(q.name_match(&w(&["status"]), &[]), 1.0);
+        let sorted = q.name_match(&w(&["updated"]), &[]);
+        assert!(sorted > 0.0 && sorted < 0.5, "{sorted}");
+        // Sort words are not value evidence.
+        let vals: HashSet<String> = ["updated".to_string()].into_iter().collect();
+        assert_eq!(q.value_match(&vals), 0.0);
+        // Only a sort clause: still a usable query.
+        assert!(Query::new("ORDER BY created").is_some());
     }
 
     #[test]

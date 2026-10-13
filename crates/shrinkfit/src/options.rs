@@ -69,6 +69,10 @@ pub struct Options {
     /// Record every field's score and keep/drop decision in the report
     /// (`condense` only). For tuning and debugging.
     pub explain: bool,
+    /// Paths whose values must never be altered (see `protect`): `/results/*/id`,
+    /// `ari`, `content/id`. Protected values are kept exactly or, if they cannot
+    /// fit, the result is reported with `fits: false`.
+    pub protect: Vec<String>,
 }
 
 /// Default output budget, in characters.
@@ -114,6 +118,7 @@ impl Options {
             field_scorer: ScorerKind::Heuristic,
             explain: false,
             arguments: None,
+            protect: Vec::new(),
         }
     }
 
@@ -182,6 +187,19 @@ impl Options {
                 "max_samples" => o.max_samples = uint()?,
                 "min_partial_chars" => o.min_partial_chars = uint()?,
                 "explain" => o.explain = boolean()?,
+                "protect" => {
+                    o.protect = match val {
+                        Value::Array(items) => items
+                            .iter()
+                            .map(|x| match x {
+                                Value::String(s) => Ok(s.clone()),
+                                _ => Err("protect must be a list of strings".to_string()),
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                        Value::String(s) => vec![s.clone()],
+                        _ => return Err("protect must be a list of strings".into()),
+                    }
+                }
                 "arguments" => o.arguments = arguments_text(val),
                 "array_strategy" => {
                     o.array_strategy = match val {

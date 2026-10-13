@@ -239,6 +239,10 @@ overriding it:
   (`SELECT Amount`) is strong. A value match is strong for content fields, but a
   low-variety category field whose values match is mostly the filter coming
   back, so its value boost fades to nothing when every record matches.
+* **Sorting is not asking.** Words that appear only in an `ORDER BY` clause
+  count a third as much as other mentions of a field, and never as value
+  evidence: sorting by `updated` does not mean the caller wants `updated` shown
+  in every record in place of the summary.
 * **A cap on value matches.** A field boosted only because its values contain
   query words never rises above 0.9 unless its own score is already higher, so
   identifiers and titles rank above data that merely mentions the query. An
@@ -247,6 +251,23 @@ overriding it:
   the arguments is rejected by the quality gates (say, a query naming many
   category fields), the array is planned again without them before falling
   back to sampling.
+
+**Exact values.** A field kept is not enough if its value is shortened: an
+identifier cut to a prefix cannot be used to fetch anything. Values that act
+as identifiers or handles are therefore never truncated. The scorer decides
+(`FieldScorer::exact`; the heuristic marks identifier-named fields, unique
+machine-generated ids and unique links), such fields are costed at their full
+length, and the size analysis gives them no smaller form than themselves. If
+they do not fit, the field is dropped rather than corrupted.
+
+**Protected paths.** The `protect` option (CLI `--protect`, repeatable) names
+paths that must never be altered, whatever the scorer thinks: `/results/*/id`
+(anchored; `*` is any key or array position), `ari` or `content/id` (matches any
+path ending that way). A protected container is protected as a whole. `condense`
+selects protected fields first in every record and falls back to sampling
+(whose kept items carry them intact) if they cannot all fit; object key
+trimming never drops a protected key; and if protected values alone exceed the
+budget the result is reported with `fits: false` instead of cutting them.
 
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring

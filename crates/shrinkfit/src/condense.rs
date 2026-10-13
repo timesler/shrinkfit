@@ -241,6 +241,9 @@ impl<'a> Pruner<'a> {
     /// Size of the smallest form of `v` that keeps all of its object keys:
     /// scalars in full, long strings as a short preview, arrays collapsed.
     pub(crate) fn floor(&self, v: &Value, meta: &Meta, depth: usize) -> usize {
+        if meta.min >= meta.full {
+            return meta.full; // protected, or too small to shrink
+        }
         match v {
             Value::Object(entries) if !entries.is_empty() => {
                 self.model.overhead(entries.len(), depth)
@@ -533,7 +536,13 @@ impl<'a> Pruner<'a> {
                     avg_chars: meta.kids[i].full as f64,
                     avg_position: i as f64,
                 };
-                (i, self.scorer.score(&info))
+                // Protected keys (and objects holding them) are kept before all else.
+                let score = if meta.kids[i].must_keep {
+                    f64::INFINITY
+                } else {
+                    self.scorer.score(&info)
+                };
+                (i, score)
             })
             .collect();
         scored.sort_by(|a, b| {
@@ -687,6 +696,7 @@ impl<'a> Pruner<'a> {
                 self.floor_chars = chars;
                 let plan = self.plan(items, meta, budget, depth, level == 0);
                 self.floor_chars = previous;
+                self.exact_extra.borrow_mut().clear();
                 match plan {
                     Planned::NotUniform => {
                         self.ignore_query = false;
@@ -749,6 +759,9 @@ impl<'a> Pruner<'a> {
         let base = |dep: usize| m.overhead(1, dep).saturating_sub(per(dep));
         let mut leaves: Vec<(usize, f64)> = Vec::new();
         let mut roles: Vec<Option<String>> = vec![None; cols.len()];
+        let mut is_protected = vec![false; cols.len()];
+        let mut is_exact = vec![false; cols.len()];
+        let mut abs_paths: Vec<Vec<String>> = vec![Vec::new(); cols.len()];
         let mut rels: Vec<f64> = vec![0.0; cols.len()];
         for (i, c) in cols.iter().enumerate() {
             if c.is_branch() || !Self::usable(cols, i) {
@@ -778,10 +791,21 @@ impl<'a> Pruner<'a> {
                 avg_position: c.pos_sum as f64 / c.present.max(1) as f64,
             };
             roles[i] = self.scorer.role(&info);
+            let mut abs = self.path.clone();
+            abs.push("*".to_string());
+            abs.extend(c.path.iter().cloned());
+            let protected = self.protect.iter().any(|p| p.matches(&abs));
+            is_protected[i] = protected;
+            is_exact[i] = protected || self.scorer.exact(&info);
+            abs_paths[i] = abs;
             rels[i] = info.relevance;
             leaves.push((i, self.scorer.score(&info)));
         }
         Self::discount_redundant(cols, &roles, &mut leaves);
+        // Protected fields outrank everything: they are chosen first, whole.
+        for l in leaves.iter_mut().filter(|l| is_protected[l.0]) {
+            l.1 = 2.0;
+        }
         leaves.sort_by(|a, b| {
             b.1.partial_cmp(&a.1)
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -798,7 +822,9 @@ impl<'a> Pruner<'a> {
         // Cost of adding field `i` (with the branches leading to it, if new).
         let cost_of = |i: usize, activated: &HashSet<usize>| -> (usize, Vec<usize>) {
             let c = &cols[i];
-            let mut delta = c.key_sum + c.present * per(depth + c.path.len()) + c.floor_sum;
+            // Exact values cost their full length: they are never shortened.
+            let value_cost = if is_exact[i] { c.full_sum } else { c.floor_sum };
+            let mut delta = c.key_sum + c.present * per(depth + c.path.len()) + value_cost;
             let mut chain = Vec::new();
             let mut p = c.parent;
             while let Some(b) = p {
@@ -920,6 +946,15 @@ impl<'a> Pruner<'a> {
                     keep.insert(p[..l].to_vec());
                 }
             }
+            // The values of exact fields must come out exactly: mark their paths
+            // so the analysis gives them no smaller form than themselves.
+            *self.exact_extra.borrow_mut() = selected
+                .iter()
+                .filter(|&&i| is_exact[i])
+                .map(|&i| abs_paths[i].clone())
+                .collect();
+            let mut item_path = self.path.clone();
+            item_path.push("*".to_string());
             let mut reduced = Vec::with_capacity(n);
             let mut metas = Vec::with_capacity(n);
             let mut floors = Vec::with_capacity(n);
@@ -929,7 +964,7 @@ impl<'a> Pruner<'a> {
                     return Planned::NotUniform;
                 };
                 let v = Value::Object(Self::project(entries, &mut prefix, &keep, &leaf_set));
-                let mt = self.analyze(&v, item_depth);
+                let mt = self.analyze_at(&v, item_depth, &mut item_path.clone(), false);
                 floors.push(self.floor(&v, &mt, item_depth));
                 reduced.push(v);
                 metas.push(mt);
