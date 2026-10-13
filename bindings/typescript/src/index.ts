@@ -38,7 +38,7 @@ export interface ShrinkOptions {
   arguments?: unknown;
   /** Field ranking used by `condense`: "heuristic" (default), "compact" or "key_order". */
   fieldScorer?: "heuristic" | "compact" | "key_order";
-  /** Paths whose values must never be altered, e.g. ["/results/*/id", "ari"]. Kept exactly or the result reports no-fit. */
+  /** Paths whose values must never be altered (for example "ari" or "content/id"; a leading slash anchors at the root and a star matches one key or array position). Kept exactly, or the result reports no-fit. */
   protect?: string[];
 }
 
