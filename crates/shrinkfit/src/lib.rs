@@ -99,6 +99,12 @@ impl Report {
         add(st.keys_omitted, "object keys omitted");
         add(st.strings_truncated, "strings truncated");
         add(st.containers_collapsed, "containers collapsed");
+        if st.protected_omitted > 0 {
+            parts.push(format!(
+                "{} protected values omitted with their records",
+                group(st.protected_omitted)
+            ));
+        }
         if st.fields_dropped > 0 {
             let shown: Vec<&str> = st
                 .dropped_fields
@@ -161,6 +167,7 @@ impl Report {
                 n(self.stats.containers_collapsed),
             ),
             ("arrays_condensed".into(), n(self.stats.arrays_condensed)),
+            ("protected_omitted".into(), n(self.stats.protected_omitted)),
             (
                 "field_decisions".into(),
                 Value::Array(

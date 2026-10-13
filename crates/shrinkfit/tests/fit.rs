@@ -1002,3 +1002,124 @@ fn sorting_by_a_field_does_not_crowd_out_summaries_but_selecting_it_does_keep_it
     let selected = shrink_json(&src, &with("SELECT key, updated FROM issues")).unwrap();
     assert!(selected.text.contains("\"updated\""), "{}", selected.text);
 }
+
+fn results_with_long_titles(n: usize) -> String {
+    let words = [
+        "platform",
+        "service",
+        "runbook",
+        "capacity",
+        "onboarding",
+        "incident",
+        "review",
+        "architecture",
+    ];
+    let rows: Vec<String> = (0..n)
+        .map(|i| {
+            let title: String = (0..10 + i % 6).map(|k| words[(i * 3 + k) % 8]).collect::<Vec<_>>().join(" ");
+            let id = 3_100_000_000u64 + i as u64 * 7_919;
+            format!(
+                r#"{{"content":{{"id":"{id}","type":"page","title":"{title}"}},"title":"{title}","url":"/spaces/ENG/pages/{id}","resultGlobalContainer":{{"title":"Engineering"}},"lastModified":"2026-03-{:02}T10:{:02}:00.000Z"}}"#,
+                1 + i % 28,
+                i % 60
+            )
+        })
+        .collect();
+    format!(r#"{{"data":{{"results":[{}]}}}}"#, rows.join(","))
+}
+
+fn content_field(item: &Value, key: &str) -> Option<String> {
+    match find(item, "content").and_then(|c| find(c, key)) {
+        Some(Value::String(s)) => Some(s.clone()),
+        _ => None,
+    }
+}
+
+#[test]
+fn protected_fields_are_kept_together_or_their_record_is_omitted_and_counted() {
+    // 100 ids + titles (about 12,000 characters) cannot all fit in 10,000. The old behaviour kept
+    // every id and silently dropped the protected titles.
+    let src = results_with_long_titles(100);
+    let original = json::parse(&src).unwrap();
+    let opts = Options {
+        protect: vec![
+            "/data/results/*/content/id".into(),
+            "/data/results/*/content/title".into(),
+        ],
+        ..condense_opts(10_000)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert!(out.report.fits);
+    let results = |v: &Value| match find(find(v, "data").unwrap(), "results").unwrap() {
+        Value::Array(a) => a.clone(),
+        _ => panic!(),
+    };
+    let originals = results(&original);
+    let kept: Vec<Value> = results(&out.value)
+        .into_iter()
+        .filter(|x| matches!(x, Value::Object(_)))
+        .collect();
+    assert!(!kept.is_empty() && kept.len() < originals.len());
+    for r in &kept {
+        let id = content_field(r, "id").expect("kept record has its id");
+        let title = content_field(r, "title").expect("kept record has its title");
+        let o = originals
+            .iter()
+            .find(|o| content_field(o, "id").as_deref() == Some(&id))
+            .expect("id is a real id");
+        assert_eq!(content_field(o, "title"), Some(title), "title is exact");
+    }
+    // The omitted records' protected values are counted, so `fits` is not the only signal.
+    assert_eq!(
+        out.report.stats.protected_omitted,
+        2 * (originals.len() - kept.len())
+    );
+    assert!(out.report.summary().contains("protected values omitted"));
+}
+
+#[test]
+fn protecting_a_container_protects_everything_inside_it() {
+    let src = results_with_long_titles(100);
+    let original = json::parse(&src).unwrap();
+    let opts = Options {
+        protect: vec!["/data/results/*/content".into()],
+        ..condense_opts(40_000)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert!(out.report.fits);
+    assert_eq!(out.report.stats.protected_omitted, 0);
+    let get = |v: &Value| match find(find(v, "data").unwrap(), "results").unwrap() {
+        Value::Array(a) => a
+            .iter()
+            .map(|r| find(r, "content").cloned())
+            .collect::<Vec<_>>(),
+        _ => panic!(),
+    };
+    assert_eq!(
+        get(&out.value),
+        get(&original),
+        "every content object is intact in every record"
+    );
+}
+
+#[test]
+fn protected_values_lost_with_their_record_are_reported_even_when_fits_is_true() {
+    let input = r#"{"items":[{"ari":"ari:cloud:loom:abcdefghijk","name":"Example"}]}"#;
+    let opts = Options {
+        protect: vec!["ari".into()],
+        ..condense_opts(30)
+    };
+    let out = shrink_json(input, &opts).unwrap();
+    assert!(out.report.fits, "the parent can be omitted whole");
+    assert_eq!(out.report.stats.protected_omitted, 1, "{}", out.text);
+    assert!(!out.text.contains("ari:cloud"), "{}", out.text);
+    // Protecting the container keeps it and reports that nothing fits instead.
+    let opts = Options {
+        protect: vec!["/items".into()],
+        ..condense_opts(30)
+    };
+    let out = shrink_json(input, &opts).unwrap();
+    assert!(!out.report.fits);
+    assert_eq!(out.report.stats.protected_omitted, 0);
+    assert!(out.text.contains("ari:cloud:loom:abcdefghijk"));
+}

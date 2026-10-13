@@ -794,7 +794,9 @@ impl<'a> Pruner<'a> {
             let mut abs = self.path.clone();
             abs.push("*".to_string());
             abs.extend(c.path.iter().cloned());
-            let protected = self.protect.iter().any(|p| p.matches(&abs));
+            // A protected container protects everything inside it.
+            let protected =
+                (1..=abs.len()).any(|l| self.protect.iter().any(|p| p.matches(&abs[..l])));
             is_protected[i] = protected;
             is_exact[i] = protected || self.scorer.exact(&info);
             abs_paths[i] = abs;
@@ -849,6 +851,15 @@ impl<'a> Pruner<'a> {
                 selected.push(i);
                 chosen.insert(i);
             }
+        }
+        // A protected field must be kept in every record or not at all: if the
+        // greedy pass could not afford one, this plan fails (and the array is
+        // sampled, whose kept items carry their protected values intact).
+        if leaves
+            .iter()
+            .any(|&(i, _)| is_protected[i] && !chosen.contains(&i))
+        {
+            return Planned::NoFit;
         }
         // Swap step: a strong field that did not fit may evict several weaker
         // ones if that raises the total value (cubed scores, so one good field
@@ -971,6 +982,9 @@ impl<'a> Pruner<'a> {
             }
             let total_floor = m.overhead(n, depth) + floors.iter().sum::<usize>();
             if total_floor > budget {
+                if selected.last().is_some_and(|&l| is_protected[l]) {
+                    return Planned::NoFit;
+                }
                 selected.pop();
                 continue;
             }

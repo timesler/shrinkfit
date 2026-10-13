@@ -269,6 +269,19 @@ selects protected fields first in every record and falls back to sampling
 trimming never drops a protected key; and if protected values alone exceed the
 budget the result is reported with `fits: false` instead of cutting them.
 
+Protection never means "this record will be present": a protected leaf
+(`ari`) only guarantees that wherever the record appears its value is intact,
+and a protected field that cannot be afforded in every record makes the plan
+fail (the array is then sampled) rather than silently dropping it. Values that
+are lost because their record, item or key was omitted are counted in the
+report (`protected_omitted`, also in `Report::summary()`), so a `fits: true`
+result can be checked for missing protected values. To make a whole container
+and its position mandatory, protect the container (`/items`): if it cannot fit,
+the result is `fits: false`. A protected container protects everything inside
+it. Prefer anchored paths (`/data/issues/*/key`) when the schema is known: a
+bare suffix such as `key` matches that name at every depth and can change the
+allocation of the whole response.
+
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring
 field must fit (otherwise the budget per record is too small and the array is

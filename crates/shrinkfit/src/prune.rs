@@ -63,6 +63,9 @@ pub struct Stats {
     /// With `Options::explain`: every scored field as `(path, score x 1000,
     /// kept, relevance x 1000)`, best first, for each condensed array.
     pub field_decisions: Vec<(String, u32, bool, u32)>,
+    /// Protected values missing from the output because the record, item or key
+    /// holding them was omitted. Check this, not just `fits`.
+    pub protected_omitted: usize,
 }
 
 /// Precomputed sizes for a subtree, mirroring the value tree.
@@ -79,6 +82,9 @@ pub struct Meta {
     /// Protected, or an object holding something protected that it must not
     /// drop: such entries survive key trimming and collapsing.
     pub must_keep: bool,
+    /// Protected values (leaves) in this subtree; omitted ones are counted in
+    /// [`Stats::protected_omitted`].
+    pub pinned_leaves: usize,
 }
 
 pub struct Pruner<'a> {
@@ -209,6 +215,7 @@ impl<'a> Pruner<'a> {
                 } else {
                     full.min(self.collapsed_array_size(items.len(), depth))
                 };
+                let pinned_leaves = kids.iter().map(|k| k.pinned_leaves).sum();
                 Meta {
                     full,
                     min,
@@ -216,6 +223,7 @@ impl<'a> Pruner<'a> {
                     kids,
                     pinned,
                     must_keep: pinned,
+                    pinned_leaves,
                 }
             }
             Value::Object(entries) => {
@@ -242,6 +250,7 @@ impl<'a> Pruner<'a> {
                 } else {
                     full.min(self.pin_form_size(entries, &kids, &must, depth))
                 };
+                let pinned_leaves = kids.iter().map(|k| k.pinned_leaves).sum();
                 Meta {
                     full,
                     min,
@@ -249,6 +258,7 @@ impl<'a> Pruner<'a> {
                     kids,
                     pinned,
                     must_keep: pinned || !must.is_empty(),
+                    pinned_leaves,
                 }
             }
             Value::String(s) => {
@@ -265,6 +275,7 @@ impl<'a> Pruner<'a> {
                     kids: Vec::new(),
                     pinned,
                     must_keep: pinned,
+                    pinned_leaves: usize::from(pinned),
                 }
             }
             other => {
@@ -276,6 +287,7 @@ impl<'a> Pruner<'a> {
                     kids: Vec::new(),
                     pinned,
                     must_keep: pinned,
+                    pinned_leaves: usize::from(pinned),
                 }
             }
         }
@@ -290,6 +302,7 @@ impl<'a> Pruner<'a> {
             Value::Array(items) => {
                 self.stats.containers_collapsed += 1;
                 self.stats.items_omitted += items.len();
+                self.stats.protected_omitted += meta.pinned_leaves;
                 (
                     Value::Array(vec![Value::String(items_marker(items.len()))]),
                     self.collapsed_array_size(items.len(), depth),
@@ -302,6 +315,7 @@ impl<'a> Pruner<'a> {
                     .collect();
                 if must.is_empty() {
                     self.stats.keys_omitted += entries.len();
+                    self.stats.protected_omitted += meta.pinned_leaves;
                     return (
                         Value::Object(vec![(
                             MARKER_KEY.to_string(),
@@ -323,6 +337,8 @@ impl<'a> Pruner<'a> {
                 }
                 if omitted > 0 {
                     self.stats.keys_omitted += omitted;
+                    let kept_pins: usize = must.iter().map(|&i| meta.kids[i].pinned_leaves).sum();
+                    self.stats.protected_omitted += meta.pinned_leaves.saturating_sub(kept_pins);
                     size += m.key(MARKER_KEY) + m.string(&keys_marker(omitted));
                     out.push((MARKER_KEY.to_string(), Value::String(keys_marker(omitted))));
                 }
@@ -487,6 +503,8 @@ impl<'a> Pruner<'a> {
         if kept < n {
             self.stats.objects_trimmed += 1;
             self.stats.keys_omitted += n - kept;
+            let kept_pins: usize = idx.iter().map(|&i| meta.kids[i].pinned_leaves).sum();
+            self.stats.protected_omitted += meta.pinned_leaves.saturating_sub(kept_pins);
             out.push((MARKER_KEY.to_string(), Value::String(keys_marker(n - kept))));
         }
         (Value::Object(out), fixed + kids_size)
@@ -591,6 +609,8 @@ impl<'a> Pruner<'a> {
         }
         self.stats.arrays_sampled += 1;
         self.stats.items_omitted += n - sel.len();
+        let kept_pins: usize = sel.indices().map(|i| meta.kids[i].pinned_leaves).sum();
+        self.stats.protected_omitted += meta.pinned_leaves.saturating_sub(kept_pins);
         (Value::Array(out), size)
     }
 

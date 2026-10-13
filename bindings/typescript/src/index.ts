@@ -54,6 +54,8 @@ export interface Report {
   objects_trimmed: number;
   keys_omitted: number;
   containers_collapsed: number;
+  /** Protected values left out because their record, item or key was omitted (check this, not just `fits`). */
+  protected_omitted?: number;
 }
 
 export interface ShrinkResult {

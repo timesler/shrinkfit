@@ -205,6 +205,9 @@ The report includes `format` (the output format actually used), `input_chars`, `
   once escaped into a text block, so leave headroom.
 * Identifiers, URLs used as handles, cursors and snapshot tokens are kept exact
   automatically when they are recognisable; name any others with `protect`.
+* Check `report.protected_omitted` (not just `fits`) when you use `protect`: it
+  counts protected values that were left out with their records. Prefer anchored
+  paths (`/data/issues/*/key`); a bare suffix like `key` matches at every depth.
 * `condense` records what it dropped in the report (`dropped_fields`,
   `fields_dropped`), not in the data. Surface a short note to the model (for
   example `Report::summary()`), bounded in size, so field loss is not silent.
