@@ -1123,3 +1123,27 @@ fn protected_values_lost_with_their_record_are_reported_even_when_fits_is_true()
     assert_eq!(out.report.stats.protected_omitted, 0);
     assert!(out.text.contains("ari:cloud:loom:abcdefghijk"));
 }
+
+#[test]
+fn arguments_mentioning_a_word_in_urls_cannot_push_out_the_page_id() {
+    // `type = page` matches "pages" inside every URL, which boosts `url`. A merely
+    // matching field must never outrank the record's identifier.
+    let src = results_with_long_titles(100);
+    let original = json::parse(&src).unwrap();
+    let opts = Options {
+        arguments: Some("type = page".into()),
+        ..condense_opts(10_000)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    let ids = |v: &Value| -> Vec<Option<String>> {
+        let Value::Array(items) = find(find(v, "data").unwrap(), "results").unwrap() else {
+            panic!()
+        };
+        items.iter().map(|it| content_field(it, "id")).collect()
+    };
+    assert_eq!(
+        ids(&out.value),
+        ids(&original),
+        "every page id is kept exactly"
+    );
+}

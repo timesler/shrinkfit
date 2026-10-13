@@ -244,7 +244,7 @@ overriding it:
   evidence: sorting by `updated` does not mean the caller wants `updated` shown
   in every record in place of the summary.
 * **A cap on value matches.** A field boosted only because its values contain
-  query words never rises above 0.9 unless its own score is already higher, so
+  query words never rises above 0.8 unless its own score is already higher (below the 0.84 an opaque numeric id still scores, so an id is never displaced by a field that merely matches a query word), so
   identifiers and titles rank above data that merely mentions the query. An
   explicit name mention (`SELECT amount`) is a request and is not capped.
 * **The arguments can refine a result, never lose it.** If the plan boosted by

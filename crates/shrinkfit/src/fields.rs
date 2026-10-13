@@ -195,7 +195,7 @@ const RELEVANCE_BOOST: f64 = 0.4;
 /// A value match never lifts a field above this (identity and titles stay above
 /// anything whose values merely contain a query word), unless its score is
 /// already higher, e.g. because the caller named the field.
-const BOOST_CAP: f64 = 0.9;
+const BOOST_CAP: f64 = 0.8;
 
 /// Split a key into lowercase words: `html_url`, `htmlUrl`, `HTML-URL`.
 fn words(key: &str) -> Vec<String> {
