@@ -47,8 +47,8 @@ All numbers are from this data unless stated.
    The 25% gain (+0.052, CI +0.032 to +0.079) is clear of noise; the 10% gain (+0.025) is smaller.
    Precision is unchanged. Weights between 0.5 and 0.7 work best.
 
-**Now built in.** shrinkfit fetches these scores itself (`jev` option, `--jev` in the CLI,
-`shrinkAsync` in TypeScript); see "Model scoring" in the top-level README. `scripts/ml_jev3.py` is the
+**Now built in.** shrinkfit fetches these scores itself (`jev` option, `--jev` in the CLI; in
+TypeScript `shrinkAsync` passes the request to `fetch`); see "Model scoring" in the top-level README. `scripts/ml_jev3.py` is the
 research version of the same call.
 
 ## Caveats

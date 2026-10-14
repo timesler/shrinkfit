@@ -13,3 +13,11 @@ rust-version = "1.70"
 lto = true
 codegen-units = 1
 opt-level = 3
+
+# Third-party code (the HTTP/TLS client) is built for size: it is not on shrinkfit's hot path.
+[profile.release.package."*"]
+opt-level = "z"
+
+# ...except the YAML parser, which does sit on a hot path.
+[profile.release.package.yaml-rust2]
+opt-level = 3

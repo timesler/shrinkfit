@@ -297,10 +297,10 @@ from 0.72 to 0.77 and the share of essential fields kept from 0.77 to 0.83.
 
 The `jev` option does the fetching: before pruning a document that has to be cut, it asks the
 model one yes/no question per field path (the tool call and two example values are the context)
-and prepends the answers to `field_scores`. The core builds the request and parses the reply but
-never speaks HTTP itself (`model_request` / `jev_reply`), so it stays dependency-free and works in
-WebAssembly; native builds can send the request with the system `curl`. Any failure leaves the
-built-in scoring in charge and is recorded in `Report::model_scoring`.
+and prepends the answers to `field_scores`. Native builds with the `jev` cargo feature send the
+request themselves; on WebAssembly, which has no sockets, the core only builds the request
+(`model_request`) and reads the reply (`jev_reply`) and the host carries it. Any failure leaves
+the built-in scoring in charge and is recorded in `Report::model_scoring`.
 
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring

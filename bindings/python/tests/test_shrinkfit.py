@@ -190,35 +190,6 @@ class ShrinkTests(unittest.TestCase):
         self.assertIn("no OpenRouter API key", r.report["model_scoring"])
         self.assertEqual(len(seen), 1)
 
-    def test_model_scoring_accepts_a_custom_transport(self):
-        rows = [{"id": f"ID-{i}", "alpha": f"alpha text {i} " * 6, "beta": f"beta text {i} " * 6} for i in range(30)]
-        data = {"results": rows}
-        sent = []
-
-        def send(request):
-            sent.append(request)
-            body = json.loads(request["body"])
-            answers = {
-                name: {"type": "noul", "noul": 1.0 if q["instructions"].split("`")[1].endswith("beta") else 0.0}
-                for name, q in body["questions"].items()
-            }
-            return json.dumps({"answers": answers})
-
-        kwargs = dict(array_strategy="condense", indent=0, field_score_weight=1)
-        r = shrink_with_report(data, 1500, jev={"api_key": "k", "send": send}, **kwargs)
-        self.assertEqual(list(json.loads(r.text)["results"][0]), ["beta"])
-        self.assertEqual(len(sent), 1)
-        self.assertEqual(sent[0]["headers"]["Authorization"], "Bearer k")
-        self.assertTrue(sent[0]["url"].endswith("/alpha/decisions"))
-
-        def broken(request):
-            raise ConnectionError("down")
-
-        plain = shrink_with_report(data, 1500, **kwargs)
-        r = shrink_with_report(data, 1500, jev={"api_key": "k", "send": broken}, **kwargs)
-        self.assertEqual(r.text, plain.text)
-        self.assertIn("ConnectionError", r.report["model_scoring"])
-
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}
         out = json.loads(shrink(doc, 2500, string_section_chars=40))

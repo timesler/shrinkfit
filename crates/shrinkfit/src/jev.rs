@@ -21,9 +21,10 @@
 //! **Who sends the request.** This module has no HTTP or TLS code and no
 //! dependencies, so it works on every target including wasm (which has no
 //! sockets). It builds the request ([`crate::model_request`]) and reads the reply
-//! (`Options::jev_reply`). A host with its own HTTP client (Python, TypeScript)
-//! does the sending in between; native Rust builds can instead let the core send
-//! it with the system `curl`, with the key passed on stdin, not on the command line.
+//! (`Options::jev_reply`). With the `jev` cargo feature (on in the CLI and the
+//! native FFI library) the core also sends it, with a small HTTP client; without
+//! it, and always on wasm, the host sends the request in between (TypeScript
+//! uses `fetch`).
 
 use crate::json::{self, Layout};
 use crate::options::Options;
@@ -349,8 +350,8 @@ pub(crate) fn build_request(
 /// [`Options::field_scores`] and a description for the report.
 ///
 /// The reply comes from the host when it supplied one (`jev_reply`, or
-/// `jev_error` for a failed attempt); otherwise a native build sends the request
-/// itself with the system `curl`.
+/// `jev_error` for a failed attempt); otherwise a build with the `jev` feature sends the
+/// request itself.
 pub(crate) fn score_fields(
     v: &Value,
     opts: &Options,
@@ -394,88 +395,36 @@ fn now() -> Option<std::time::Instant> {
     None
 }
 
-/// Send the request with the system `curl`: no HTTP or TLS code in this crate
-/// and no extra dependencies, and proxy settings are honoured. The request goes
-/// to curl on stdin as a config file, so the API key never appears in the
-/// process list.
-#[cfg(not(target_family = "wasm"))]
+/// Send the request: a plain HTTPS POST with a hard timeout. Where the build has
+/// no HTTP client (the `jev` feature is off, or wasm, which has no sockets) the
+/// host must send it and pass the reply back instead (`Options::jev_reply`).
+#[cfg(all(feature = "jev", not(target_family = "wasm")))]
 fn send(req: &Request) -> Result<String, String> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
-    // curl config strings: backslash and double quote are escaped, and so are
-    // control characters, which the config parser would otherwise take literally.
-    let esc = |s: &str| {
-        let mut o = String::with_capacity(s.len() + 8);
-        for c in s.chars() {
-            match c {
-                '\\' => o.push_str("\\\\"),
-                '"' => o.push_str("\\\""),
-                '\n' => o.push_str("\\n"),
-                '\r' => o.push_str("\\r"),
-                '\t' => o.push_str("\\t"),
-                c => o.push(c),
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_millis(req.timeout_ms))
+        .build();
+    let mut call = agent.post(&req.url);
+    for (k, v) in &req.headers {
+        call = call.set(k, v);
+    }
+    match call.send_string(&req.body) {
+        Ok(resp) => resp
+            .into_string()
+            .map_err(|e| format!("reading the reply failed ({})", e.kind())),
+        Err(ureq::Error::Status(code, _)) => Err(format!("the service answered HTTP {code}")),
+        Err(ureq::Error::Transport(t)) => {
+            if t.to_string().to_ascii_lowercase().contains("timed out") {
+                Err("the request timed out".to_string())
+            } else {
+                Err(format!("the request failed ({})", t.kind()))
             }
         }
-        o
-    };
-    let mut config = format!(
-        "url = \"{}\"\nrequest = \"POST\"\nsilent\nshow-error\nmax-time = {:.3}\n",
-        esc(&req.url),
-        (req.timeout_ms as f64 / 1000.0).max(0.1)
-    );
-    for (k, v) in &req.headers {
-        config.push_str(&format!("header = \"{}: {}\"\n", esc(k), esc(v)));
     }
-    config.push_str(&format!(
-        "data-raw = \"{}\"\nwrite-out = \"\\n%{{http_code}}\"\n",
-        esc(&req.body)
-    ));
-
-    let mut cmd = Command::new("curl");
-    cmd.args(["-K", "-"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
-    let mut child = cmd.spawn().map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            "curl was not found on PATH (install it, or have the host make the request)".to_string()
-        } else {
-            format!("could not start curl ({})", e.kind())
-        }
-    })?;
-    child
-        .stdin
-        .take()
-        .ok_or("could not write to curl")?
-        .write_all(config.as_bytes())
-        .map_err(|_| "could not write to curl".to_string())?;
-    let out = child
-        .wait_with_output()
-        .map_err(|_| "curl did not finish".to_string())?;
-    if !out.status.success() {
-        return Err(match out.status.code() {
-            Some(28) => "the request timed out".to_string(),
-            Some(code) => format!("the request failed (curl exit {code})"),
-            None => "the request failed".to_string(),
-        });
-    }
-    let text = String::from_utf8_lossy(&out.stdout).to_string();
-    let (body, code) = text.rsplit_once('\n').ok_or("curl returned nothing")?;
-    if code.trim() != "200" {
-        return Err(format!("the service answered HTTP {}", code.trim()));
-    }
-    Ok(body.to_string())
 }
 
-#[cfg(target_family = "wasm")]
+#[cfg(not(all(feature = "jev", not(target_family = "wasm"))))]
 fn send(_req: &Request) -> Result<String, String> {
-    Err("this build cannot make network requests; the host must send the request and pass the reply".into())
+    Err("this build cannot send the request itself (wasm, or built without the `jev` feature); the host must send it and pass the reply".into())
 }
 
 #[cfg(test)]

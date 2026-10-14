@@ -15,8 +15,6 @@ import ctypes
 import json
 import os
 import sys
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -64,8 +62,6 @@ def _load() -> ctypes.CDLL:
                 ctypes.c_char_p, ctypes.c_size_t,
                 ctypes.POINTER(ctypes.c_size_t),
             ]
-            lib.shrinkfit_model_request.restype = ctypes.c_void_p
-            lib.shrinkfit_model_request.argtypes = lib.shrinkfit_shrink.argtypes
             lib.shrinkfit_free.restype = None
             lib.shrinkfit_free.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
             lib.shrinkfit_version.restype = ctypes.c_char_p
@@ -95,51 +91,6 @@ def _to_text(data: Any, input_format: str) -> str:
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-def _call(lib: ctypes.CDLL, fn: Any, text: bytes, opts: bytes) -> Dict[str, Any]:
-    out_len = ctypes.c_size_t(0)
-    ptr = fn(text, len(text), opts, len(opts), ctypes.byref(out_len))
-    try:
-        return json.loads(ctypes.string_at(ptr, out_len.value).decode("utf-8"))
-    finally:
-        lib.shrinkfit_free(ptr, out_len.value)
-
-
-def _with_model_scores(lib: ctypes.CDLL, text: bytes, opts: bytes, send: Any = None) -> bytes:
-    """Model scoring (``jev=...``): the core builds the request and reads the reply;
-    this only moves the bytes, with the standard library, so it works in slim
-    containers without curl. Any failure is passed back as ``jev_error`` and the
-    core falls back to its built-in scoring."""
-    envelope = _call(lib, lib.shrinkfit_model_request, text, opts)
-    extra: Dict[str, str] = {}
-    request = envelope.get("request") if envelope.get("ok") else None
-    if not envelope.get("ok"):
-        extra["jev_error"] = envelope.get("error", "model scoring is unavailable")
-    elif request is not None and send is not None:
-        try:
-            extra["jev_reply"] = send(request)
-        except Exception as e:  # the caller's transport: any failure just means no scores
-            extra["jev_error"] = f"the request failed ({type(e).__name__})"
-    elif request is not None:
-        http = urllib.request.Request(
-            request["url"],
-            data=request["body"].encode("utf-8"),
-            headers=request["headers"],
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(http, timeout=request["timeout_ms"] / 1000) as response:
-                extra["jev_reply"] = response.read().decode("utf-8")
-        except urllib.error.HTTPError as e:
-            extra["jev_error"] = f"the service answered HTTP {e.code}"
-        except TimeoutError:
-            extra["jev_error"] = "the request timed out"
-        except OSError:  # URLError, connection errors
-            extra["jev_error"] = "the request failed"
-    if not extra:
-        return opts
-    return json.dumps({**json.loads(opts.decode("utf-8")), **extra}).encode("utf-8")
-
-
 def shrink_with_report(
     data: Any,
     max_chars: int = 10_000,
@@ -163,27 +114,20 @@ def shrink_with_report(
     ``min_partial_chars``.
 
     ``jev=True`` (or ``{"api_key": ..., "tool": ...}``) blends in scores from a hosted
-    decision model; see the README. The key defaults to ``OPENROUTER_API_KEY``. The
-    core builds the request and uses the reply; the request is sent with ``urllib``
-    unless you pass ``jev={"send": fn}``, where ``fn(request)`` receives a dict with
-    ``url``, ``headers``, ``body`` and ``timeout_ms`` and returns the response body
-    (raise on failure).
+    decision model; the core sends the request itself. See the README. The key
+    defaults to ``OPENROUTER_API_KEY``.
     """
     text = _to_text(data, input_format).encode("utf-8")
-    send = None
-    jev = options.get("jev")
-    if isinstance(jev, dict) and "send" in jev:
-        # A callable cannot go to the core as JSON; keep it here as the transport.
-        jev = dict(jev)
-        send = jev.pop("send")
-        options = {**options, "jev": jev}
     opts = json.dumps(
         {"max_chars": int(max_chars), "format": format, "input_format": input_format, **options}
     ).encode("utf-8")
     lib = _get_lib()
-    if options.get("jev") and "jev_reply" not in options and "jev_error" not in options:
-        opts = _with_model_scores(lib, text, opts, send)
-    envelope = _call(lib, lib.shrinkfit_shrink, text, opts)
+    out_len = ctypes.c_size_t(0)
+    ptr = lib.shrinkfit_shrink(text, len(text), opts, len(opts), ctypes.byref(out_len))
+    try:
+        envelope = json.loads(ctypes.string_at(ptr, out_len.value).decode("utf-8"))
+    finally:
+        lib.shrinkfit_free(ptr, out_len.value)
     if not envelope.get("ok"):
         raise ShrinkError(envelope.get("error", "unknown error"))
     return ShrinkResult(text=envelope["text"], report=envelope["report"])

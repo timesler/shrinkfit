@@ -226,18 +226,16 @@ const text = await shrinkAsync(data, 4000, { arrayStrategy: "condense", jev: { t
   and up to two example values (60 characters each) per path. Not the rest of the response.
 * **Cost and speed:** about 1,000 to 4,000 input tokens (about $0.0001) and 0.2 to 0.4 s per call.
   Scores are blended with the built-in ones by `field_score_weight` (default 0.5).
-* **Who sends the request.** The core does all the work except moving the bytes, so it has no HTTP or TLS
-  code and no dependencies, and runs unchanged in WebAssembly (which has no sockets):
-  * Rust and the CLI send it with the system `curl` (the key goes to curl on stdin, never on its command
-    line; proxy settings are honoured). Without curl they report `unavailable`.
-  * Python sends it with `urllib`; pass `jev={"send": fn}` to use your own transport. `fn` receives a dict
-    with `url`, `headers`, `body` and `timeout_ms` and returns the response body (raise on failure).
-  * TypeScript sends it with the global `fetch` in `shrinkAsync` / `shrinkWithReportAsync`; pass
-    `jev: { fetch }` to use your own (a proxy, auth middleware, a runtime without a global `fetch`). The
-    synchronous `shrink` / `shrinkWithReport` cannot wait for a network reply, so they report `unavailable`.
-  * Anything else with a C ABI or its own HTTP client can do the same two steps: call
-    `shrinkfit_model_request` (Rust: `shrinkfit::model_request`) to get the request, send it, and pass
-    the response body back as the `jev_reply` option (or the failure as `jev_error`).
+* **Who sends the request.** The core does it, with a small built-in HTTPS client, in the CLI, the Python
+  package and the Rust crate (with its `jev` cargo feature, which the CLI and the Python library turn on; it adds
+  about 1.2 MB, and the default crate stays dependency-free). The one exception is WebAssembly, which has no
+  sockets: in TypeScript the core builds the request and reads the reply, and `fetch` carries it in between.
+  Use `shrinkAsync` / `shrinkWithReportAsync` (the synchronous `shrink` cannot wait for a network reply and
+  reports `unavailable`); they use the global `fetch`, or `jev: { fetch }` if you pass one (a proxy, auth
+  middleware, a runtime without a global `fetch`). Nothing else needs a transport.
+* **Other hosts.** Anything with a C ABI that cannot or would rather not send the request itself can do the
+  same two steps: call `shrinkfit_model_request` (Rust: `shrinkfit::model_request`) to get the request, send it,
+  and pass the response body back as the `jev_reply` option (or the failure as `jev_error`).
 
 The report includes `format` (the output format actually used), `input_chars`, `output_chars`, `fits`, `pruned`,
 `strings_truncated`, `arrays_sampled`, `items_omitted`, `objects_trimmed`,

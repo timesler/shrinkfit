@@ -13,4 +13,4 @@ readme = "../../README.md"
 name="shrinkfit"
 path="src/main.rs"
 [dependencies]
-shrinkfit = { path = "../shrinkfit", version = "0.0.0", features = ["yaml"] }
+shrinkfit = { path = "../shrinkfit", version = "0.0.0", features = ["yaml", "jev"] }

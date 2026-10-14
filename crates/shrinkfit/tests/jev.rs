@@ -1,5 +1,5 @@
 //! Model scoring against a local stand-in for the Decisions API.
-#![cfg(not(target_family = "wasm"))]
+#![cfg(feature = "jev")]
 
 use shrinkfit::json;
 use shrinkfit::{shrink_str, ArrayStrategy, JevOptions, Options, Value};
@@ -338,7 +338,7 @@ fn a_host_can_send_the_request_itself() {
 }
 
 #[test]
-fn a_large_request_survives_the_trip_through_curl() {
+fn a_large_request_with_awkward_characters_arrives_intact() {
     // Many fields with awkward characters: quotes, backslashes, newlines, unicode.
     let fields: Vec<String> = (0..100)
         .map(|i| {
