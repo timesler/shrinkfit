@@ -137,6 +137,16 @@ class ShrinkTests(unittest.TestCase):
         with self.assertRaises(ShrinkError):
             shrink(rows, 500, protect=[1])
 
+    def test_field_scores_choose_columns(self):
+        rows = [{"id": f"ID-{i}", "alpha": f"alpha text {i} " * 6, "beta": f"beta text {i} " * 6} for i in range(30)]
+        keep_beta = {"results/*/beta": 1.0, "results/*/alpha": 0.0}
+        r = shrink_with_report({"results": rows}, 1500, array_strategy="condense", indent=0, field_scores=keep_beta, field_score_weight=1)
+        first = json.loads(r.text)["results"][0]
+        self.assertIn("beta", first)
+        self.assertNotIn("alpha", first)
+        with self.assertRaises(ShrinkError):
+            shrink(rows, 500, field_scores={"a": "high"})
+
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}
         out = json.loads(shrink(doc, 2500, string_section_chars=40))

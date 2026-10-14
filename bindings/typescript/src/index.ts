@@ -40,6 +40,10 @@ export interface ShrinkOptions {
   fieldScorer?: "heuristic" | "compact" | "key_order";
   /** Paths whose values must never be altered (for example "ari" or "content/id"; a leading slash anchors at the root and a star matches one key or array position). Kept exactly, or the result reports no-fit. */
   protect?: string[];
+  /** Field scores from outside, for example from a model that has read the response: path pattern (same syntax as `protect`) to a score from 0 to 1. A field they name is scored `(1 - fieldScoreWeight) * built-in + fieldScoreWeight * external`. Used by `condense`. */
+  fieldScores?: Record<string, number>;
+  /** How strongly `fieldScores` pull against the built-in score, 0 to 1 (default 0.5). */
+  fieldScoreWeight?: number;
 }
 
 export interface Report {
@@ -129,6 +133,8 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     arrayStrategy: "array_strategy",
     fieldScorer: "field_scorer",
     protect: "protect",
+    fieldScores: "field_scores",
+    fieldScoreWeight: "field_score_weight",
     arguments: "arguments",
   };
   for (const [k, v] of Object.entries(o)) {

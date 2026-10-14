@@ -540,7 +540,9 @@ impl<'a> Pruner<'a> {
                 let score = if meta.kids[i].must_keep {
                     f64::INFINITY
                 } else {
-                    self.scorer.score(&info)
+                    let mut abs = self.path.clone();
+                    abs.push(k.clone());
+                    self.with_external(&abs, self.scorer.score(&info))
                 };
                 (i, score)
             })
@@ -801,7 +803,10 @@ impl<'a> Pruner<'a> {
             is_exact[i] = protected || self.scorer.exact(&info);
             abs_paths[i] = abs;
             rels[i] = info.relevance;
-            leaves.push((i, self.scorer.score(&info)));
+            leaves.push((
+                i,
+                self.with_external(&abs_paths[i], self.scorer.score(&info)),
+            ));
         }
         Self::discount_redundant(cols, &roles, &mut leaves);
         // Protected fields outrank everything: they are chosen first, whole.

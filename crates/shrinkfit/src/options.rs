@@ -73,10 +73,38 @@ pub struct Options {
     /// `ari`, `content/id`. Protected values are kept exactly or, if they cannot
     /// fit, the result is reported with `fits: false`.
     pub protect: Vec<String>,
+    /// Field scores supplied from outside (for example by a model that has read
+    /// the response): `(path pattern, score in 0..=1)`, with the pattern syntax
+    /// of `protect`. The first matching pattern wins. A field they name is scored
+    /// `(1 - field_score_weight) * built-in + field_score_weight * external`;
+    /// fields they do not name keep the built-in score.
+    pub field_scores: Vec<(String, f64)>,
+    /// How strongly `field_scores` pull against the built-in score (default 0.5).
+    pub field_score_weight: f64,
 }
 
 /// Default output budget, in characters.
 pub const DEFAULT_MAX_CHARS: usize = 10_000;
+
+/// Parse a `field_scores` object (`{"/results/*/title": 0.9, ...}`) into the
+/// ordered `(pattern, score)` list used by [`Options::field_scores`].
+pub fn parse_field_scores(v: &Value) -> Result<Vec<(String, f64)>, String> {
+    let Value::Object(entries) = v else {
+        return Err("field_scores must be an object of path pattern to score".into());
+    };
+    entries
+        .iter()
+        .map(|(k, v)| match v {
+            Value::Number(n) => n
+                .parse::<f64>()
+                .ok()
+                .filter(|x| x.is_finite())
+                .map(|x| (k.clone(), x.clamp(0.0, 1.0)))
+                .ok_or_else(|| "field_scores values must be numbers".to_string()),
+            _ => Err("field_scores values must be numbers".to_string()),
+        })
+        .collect()
+}
 
 /// The values inside tool arguments, as text: a string is used as is, objects
 /// and arrays contribute their values (keys are dropped), numbers and
@@ -119,6 +147,8 @@ impl Options {
             explain: false,
             arguments: None,
             protect: Vec::new(),
+            field_scores: Vec::new(),
+            field_score_weight: 0.5,
         }
     }
 
@@ -199,6 +229,16 @@ impl Options {
                         Value::String(s) => vec![s.clone()],
                         _ => return Err("protect must be a list of strings".into()),
                     }
+                }
+                "field_scores" => o.field_scores = parse_field_scores(val)?,
+                "field_score_weight" => {
+                    let w = match val {
+                        Value::Number(n) => n.parse::<f64>().ok().filter(|x| x.is_finite()),
+                        _ => None,
+                    };
+                    o.field_score_weight = w
+                        .filter(|x| (0.0..=1.0).contains(x))
+                        .ok_or("field_score_weight must be a number from 0 to 1")?;
                 }
                 "arguments" => o.arguments = arguments_text(val),
                 "array_strategy" => {

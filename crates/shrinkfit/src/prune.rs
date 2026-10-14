@@ -101,6 +101,8 @@ pub struct Pruner<'a> {
     pub ignore_query: bool,
     /// Parsed `protect` patterns.
     pub(crate) protect: Vec<Pattern>,
+    /// Parsed `field_scores`, in the order given.
+    pub(crate) external: Vec<(Pattern, f64)>,
     /// Absolute paths `condense` has marked exact for the array being planned.
     pub(crate) exact_extra: RefCell<std::collections::HashSet<Vec<String>>>,
 }
@@ -137,7 +139,24 @@ impl<'a> Pruner<'a> {
                 .iter()
                 .filter_map(|p| Pattern::parse(p))
                 .collect(),
+            external: opts
+                .field_scores
+                .iter()
+                .filter_map(|(p, s)| Pattern::parse(p).map(|p| (p, *s)))
+                .collect(),
             exact_extra: RefCell::new(std::collections::HashSet::new()),
+        }
+    }
+
+    /// The built-in score of the field at `abs`, pulled towards the externally
+    /// supplied score when one of `field_scores` names it.
+    pub(crate) fn with_external(&self, abs: &[String], base: f64) -> f64 {
+        match self.external.iter().find(|(p, _)| p.matches(abs)) {
+            Some((_, ext)) => {
+                let w = self.opts.field_score_weight;
+                (1.0 - w) * base + w * ext
+            }
+            None => base,
         }
     }
 

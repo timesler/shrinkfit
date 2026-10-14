@@ -282,6 +282,19 @@ it. Prefer anchored paths (`/data/issues/*/key`) when the schema is known: a
 bare suffix such as `key` matches that name at every depth and can change the
 allocation of the whole response.
 
+**External field scores.** The built-in scorer only sees the document. A
+caller that can read it (a small model, a decision model such as Jev, a lookup
+table built from earlier calls) can pass `field_scores`: an object of path
+pattern (the `protect` syntax) to a score in `0..=1`. A field they name is
+scored `(1 - field_score_weight) * built-in + field_score_weight * external`
+(default weight 0.5), fields they do not name keep the built-in score, the first
+matching pattern wins, and protected fields still outrank everything. It applies
+wherever `condense` ranks fields: the columns of a record array and the keys of
+an object that has to lose some. `experiments/path-selection` measured this with
+scores from a hosted decision model on 238 labelled tool responses: at a budget
+of 25% of the response, a 50/50 blend raised the share of labelled value kept
+from 0.72 to 0.77 and the share of essential fields kept from 0.77 to 0.83.
+
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring
 field must fit (otherwise the budget per record is too small and the array is

@@ -188,6 +188,8 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 | `array_strategy` | `arrayStrategy` | `"sample"` | how oversized arrays shrink: `"sample"` keeps a few whole items; `"condense"` keeps every item and drops the same low-value fields from all of them (see [docs/ALGORITHM.md](docs/ALGORITHM.md)) |
 | `arguments` | `arguments` | none | the tool call's arguments (a string, or an object/array whose *values* are used; names are ignored). `condense` boosts fields whose names or values mention them, e.g. the columns in a `SELECT` or the matched field of a search |
 | `protect` | `protect` | `[]` | paths whose values are never altered: `/results/*/id`, `ari`, `content/id` (CLI: `--protect`, repeatable). Kept exactly, or the result reports `fits: false` |
+| `field_scores` | `fieldScores` | `{}` | field scores from outside, for example from a model that has read the response: an object of path pattern (as for `protect`) to a score from 0 to 1. A field they name is scored `(1 - field_score_weight) * built-in + field_score_weight * external`; others keep the built-in score. Used by `condense` (array columns and object keys). CLI: `--field-scores JSON|FILE` |
+| `field_score_weight` | `fieldScoreWeight` | 0.5 | how strongly `field_scores` pull against the built-in score (0 ignores them, 1 uses them alone) |
 | `field_scorer` | `fieldScorer` | `"heuristic"` | field ranking for `condense`: `"heuristic"`, `"compact"` or `"key_order"` |
 | `keep_last_item` | `keepLastItem` | true | prefer keeping an array's last item |
 | `max_samples` | `maxSamples` | 3 | shape-distinct samples when no array item fits whole |

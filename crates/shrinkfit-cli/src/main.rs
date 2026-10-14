@@ -34,6 +34,11 @@ options:
                                fields they mention are boosted by condense
       --protect PATTERN        never alter values at this path (repeatable): /results/*/id,
                                ari, content/id. Kept exactly, or the result reports no-fit
+      --field-scores JSON|FILE field scores from outside, e.g. from a model: a JSON object
+                               of path pattern to 0..1, blended with the built-in score
+                               of the fields it names (patterns as for --protect)
+      --field-score-weight W   pull of --field-scores against the built-in score, 0..1
+                               (default 0.5)
       --explain                print every field's score and keep/drop decision
                                (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -74,6 +79,8 @@ fn run() -> Result<ExitCode, String> {
     let mut explain = false;
     let mut protect: Vec<String> = Vec::new();
     let mut arguments: Option<String> = None;
+    let mut field_scores: Vec<(String, f64)> = Vec::new();
+    let mut field_score_weight: Option<f64> = None;
     let mut array_strategy = ArrayStrategy::Sample;
     let mut field_scorer = ScorerKind::Heuristic;
     let mut report = false;
@@ -116,6 +123,27 @@ fn run() -> Result<ExitCode, String> {
             "--no-keep-last" => keep_last = false,
             "--explain" => explain = true,
             "--protect" => protect.push(args.next().ok_or("--protect needs a path pattern")?),
+            "--field-scores" => {
+                let raw = args
+                    .next()
+                    .ok_or("--field-scores needs a JSON object or a file")?;
+                let text = if raw.trim_start().starts_with('{') {
+                    raw
+                } else {
+                    std::fs::read_to_string(&raw)
+                        .map_err(|e| format!("--field-scores {raw}: {e}"))?
+                };
+                let v = json::parse(&text).map_err(|e| format!("--field-scores: {e}"))?;
+                field_scores = shrinkfit::options::parse_field_scores(&v)?;
+            }
+            "--field-score-weight" => {
+                let w: f64 = args
+                    .next()
+                    .and_then(|x| x.parse().ok())
+                    .filter(|x| (0.0..=1.0).contains(x))
+                    .ok_or("--field-score-weight needs a number from 0 to 1")?;
+                field_score_weight = Some(w);
+            }
             "--arguments" => {
                 let raw = args.next().ok_or("--arguments needs a value")?;
                 arguments = match json::parse(&raw) {
@@ -188,6 +216,10 @@ fn run() -> Result<ExitCode, String> {
     opts.explain = explain;
     opts.protect = protect;
     opts.arguments = arguments;
+    opts.field_scores = field_scores;
+    if let Some(w) = field_score_weight {
+        opts.field_score_weight = w;
+    }
     opts.array_strategy = array_strategy;
     opts.field_scorer = field_scorer;
     opts.input_format = input_format.unwrap_or_else(|| match path.as_deref() {

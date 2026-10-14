@@ -1147,3 +1147,92 @@ fn arguments_mentioning_a_word_in_urls_cannot_push_out_the_page_id() {
         "every page id is kept exactly"
     );
 }
+
+fn field_score_records() -> String {
+    let rows: Vec<String> = (0..30)
+        .map(|i| {
+            format!(
+                r#"{{"id":"ID-{i}","alpha":"{}","beta":"{}"}}"#,
+                format!("alpha text {i} ").repeat(6),
+                format!("beta text {i} ").repeat(6)
+            )
+        })
+        .collect();
+    format!(r#"{{"results":[{}]}}"#, rows.join(","))
+}
+
+fn kept_keys(out: &str) -> std::collections::BTreeSet<String> {
+    let v = shrinkfit::json::parse(out).unwrap();
+    let mut keys = std::collections::BTreeSet::new();
+    fn walk(v: &Value, keys: &mut std::collections::BTreeSet<String>) {
+        match v {
+            Value::Object(entries) => {
+                for (k, x) in entries {
+                    keys.insert(k.clone());
+                    walk(x, keys);
+                }
+            }
+            Value::Array(items) => items.iter().for_each(|x| walk(x, keys)),
+            _ => {}
+        }
+    }
+    walk(&v, &mut keys);
+    keys
+}
+
+#[test]
+fn external_field_scores_decide_which_columns_survive() {
+    let src = field_score_records();
+    let run = |scores: &[(&str, f64)], weight: f64| {
+        let opts = Options {
+            field_scores: scores.iter().map(|(p, s)| (p.to_string(), *s)).collect(),
+            field_score_weight: weight,
+            ..condense_opts(1500)
+        };
+        kept_keys(&shrinkfit::shrink_str(&src, &opts).unwrap().text)
+    };
+    let favour_beta = run(&[("results/*/beta", 1.0), ("results/*/alpha", 0.0)], 1.0);
+    assert!(favour_beta.contains("beta") && !favour_beta.contains("alpha"));
+    let favour_alpha = run(&[("results/*/alpha", 1.0), ("results/*/beta", 0.0)], 1.0);
+    assert!(favour_alpha.contains("alpha") && !favour_alpha.contains("beta"));
+    // Weight 0 ignores them entirely.
+    let ignored = run(&[("results/*/beta", 1.0), ("results/*/alpha", 0.0)], 0.0);
+    let none = run(&[], 0.5);
+    assert_eq!(ignored, none);
+    // Identifiers stay exact whatever the scores say.
+    assert!(favour_beta.contains("id") || favour_alpha.contains("id"));
+}
+
+#[test]
+fn external_field_scores_choose_keys_of_a_plain_object() {
+    let entries: Vec<String> = (0..12)
+        .map(|i| format!(r#""field{i:02}":"{}""#, format!("value {i} ").repeat(8)))
+        .collect();
+    let src = format!("{{{}}}", entries.join(","));
+    let opts = Options {
+        field_scores: vec![("/field09".into(), 1.0), ("/field00".into(), 0.0)],
+        field_score_weight: 1.0,
+        ..condense_opts(260)
+    };
+    let kept = kept_keys(&shrinkfit::shrink_str(&src, &opts).unwrap().text);
+    assert!(kept.contains("field09"), "{kept:?}");
+    assert!(!kept.contains("field00"), "{kept:?}");
+}
+
+#[test]
+fn field_scores_options_are_validated() {
+    let parse = |t: &str| Options::from_value(&json::parse(t).unwrap());
+    let ok = parse(r#"{"field_scores":{"results/*/title":0.9,"/x":2},"field_score_weight":0.25}"#)
+        .unwrap();
+    assert_eq!(
+        ok.field_scores,
+        vec![
+            ("results/*/title".to_string(), 0.9),
+            ("/x".to_string(), 1.0)
+        ]
+    );
+    assert_eq!(ok.field_score_weight, 0.25);
+    assert!(parse(r#"{"field_scores":[1,2]}"#).is_err());
+    assert!(parse(r#"{"field_scores":{"a":"high"}}"#).is_err());
+    assert!(parse(r#"{"field_score_weight":1.5}"#).is_err());
+}
