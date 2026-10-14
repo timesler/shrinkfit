@@ -41,3 +41,13 @@ test("errors", () => {
   assert.throws(() => shrink("{bad", 10), ShrinkError);
   assert.throws(() => shrink({}, 10, { bogus: 1 }), ShrinkError);
 });
+
+test("jev option is accepted but wasm cannot make requests, so built-in scoring is used", () => {
+  const rows = Array.from({ length: 30 }, (_, i) => ({ id: `ID-${i}`, alpha: `alpha text ${i} `.repeat(6), beta: `beta text ${i} `.repeat(6) }));
+  const opts = { arrayStrategy: "condense", indent: 0 };
+  const plain = shrinkWithReport({ results: rows }, 1500, opts);
+  const withJev = shrinkWithReport({ results: rows }, 1500, { ...opts, jev: { apiKey: "k", tool: "search", timeoutMs: 500 } });
+  assert.equal(withJev.text, plain.text);
+  assert.match(withJev.report.model_scoring, /unavailable/);
+  assert.throws(() => shrinkWithReport({ results: rows }, 1500, { ...opts, jev: { nope: 1 } }), ShrinkError);
+});

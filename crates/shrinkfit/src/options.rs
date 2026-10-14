@@ -81,6 +81,13 @@ pub struct Options {
     pub field_scores: Vec<(String, f64)>,
     /// How strongly `field_scores` pull against the built-in score (default 0.5).
     pub field_score_weight: f64,
+    /// Score fields with a hosted decision model and blend that in as
+    /// `field_scores` (see [`crate::jev`]). Opt-in; needs an OpenRouter API key
+    /// and the `jev` cargo feature, and falls back to the built-in scoring.
+    pub jev: Option<crate::jev::JevOptions>,
+    /// The call's arguments as given (JSON text or a plain string), for context
+    /// to the model scoring. Unlike `arguments` this keeps the keys.
+    pub arguments_raw: Option<String>,
 }
 
 /// Default output budget, in characters.
@@ -149,6 +156,8 @@ impl Options {
             protect: Vec::new(),
             field_scores: Vec::new(),
             field_score_weight: 0.5,
+            jev: None,
+            arguments_raw: None,
         }
     }
 
@@ -240,7 +249,15 @@ impl Options {
                         .filter(|x| (0.0..=1.0).contains(x))
                         .ok_or("field_score_weight must be a number from 0 to 1")?;
                 }
-                "arguments" => o.arguments = arguments_text(val),
+                "arguments" => {
+                    o.arguments = arguments_text(val);
+                    o.arguments_raw = match val {
+                        Value::String(s) => Some(s.clone()),
+                        Value::Null => None,
+                        other => Some(crate::json::to_string(other, crate::json::Layout::Compact)),
+                    };
+                }
+                "jev" => o.jev = crate::jev::JevOptions::from_value(val)?,
                 "array_strategy" => {
                     o.array_strategy = match val {
                         Value::String(s) if s.eq_ignore_ascii_case("sample") => {

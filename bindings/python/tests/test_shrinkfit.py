@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import unittest
 
@@ -146,6 +147,48 @@ class ShrinkTests(unittest.TestCase):
         self.assertNotIn("alpha", first)
         with self.assertRaises(ShrinkError):
             shrink(rows, 500, field_scores={"a": "high"})
+
+    def test_model_scoring_runs_in_the_core_and_falls_back(self):
+        import http.server
+        import threading
+
+        seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                seen.append((self.path, self.headers.get("Authorization")))
+                answers = {
+                    name: {"type": "noul", "noul": 1.0 if q["instructions"].split("`")[1].endswith("beta") else 0.0}
+                    for name, q in body["questions"].items()
+                }
+                out = json.dumps({"answers": answers}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        rows = [{"id": f"ID-{i}", "alpha": f"alpha text {i} " * 6, "beta": f"beta text {i} " * 6} for i in range(30)]
+        data = {"results": rows}
+        base = f"http://127.0.0.1:{server.server_port}/api"
+        r = shrink_with_report(
+            data, 1500, array_strategy="condense", indent=0, field_score_weight=1,
+            jev={"api_key": "test-key", "base_url": base, "tool": "search"},
+        )
+        self.assertEqual(list(json.loads(r.text)["results"][0]), ["beta"])
+        self.assertTrue(r.report["model_scoring"].startswith("scored 3 fields"))
+        self.assertEqual(seen, [("/api/alpha/decisions", "Bearer test-key")])
+        # No key: nothing is sent and the built-in scoring is used.
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        r = shrink_with_report(data, 1500, array_strategy="condense", indent=0, jev={"base_url": base})
+        self.assertIn("no OpenRouter API key", r.report["model_scoring"])
+        self.assertEqual(len(seen), 1)
 
     def test_string_chunking_option(self):
         doc = {"readme": "\n\n".join(f"## Part {i}\n" + "word " * 80 for i in range(20))}

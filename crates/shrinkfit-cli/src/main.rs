@@ -39,6 +39,15 @@ options:
                                of the fields it names (patterns as for --protect)
       --field-score-weight W   pull of --field-scores against the built-in score, 0..1
                                (default 0.5)
+      --jev                    also score fields with a hosted decision model (Jev via
+                               OpenRouter) and blend that in; needs --array-strategy
+                               condense and OPENROUTER_API_KEY in the environment.
+                               Sends the tool name, arguments, field paths and short
+                               example values to OpenRouter. Falls back to built-in
+                               scoring if it cannot answer
+      --tool-name NAME         the tool that produced the document (context for --jev)
+      --jev-timeout MS         give up on --jev after this long (default 3000)
+      --jev-base-url URL       Decisions API base (default https://openrouter.ai/api)
       --explain                print every field's score and keep/drop decision
                                (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -79,6 +88,9 @@ fn run() -> Result<ExitCode, String> {
     let mut explain = false;
     let mut protect: Vec<String> = Vec::new();
     let mut arguments: Option<String> = None;
+    let mut jev: Option<shrinkfit::JevOptions> = None;
+    let mut arguments_raw: Option<String> = None;
+    let mut tool_name: Option<String> = None;
     let mut field_scores: Vec<(String, f64)> = Vec::new();
     let mut field_score_weight: Option<f64> = None;
     let mut array_strategy = ArrayStrategy::Sample;
@@ -144,8 +156,23 @@ fn run() -> Result<ExitCode, String> {
                     .ok_or("--field-score-weight needs a number from 0 to 1")?;
                 field_score_weight = Some(w);
             }
+            "--jev" => jev = Some(jev.take().unwrap_or_default()),
+            "--tool-name" => tool_name = Some(args.next().ok_or("--tool-name needs a name")?),
+            "--jev-timeout" => {
+                let ms: u64 = args
+                    .next()
+                    .and_then(|x| x.parse().ok())
+                    .filter(|t| *t > 0)
+                    .ok_or("--jev-timeout needs a number of milliseconds")?;
+                jev.get_or_insert_with(Default::default).timeout_ms = ms;
+            }
+            "--jev-base-url" => {
+                let url = args.next().ok_or("--jev-base-url needs a URL")?;
+                jev.get_or_insert_with(Default::default).base_url = url;
+            }
             "--arguments" => {
                 let raw = args.next().ok_or("--arguments needs a value")?;
+                arguments_raw = Some(raw.clone());
                 arguments = match json::parse(&raw) {
                     Ok(v) => shrinkfit::arguments_text(&v),
                     Err(_) => Some(raw),
@@ -216,6 +243,11 @@ fn run() -> Result<ExitCode, String> {
     opts.explain = explain;
     opts.protect = protect;
     opts.arguments = arguments;
+    opts.arguments_raw = arguments_raw;
+    opts.jev = jev.map(|mut j| {
+        j.tool = tool_name;
+        j
+    });
     opts.field_scores = field_scores;
     if let Some(w) = field_score_weight {
         opts.field_score_weight = w;
@@ -232,6 +264,11 @@ fn run() -> Result<ExitCode, String> {
     print!("{}", out.text);
     if out.report.format == Format::Json {
         println!();
+    }
+    if let Some(why) = out.report.model_scoring.as_deref() {
+        if !why.starts_with("scored") {
+            eprintln!("note: model scoring {why}");
+        }
     }
     if report {
         eprintln!(

@@ -44,6 +44,13 @@ export interface ShrinkOptions {
   fieldScores?: Record<string, number>;
   /** How strongly `fieldScores` pull against the built-in score, 0 to 1 (default 0.5). */
   fieldScoreWeight?: number;
+  /**
+   * Blend in scores from a hosted decision model (Jev via OpenRouter). Pass `true` (the key is read from
+   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, model, baseUrl, timeoutMs }`. The WebAssembly build cannot make
+   * network requests, so here it only reports `model_scoring: "unavailable: ..."` and the built-in scoring is used;
+   * the Python package and CLI make the request. Not used with the default `sample` array strategy.
+   */
+  jev?: boolean | { apiKey?: string; tool?: string; model?: string; baseUrl?: string; timeoutMs?: number };
 }
 
 export interface Report {
@@ -135,12 +142,24 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     protect: "protect",
     fieldScores: "field_scores",
     fieldScoreWeight: "field_score_weight",
+    jev: "jev",
     arguments: "arguments",
   };
   for (const [k, v] of Object.entries(o)) {
     if (v === undefined) continue;
     const snake = map[k as keyof ShrinkOptions];
     if (!snake) throw new ShrinkError(`unknown option: ${k}`);
+    if (k === "jev" && v && typeof v === "object") {
+      const j = v as Record<string, unknown>;
+      const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model" };
+      out[snake] = Object.fromEntries(
+        Object.entries(j).filter(([, x]) => x !== undefined).map(([n, x]) => {
+          if (!names[n]) throw new ShrinkError(`unknown jev option: ${n}`);
+          return [names[n], x];
+        }),
+      );
+      continue;
+    }
     out[snake] = v;
   }
   return out;

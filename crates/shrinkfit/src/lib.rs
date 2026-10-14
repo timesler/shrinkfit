@@ -27,6 +27,7 @@
 
 mod condense;
 pub mod fields;
+pub mod jev;
 pub mod json;
 mod lexical;
 pub mod options;
@@ -40,6 +41,7 @@ pub mod yaml;
 pub mod yaml_in;
 
 pub use fields::{ColumnInfo, FieldScorer, ScorerKind};
+pub use jev::JevOptions;
 pub use json::{Layout, ParseError};
 pub use options::{arguments_text, ArrayStrategy, Format, InputFormat, Options, DEFAULT_MAX_CHARS};
 pub use prune::Stats;
@@ -68,6 +70,10 @@ pub struct Report {
     /// is smaller than the most compact possible representation, in which
     /// case that representation is returned anyway.
     pub fits: bool,
+    /// What happened when model scoring was requested (`Options::jev`): how
+    /// many fields were scored, or why it was skipped or failed and the built-in
+    /// scoring was used instead. `None` when it was not requested or not needed.
+    pub model_scoring: Option<String>,
     pub stats: Stats,
 }
 
@@ -157,6 +163,12 @@ impl Report {
             ),
             ("pruned".into(), Value::Bool(self.pruned)),
             ("fits".into(), Value::Bool(self.fits)),
+            (
+                "model_scoring".into(),
+                self.model_scoring
+                    .clone()
+                    .map_or(Value::Null, Value::String),
+            ),
             ("strings_truncated".into(), n(self.stats.strings_truncated)),
             ("arrays_sampled".into(), n(self.stats.arrays_sampled)),
             ("items_omitted".into(), n(self.stats.items_omitted)),
@@ -361,10 +373,37 @@ pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrun
                 input_format: InputFormat::Json,
                 pruned: false,
                 fits: true,
+                model_scoring: None,
                 stats: Stats::default(),
             },
         };
     }
+
+    // Optional model scoring: only worth a request when something has to be cut.
+    let mut model_scoring = None;
+    let enriched;
+    let opts = match &opts.jev {
+        Some(cfg) if opts.array_strategy == ArrayStrategy::Condense => {
+            match jev::score_fields(v, opts, cfg) {
+                Ok((scores, note)) => {
+                    let mut o = opts.clone();
+                    o.field_scores.extend(scores);
+                    enriched = o;
+                    model_scoring = Some(note);
+                    &enriched
+                }
+                Err(why) => {
+                    model_scoring = Some(format!("unavailable: {why}; used the built-in scoring"));
+                    opts
+                }
+            }
+        }
+        Some(_) => {
+            model_scoring = Some("skipped: model scoring needs array_strategy=condense".into());
+            opts
+        }
+        None => opts,
+    };
 
     // JSON sizes are predicted exactly; YAML sizes are estimated with the
     // pretty-JSON model and corrected below by measuring real output.
@@ -445,6 +484,7 @@ pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrun
             input_format: InputFormat::Json,
             pruned: true,
             fits,
+            model_scoring,
             stats,
         },
     }
