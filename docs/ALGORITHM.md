@@ -1,5 +1,44 @@
 # How shrinkfit works
 
+This page explains how shrinkfit spends a character budget, from a five-step summary down to the details
+of each stage. You do not need it to use shrinkfit; read it to understand why an output looks the way it
+does, or before changing the algorithm (see also [Extending shrinkfit](EXTENDING.md)).
+
+**Contents**
+
+* [In brief](#in-brief)
+* [Problem](#problem)
+* [Value model](#value-model)
+* [Size model](#size-model)
+* [`fit(node, budget)`](#fitnode-budget): [objects](#objects-keep-the-skeleton-then-water-fill), [arrays](#arrays-whole-items-in-priority-order), [strings](#strings-structure-first)
+* [Verification and the outer loop](#verification-and-the-outer-loop)
+* [Complexity](#complexity) and [known limitations](#known-limitations)
+* [Condensing arrays of records](#condensing-arrays-of-records-array_strategy-condense):
+  exact values, protected paths, external field scores (including [model scoring](model-scoring.md)), quality gates
+
+## In brief
+
+1. **Size every subtree** once. Both its full size and its *minimum* size (the smallest form it could
+   be reduced to) are recorded.
+2. **Allocate the budget top-down.** An object keeps all its keys while its skeleton (every key, each
+   value at its minimum) fits. Spare budget is shared among its values by **water-filling**: small values
+   are kept whole, and the rest is divided equally among the larger ones, with any unused share flowing
+   on to the others.
+3. **Sample arrays by priority:** the first item, then the first item of each distinct shape, then the
+   last item, then the rest in order. As many whole items as fit are kept, plus one reduced item if budget
+   remains. When not even one item fits whole, a few shape-distinct items are kept in reduced form. Each
+   gap is replaced by a `"…[N items omitted]"` marker. (With `array_strategy: "condense"`, lists of records
+   are instead kept in full and the same low-value fields are dropped from every record.)
+4. **Truncate strings by structure.** Text is split at its coarsest natural boundary (blank lines, then
+   lines, then sentences). Whole sections are shown up to a head of `string_head_chars`. After that, each
+   section shows its first `string_section_chars` and a `…[+N chars]` marker. Both limits scale together to
+   use the budget fully. Only under severe pressure are trailing sections dropped behind
+   `…[+K sections, N chars]`.
+5. **Verify.** The result is rendered and measured. If the format's size model was only an estimate (YAML),
+   the internal budget is searched until the real output fits as tightly as possible.
+
+The sections below take each step in turn.
+
 ## Problem
 
 Given a document `D` and a budget `B` in characters, produce a document `D'`

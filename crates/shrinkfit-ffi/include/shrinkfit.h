@@ -31,6 +31,21 @@ uint8_t *shrinkfit_shrink(const uint8_t *input, size_t input_len,
                           const uint8_t *options, size_t options_len,
                           size_t *out_len);
 
+/*
+ * The HTTP request that model scoring needs, for hosts that send it themselves
+ * (WebAssembly has no sockets). Same arguments as shrinkfit_shrink; `options` must
+ * contain a "jev" setting. Returns a UTF-8 JSON envelope, never NULL:
+ *   {"ok":true,"request":null}                                   no request is needed
+ *   {"ok":true,"request":{"url":...,"headers":{...},"body":...,"timeout_ms":3000}}
+ *   {"ok":false,"error":"..."}                                   scoring is not possible
+ * Send the request, then call shrinkfit_shrink with the same options plus
+ * "jev_reply" (the response body) or "jev_error" (what went wrong).
+ * Release the envelope with shrinkfit_free(ptr, *out_len).
+ */
+uint8_t *shrinkfit_model_request(const uint8_t *input, size_t input_len,
+                                 const uint8_t *options, size_t options_len,
+                                 size_t *out_len);
+
 #ifdef __cplusplus
 }
 #endif

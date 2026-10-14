@@ -1,0 +1,121 @@
+# Architecture and development
+
+How the code is organised, how the language bindings work, and how to build and test everything.
+
+* [Repository layout](#repository-layout)
+* [One function, many languages](#one-function-many-languages)
+* [Cargo features](#cargo-features)
+* [Building and testing](#building-and-testing)
+* [Where things are documented](#where-things-are-documented)
+
+## Repository layout
+
+```text
+crates/shrinkfit        the core library (Rust API). No dependencies by default.
+crates/shrinkfit-cli    the `shrinkfit` command and the local playground
+crates/shrinkfit-ffi    the C ABI (cdylib, staticlib and include/shrinkfit.h), used by every binding
+bindings/python         a ctypes wrapper and the wheel build (no PyO3 needed)
+bindings/typescript     a WebAssembly loader and typed wrapper (no wasm-bindgen needed)
+docs/                   this documentation
+experiments/            research behind the model-scoring feature: data, scripts, findings
+scripts/                release tooling
+```
+
+Inside the core (`crates/shrinkfit/src`):
+
+| File | Responsibility |
+|---|---|
+| `json.rs`, `yaml.rs`, `yaml_in.rs`, `value.rs` | The format-neutral document tree, and the JSON and YAML parsers and renderers. |
+| `size.rs` | The size model: what a subtree costs to render, exactly for JSON. |
+| `prune.rs` | The fitting algorithm: budgets, objects, arrays, the outer verification loop. |
+| `text.rs` | Structure-aware string truncation. |
+| `condense.rs`, `fields.rs`, `lexical.rs` | The `condense` strategy: field statistics, the scorers, matching arguments against fields. |
+| `protect.rs` | Path patterns for `protect` and `field_scores`. |
+| `jev.rs` | Model scoring: building the request, reading the reply, sending it. |
+| `options.rs`, `lib.rs` | `Options` and its JSON form, the public API and the report. |
+
+The algorithm itself is explained in [How it works](ALGORITHM.md).
+
+## One function, many languages
+
+Every binding calls the same C function with two strings and gets one string back:
+
+```text
+shrinkfit_shrink(input_json, options_json) -> envelope_json
+                  {"ok": true,  "text": "...", "report": {...}}
+                  {"ok": false, "error": "..."}
+```
+
+Options pass through as JSON, so adding an option to the core never requires changing a binding: a
+Python keyword argument or a TypeScript field is just another key. The bindings are limited to the things only
+they can do: naming (camelCase in TypeScript), loading the library, and carrying a network request where the
+runtime has to (TypeScript's `fetch`).
+
+| Export | Purpose |
+|---|---|
+| `shrinkfit_shrink` | Shrink a document. |
+| `shrinkfit_model_request` | For hosts that send the [model-scoring request](model-scoring.md#other-hosts) themselves: returns the request to send. |
+| `shrinkfit_alloc`, `shrinkfit_free` | Buffers owned by the library, so hosts that share its memory (WebAssembly) can pass input in. |
+| `shrinkfit_version` | The version string. |
+
+The same exports are used natively (Python loads the shared library through `ctypes`) and compiled to
+`wasm32-unknown-unknown` (TypeScript instantiates the module), with no binding generator. The header is
+[`crates/shrinkfit-ffi/include/shrinkfit.h`](../crates/shrinkfit-ffi/include/shrinkfit.h).
+
+## Cargo features
+
+| Feature | Default | Adds |
+|---|---|---|
+| `yaml` | off in the core, **on** in the CLI and the FFI library | Native YAML input (`yaml-rust2`). Writing YAML never needs it. |
+| `jev` | off in the core, **on** in the CLI and the native FFI library, never built for wasm | An HTTPS client (`ureq` with rustls) so the core can send [model-scoring](model-scoring.md) requests itself. About +1.2 MB. |
+
+With no features the core crate has no dependencies and builds anywhere, including
+`wasm32-unknown-unknown`.
+
+## Building and testing
+
+You need a recent stable Rust toolchain. Python tests need Python 3.8+; TypeScript tests need Node 18+.
+
+**Rust**
+
+```bash
+cargo test --workspace
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+**Python** (builds the native library, then runs the wrapper's tests against it)
+
+```bash
+cargo build --release -p shrinkfit-ffi
+cd bindings/python/tests
+SHRINKFIT_LIBRARY=../../../target/release/libshrinkfit.so PYTHONPATH=.. python -m unittest -v
+```
+
+On Windows the library is `shrinkfit.dll`, on macOS `libshrinkfit.dylib`.
+
+**TypeScript** (builds the WebAssembly module, then the package)
+
+```bash
+cd bindings/typescript
+npm install
+npm run build
+npm test
+```
+
+**Try changes interactively** with the playground (`shrinkfit serve`, see the [command-line guide](cli.md#the-playground)).
+
+CI runs all of the above on every push; the Python tests run on Linux, macOS and Windows. Releases are
+described in [RELEASING.md](../RELEASING.md).
+
+## Where things are documented
+
+| Topic | Page |
+|---|---|
+| Every option and the report | [options.md](options.md) |
+| The command line | [cli.md](cli.md) |
+| Putting shrinkfit in an agent or tool | [agents.md](agents.md) |
+| Choosing fields with a model | [model-scoring.md](model-scoring.md) |
+| The algorithm, in depth | [ALGORITHM.md](ALGORITHM.md) |
+| Adding strategies or scorers | [EXTENDING.md](EXTENDING.md) |
+| The evidence behind model scoring | [experiments/path-selection](../experiments/path-selection) |
