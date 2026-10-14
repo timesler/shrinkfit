@@ -48,7 +48,7 @@ test("jev option is accepted but wasm cannot make requests, so built-in scoring 
   const plain = shrinkWithReport({ results: rows }, 1500, opts);
   const withJev = shrinkWithReport({ results: rows }, 1500, { ...opts, jev: { apiKey: "k", tool: "search", timeoutMs: 500 } });
   assert.equal(withJev.text, plain.text);
-  assert.match(withJev.report.model_scoring, /unavailable/);
+  assert.match(withJev.report.model_scoring, /unavailable: this build cannot send the request itself \(in TypeScript use shrinkAsync/);
   assert.throws(() => shrinkWithReport({ results: rows }, 1500, { ...opts, jev: { nope: 1 } }), ShrinkError);
 });
 

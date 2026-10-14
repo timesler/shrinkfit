@@ -360,6 +360,11 @@ pub(crate) fn score_fields(
     if let Some(why) = &opts.jev_error {
         return Err(why.clone());
     }
+    if opts.jev_reply.is_none() && !CAN_SEND {
+        // Say so before anything else: such a build cannot read the key either
+        // (wasm has no environment), so "no API key" would be misleading.
+        return Err(CANNOT_SEND.into());
+    }
     let listed = fields(v);
     if listed.len() < 2 {
         return Err("too few fields to score".into());
@@ -395,6 +400,11 @@ fn now() -> Option<std::time::Instant> {
     None
 }
 
+/// Whether this build can send the request itself.
+const CAN_SEND: bool = cfg!(all(feature = "jev", not(target_family = "wasm")));
+
+const CANNOT_SEND: &str = "this build cannot send the request itself (in TypeScript use shrinkAsync; in Rust enable the `jev` feature); the host must send it and pass the reply";
+
 /// Send the request: a plain HTTPS POST with a hard timeout. Where the build has
 /// no HTTP client (the `jev` feature is off, or wasm, which has no sockets) the
 /// host must send it and pass the reply back instead (`Options::jev_reply`).
@@ -424,7 +434,7 @@ fn send(req: &Request) -> Result<String, String> {
 
 #[cfg(not(all(feature = "jev", not(target_family = "wasm"))))]
 fn send(_req: &Request) -> Result<String, String> {
-    Err("this build cannot send the request itself (wasm, or built without the `jev` feature); the host must send it and pass the reply".into())
+    Err(CANNOT_SEND.into())
 }
 
 #[cfg(test)]
@@ -511,5 +521,21 @@ mod tests {
         assert!(!format!("{o:?}").contains("sk-or-secret"));
         assert!(JevOptions::from_value(&parse(r#"{"bogus":1}"#)).is_err());
         assert!(JevOptions::from_value(&parse(r#"{"timeout_ms":0}"#)).is_err());
+    }
+
+    #[cfg(not(feature = "jev"))]
+    #[test]
+    fn a_build_without_a_client_says_so_before_asking_for_a_key() {
+        std::env::remove_var(KEY_ENV);
+        let v = parse(r#"{"items":[{"id":"1","name":"a"},{"id":"2","name":"b"}]}"#);
+        let opts = Options::default();
+        let why = score_fields(&v, &opts, &JevOptions::default()).unwrap_err();
+        assert!(why.contains("cannot send the request itself"), "{why}");
+        // With a reply supplied by the host there is nothing to send.
+        let replied = Options {
+            jev_reply: Some(r#"{"answers":{"p0":{"noul":1},"p1":{"noul":0}}}"#.into()),
+            ..Options::default()
+        };
+        assert!(score_fields(&v, &replied, &JevOptions::default()).is_ok());
     }
 }

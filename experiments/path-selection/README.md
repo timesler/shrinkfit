@@ -44,6 +44,8 @@ All numbers are from this data unless stated.
    | 10% of response | 0.661 / 0.742 | 0.685 / 0.778 | 0.668 / 0.747 |
    | 25% of response | 0.720 / 0.766 | 0.772 / 0.830 | 0.756 / 0.819 |
 
+   Re-measured with the released CLI calling the live service (474 requests, all answered), the 25% row is
+   0.720 / 0.766 to 0.775 / 0.834 (+0.055 and +0.068) and the 10% row 0.661 / 0.742 to 0.688 / 0.780.
    The 25% gain (+0.052, CI +0.032 to +0.079) is clear of noise; the 10% gain (+0.025) is smaller.
    Precision is unchanged. Weights between 0.5 and 0.7 work best.
 

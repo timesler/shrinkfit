@@ -96,11 +96,16 @@ of fields (Cohen's kappa 0.88).
 
 | Budget (share of the response) | Labelled value kept: built-in | with Jev | Essential fields kept: built-in | with Jev |
 |---|---|---|---|---|
-| 25% | 0.72 | **0.77** | 0.77 | **0.83** |
+| 25% | 0.72 | **0.78** | 0.77 | **0.83** |
 | 10% | 0.66 | **0.69** | 0.74 | **0.78** |
 
-The 25% gain is outside the noise (+0.05, 95% interval +0.03 to +0.08); the 10% gain is smaller. Precision
-(the share of kept fields that were worth keeping) did not change.
+The 25% gain is outside the noise (+0.055 for labelled value, 95% interval +0.035 to +0.083; +0.068 for essential
+fields); the 10% gain is smaller (+0.027 and +0.038). Precision (the share of kept fields that were worth keeping)
+did not change.
+
+These figures were measured with the released command-line tool calling the live service on all 238 responses
+(474 requests at the two budgets; every one was answered). An earlier run that fed in recorded scores gave the
+same result, so the numbers do not depend on the research scripts.
 
 Read these numbers with care:
 

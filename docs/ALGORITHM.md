@@ -332,7 +332,7 @@ wherever `condense` ranks fields: the columns of a record array and the keys of
 an object that has to lose some. `experiments/path-selection` measured this with
 scores from a hosted decision model on 238 labelled tool responses: at a budget
 of 25% of the response, a 50/50 blend raised the share of labelled value kept
-from 0.72 to 0.77 and the share of essential fields kept from 0.77 to 0.83.
+from 0.72 to 0.78 and the share of essential fields kept from 0.77 to 0.83.
 
 The `jev` option does the fetching: before pruning a document that has to be cut, it asks the
 model one yes/no question per field path (the tool call and two example values are the context)
