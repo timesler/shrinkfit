@@ -77,6 +77,8 @@ are kept exact automatically, so you only need `protect` for the ones shrinkfit 
 
 ## Scores from outside, and model scoring
 
+`field_scores`, `field_score_weight` and `jev` need shrinkfit 0.3.0 or later.
+
 | Option | TypeScript | Default | Meaning |
 |---|---|---|---|
 | `field_scores` | `fieldScores` | `{}` | Scores you supply: an object mapping a path pattern (same syntax as `protect`) to a number from 0 to 1. The first matching pattern wins. CLI: `--field-scores JSON\|FILE`. |

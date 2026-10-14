@@ -126,7 +126,7 @@ See [all options](docs/options.md) and the [command-line guide](docs/cli.md).
 > call fails for any reason, shrinkfit uses the built-in scoring and tells you why.
 > [Read the full guide](docs/model-scoring.md).
 >
-> *Model scoring is on `main` and ships with the next release after v0.2.2.*
+> *Model scoring needs shrinkfit 0.3.0 or later.*
 
 ## Documentation
 

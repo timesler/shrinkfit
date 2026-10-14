@@ -4,8 +4,8 @@ shrinkfit decides which fields of a large response to keep. By default it uses a
 With one option, it can instead ask a **decision model** that has seen the tool call and the field names,
 and blend the model's judgement with the heuristic.
 
-> **Availability.** Model scoring is on `main` and ships with the next release after v0.2.2. It is opt-in
-> and best effort, and shrinkfit behaves exactly as before unless you turn it on.
+> **Availability.** Model scoring needs shrinkfit **0.3.0 or later**. It is opt-in and best effort, and
+> shrinkfit behaves exactly as before unless you turn it on.
 
 * [Try it](#try-it)
 * [Why use it](#why-use-it)
