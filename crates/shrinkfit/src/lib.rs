@@ -41,7 +41,7 @@ pub mod yaml;
 pub mod yaml_in;
 
 pub use fields::{ColumnInfo, FieldScorer, ScorerKind};
-pub use jev::JevOptions;
+pub use jev::{JevOptions, Request as ModelRequest};
 pub use json::{Layout, ParseError};
 pub use options::{arguments_text, ArrayStrategy, Format, InputFormat, Options, DEFAULT_MAX_CHARS};
 pub use prune::Stats;
@@ -298,6 +298,33 @@ fn chars(s: &str) -> usize {
 pub fn shrink_json(input: &str, opts: &Options) -> Result<Shrunk, Error> {
     let v = json::parse(input).map_err(Error::Parse)?;
     Ok(shrink(&v, opts))
+}
+
+/// The request that model scoring needs, for hosts that make it themselves
+/// (WebAssembly has no sockets; Python and others may prefer their own HTTP).
+/// Send it, then call [`shrink_str`] again with the response body in
+/// `Options::jev_reply` (or the failure in `Options::jev_error`).
+///
+/// `Ok(None)` means no request is needed: `jev` is not set, the strategy is not
+/// `condense`, or the document already fits. `Err` says why scoring cannot be
+/// done (no API key, too few fields); pass that on as `jev_error`.
+pub fn model_request(input: &str, opts: &Options) -> Result<Option<ModelRequest>, String> {
+    let Some(cfg) = &opts.jev else {
+        return Ok(None);
+    };
+    if opts.array_strategy != ArrayStrategy::Condense {
+        return Ok(None);
+    }
+    let (v, detected) = parse_input(input, opts.input_format).map_err(|e| e.to_string())?;
+    let fallback = match detected {
+        InputFormat::Yaml => Format::Yaml,
+        _ => Format::Json,
+    };
+    let opts = effective(opts, fallback);
+    if chars(&render(&v, &opts)) <= opts.max_chars {
+        return Ok(None);
+    }
+    jev::build_request(&v, &opts, cfg).map(|(req, _)| Some(req))
 }
 
 /// Parse `input` in the format selected by `opts.input_format` and shrink it.

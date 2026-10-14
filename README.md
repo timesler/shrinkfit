@@ -190,7 +190,7 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 | `protect` | `protect` | `[]` | paths whose values are never altered: `/results/*/id`, `ari`, `content/id` (CLI: `--protect`, repeatable). Kept exactly, or the result reports `fits: false` |
 | `field_scores` | `fieldScores` | `{}` | field scores from outside, for example from a model that has read the response: an object of path pattern (as for `protect`) to a score from 0 to 1. A field they name is scored `(1 - field_score_weight) * built-in + field_score_weight * external`; others keep the built-in score. Used by `condense` (array columns and object keys). CLI: `--field-scores JSON|FILE` |
 | `field_score_weight` | `fieldScoreWeight` | 0.5 | how strongly `field_scores` pull against the built-in score (0 ignores them, 1 uses them alone) |
-| `jev` | `jev` | off | score fields with a hosted decision model (Jev via OpenRouter) and blend it in, see [Model scoring](#model-scoring-optional). `true`, or `{api_key, tool, model, base_url, timeout_ms}` (CLI: `--jev`, `--tool-name`, `--jev-timeout`, `--jev-base-url`) |
+| `jev` | `jev` | off | score fields with a hosted decision model (Jev via OpenRouter) and blend it in, see [Model scoring](#model-scoring-optional). `true`, or `{api_key, tool, model, base_url, timeout_ms}` (CLI: `--jev`, `--tool-name`, `--jev-timeout`, `--jev-base-url`). TypeScript: use `shrinkAsync` |
 | `field_scorer` | `fieldScorer` | `"heuristic"` | field ranking for `condense`: `"heuristic"`, `"compact"` or `"key_order"` |
 | `keep_last_item` | `keepLastItem` | true | prefer keeping an array's last item |
 | `max_samples` | `maxSamples` | 3 | shape-distinct samples when no array item fits whole |
@@ -201,28 +201,43 @@ In brief (see [docs/ALGORITHM.md](docs/ALGORITHM.md) for the details):
 `condense` ranks fields with a built-in heuristic. A decision model that has read the response can do
 better: on 238 labelled tool responses, blending in scores from Jev raised the share of labelled value
 kept at a 25% budget from 0.72 to 0.77 (see [experiments/path-selection](experiments/path-selection)).
-shrinkfit makes the call itself:
+You never call the model yourself. Set `jev`, and when the document has to be cut shrinkfit builds the
+request, gets the reply and blends it in:
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-...
-shrinkfit -n 4000 --array-strategy condense --jev --tool-name search_issues   --arguments '{"jql": "project = OPS"}' response.json
+shrinkfit -n 4000 --array-strategy condense --jev --tool-name search_issues \
+  --arguments '{"jql": "project = OPS"}' response.json
 ```
 
 ```python
 shrink(data, 4000, array_strategy="condense", jev={"tool": "search_issues"}, arguments={"jql": "project = OPS"})
 ```
 
+```ts
+const text = await shrinkAsync(data, 4000, { arrayStrategy: "condense", jev: { tool: "search_issues" }, arguments: { jql: "project = OPS" } });
+```
+
 * **Opt-in and best effort.** Nothing is sent unless `jev` is set, the document has to be cut, and the
-  strategy is `condense`. The key comes from `jev.api_key` or `OPENROUTER_API_KEY`. If there is no key,
-  no network, a timeout (default 3 s), an error status or an unreadable reply, the built-in scoring is
-  used and `report.model_scoring` says why (the CLI prints a one-line note).
+  strategy is `condense`. The key comes from `jev.api_key` (`apiKey` in TypeScript) or `OPENROUTER_API_KEY`.
+  If there is no key, no network, a timeout (default 3 s), an error status or an unreadable reply, the
+  built-in scoring is used and `report.model_scoring` says why (the CLI prints a one-line note).
 * **What leaves the machine:** the tool name, the arguments (first 400 characters), every field path
   and up to two example values (60 characters each) per path. Not the rest of the response.
 * **Cost and speed:** about 1,000 to 4,000 input tokens (about $0.0001) and 0.2 to 0.4 s per call.
   Scores are blended with the built-in ones by `field_score_weight` (default 0.5).
-* **Availability:** the Rust crate needs its `jev` cargo feature (off by default, adds an HTTP/TLS
-  client, about 1.7 MB); the CLI and the Python package include it. The WebAssembly build used by the
-  npm package cannot make network requests: the option is accepted and reports `unavailable`.
+* **Who sends the request.** The core does all the work except moving the bytes, so it has no HTTP or TLS
+  code and no dependencies, and runs unchanged in WebAssembly (which has no sockets):
+  * Rust and the CLI send it with the system `curl` (the key goes to curl on stdin, never on its command
+    line; proxy settings are honoured). Without curl they report `unavailable`.
+  * Python sends it with `urllib`; pass `jev={"send": fn}` to use your own transport. `fn` receives a dict
+    with `url`, `headers`, `body` and `timeout_ms` and returns the response body (raise on failure).
+  * TypeScript sends it with the global `fetch` in `shrinkAsync` / `shrinkWithReportAsync`; pass
+    `jev: { fetch }` to use your own (a proxy, auth middleware, a runtime without a global `fetch`). The
+    synchronous `shrink` / `shrinkWithReport` cannot wait for a network reply, so they report `unavailable`.
+  * Anything else with a C ABI or its own HTTP client can do the same two steps: call
+    `shrinkfit_model_request` (Rust: `shrinkfit::model_request`) to get the request, send it, and pass
+    the response body back as the `jev_reply` option (or the failure as `jev_error`).
 
 The report includes `format` (the output format actually used), `input_chars`, `output_chars`, `fits`, `pruned`,
 `strings_truncated`, `arrays_sampled`, `items_omitted`, `objects_trimmed`,

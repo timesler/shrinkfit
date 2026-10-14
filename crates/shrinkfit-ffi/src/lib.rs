@@ -15,7 +15,7 @@
 //! The same exports are used natively (Python via ctypes) and when compiled
 //! to `wasm32-unknown-unknown` (TypeScript), with no binding generator.
 
-use shrinkfit::{json, shrink_str, Options, Value};
+use shrinkfit::{json, model_request, shrink_str, Options, Value};
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -91,6 +91,62 @@ fn run(input: &[u8], options: &[u8]) -> String {
     envelope_ok(out.text, out.report.to_value())
 }
 
+fn options_from(options: &[u8]) -> Result<Options, String> {
+    let options =
+        std::str::from_utf8(options).map_err(|_| "options are not valid UTF-8".to_string())?;
+    let value = json::parse(options).map_err(|e| format!("invalid options JSON: {e}"))?;
+    Options::from_value(&value).map_err(|e| format!("invalid options: {e}"))
+}
+
+/// The model-scoring request for a host that sends it itself:
+/// `{"ok":true,"request":null | {"url","headers":{…},"body","timeout_ms"}}`, or
+/// `{"ok":false,"error":"…"}` when scoring cannot be done (pass the error back as `jev_error`).
+fn run_request(input: &[u8], options: &[u8]) -> String {
+    let input = match std::str::from_utf8(input) {
+        Ok(s) => s,
+        Err(_) => return envelope_err("input is not valid UTF-8".into()),
+    };
+    let opts = match options_from(options) {
+        Ok(o) => o,
+        Err(e) => return envelope_err(e),
+    };
+    match model_request(input, &opts) {
+        Err(e) => envelope_err(e),
+        Ok(None) => json::to_string(
+            &Value::Object(vec![
+                ("ok".into(), Value::Bool(true)),
+                ("request".into(), Value::Null),
+            ]),
+            json::Layout::Compact,
+        ),
+        Ok(Some(req)) => {
+            let headers = req
+                .headers
+                .into_iter()
+                .map(|(k, v)| (k, Value::String(v)))
+                .collect();
+            json::to_string(
+                &Value::Object(vec![
+                    ("ok".into(), Value::Bool(true)),
+                    (
+                        "request".into(),
+                        Value::Object(vec![
+                            ("url".into(), Value::String(req.url)),
+                            ("headers".into(), Value::Object(headers)),
+                            ("body".into(), Value::String(req.body)),
+                            (
+                                "timeout_ms".into(),
+                                Value::Number(req.timeout_ms.to_string()),
+                            ),
+                        ]),
+                    ),
+                ]),
+                json::Layout::Compact,
+            )
+        }
+    }
+}
+
 unsafe fn slice<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
     if ptr.is_null() || len == 0 {
         &[]
@@ -116,6 +172,29 @@ pub unsafe extern "C" fn shrinkfit_shrink(
     let input = slice(input, input_len);
     let options = slice(options, options_len);
     let result = catch_unwind(AssertUnwindSafe(|| run(input, options)))
+        .unwrap_or_else(|_| envelope_err("internal error (panic) in shrinkfit".into()));
+    let bytes = result.into_bytes().into_boxed_slice();
+    *out_len = bytes.len();
+    Box::into_raw(bytes) as *mut u8
+}
+
+/// The HTTP request that model scoring needs, for hosts that send it themselves
+/// (see `run_request` for the envelope). Returns an owned buffer like
+/// `shrinkfit_shrink`; release it with `shrinkfit_free`.
+///
+/// # Safety
+/// Same contract as [`shrinkfit_shrink`].
+#[no_mangle]
+pub unsafe extern "C" fn shrinkfit_model_request(
+    input: *const u8,
+    input_len: usize,
+    options: *const u8,
+    options_len: usize,
+    out_len: *mut usize,
+) -> *mut u8 {
+    let input = slice(input, input_len);
+    let options = slice(options, options_len);
+    let result = catch_unwind(AssertUnwindSafe(|| run_request(input, options)))
         .unwrap_or_else(|_| envelope_err("internal error (panic) in shrinkfit".into()));
     let bytes = result.into_bytes().into_boxed_slice();
     *out_len = bytes.len();
@@ -163,6 +242,51 @@ mod tests {
         assert!(ok.contains(r#""text":"{\"a\":[1,2,3]}""#), "{ok}");
         assert!(call("a: [1", r#"{"max_chars":100,"input_format":"yaml"}"#)
             .contains("invalid YAML input"));
+    }
+
+    fn request(input: &str, options: &str) -> String {
+        let mut len = 0usize;
+        unsafe {
+            let p = shrinkfit_model_request(
+                input.as_ptr(),
+                input.len(),
+                options.as_ptr(),
+                options.len(),
+                &mut len,
+            );
+            let s = std::str::from_utf8(std::slice::from_raw_parts(p, len))
+                .unwrap()
+                .to_string();
+            shrinkfit_free(p, len);
+            s
+        }
+    }
+
+    #[test]
+    fn model_request_envelope() {
+        let doc = r#"{"results":[{"id":"1","name":"alpha beta gamma"},{"id":"2","name":"delta"}]}"#;
+        let condense = r#""array_strategy":"condense""#;
+        let null = r#"{"ok":true,"request":null}"#;
+        // Not asked for, or nothing to cut: no request.
+        assert_eq!(request(doc, r#"{"max_chars":20}"#), null);
+        let roomy = format!(r#"{{"max_chars":10000,{condense},"jev":{{"api_key":"k"}}}}"#);
+        assert_eq!(request(doc, &roomy), null);
+        // Asked for and needed: the request to send.
+        let cut = format!(r#"{{"max_chars":20,{condense},"jev":{{"api_key":"k"}}}}"#);
+        let r = request(doc, &cut);
+        assert!(
+            r.contains(r#""url":"https://openrouter.ai/api/alpha/decisions""#),
+            "{r}"
+        );
+        assert!(
+            r.contains(r#""Authorization":"Bearer k""#) && r.contains(r#""timeout_ms":3000"#),
+            "{r}"
+        );
+        // Why it cannot be done.
+        std::env::remove_var(shrinkfit::jev::KEY_ENV);
+        let keyless = format!(r#"{{"max_chars":20,{condense},"jev":true}}"#);
+        assert!(request(doc, &keyless).contains("no OpenRouter API key"));
+        assert!(request("[1", &cut).contains(r#""ok":false"#));
     }
 
     #[test]

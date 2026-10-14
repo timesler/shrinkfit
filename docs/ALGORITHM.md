@@ -295,11 +295,12 @@ scores from a hosted decision model on 238 labelled tool responses: at a budget
 of 25% of the response, a 50/50 blend raised the share of labelled value kept
 from 0.72 to 0.77 and the share of essential fields kept from 0.77 to 0.83.
 
-The `jev` option (cargo feature `jev`) does the fetching: before pruning a
-document that has to be cut, it asks the model one yes/no question per field
-path (the tool call and two example values are the context), and prepends the
-answers to `field_scores`. Any failure leaves the built-in scoring in charge and
-is recorded in `Report::model_scoring`.
+The `jev` option does the fetching: before pruning a document that has to be cut, it asks the
+model one yes/no question per field path (the tool call and two example values are the context)
+and prepends the answers to `field_scores`. The core builds the request and parses the reply but
+never speaks HTTP itself (`model_request` / `jev_reply`), so it stays dependency-free and works in
+WebAssembly; native builds can send the request with the system `curl`. Any failure leaves the
+built-in scoring in charge and is recorded in `Report::model_scoring`.
 
 Quality gates keep `condense` from doing worse than sampling: the plan must
 include at least one informative scalar field, and the single best-scoring

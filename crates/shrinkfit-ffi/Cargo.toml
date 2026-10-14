@@ -8,4 +8,4 @@ publish = false  # shipped inside the Python wheel and the npm package
 name="shrinkfit"
 crate-type=["cdylib","staticlib"]
 [dependencies]
-shrinkfit = { path = "../shrinkfit", features = ["yaml", "jev"] }
+shrinkfit = { path = "../shrinkfit", features = ["yaml"] }

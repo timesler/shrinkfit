@@ -1,5 +1,5 @@
 //! Model scoring against a local stand-in for the Decisions API.
-#![cfg(feature = "jev")]
+#![cfg(not(target_family = "wasm"))]
 
 use shrinkfit::json;
 use shrinkfit::{shrink_str, ArrayStrategy, JevOptions, Options, Value};
@@ -254,4 +254,114 @@ fn nothing_is_sent_when_the_document_already_fits_or_the_strategy_cannot_use_it(
     let out = shrink_str(&records(), &sampling).unwrap();
     assert!(out.report.model_scoring.unwrap().starts_with("skipped"));
     assert!(seen.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_host_can_send_the_request_itself() {
+    let (base, seen) = serve(scoring(|p| if p.ends_with("beta") { 1.0 } else { 0.5 }), 0);
+    let src = records();
+    let opts = options(&base, Some("host-key"));
+
+    // Step 1: the core says what to send. Nothing has been sent yet.
+    let req = shrinkfit::model_request(&src, &opts).unwrap().unwrap();
+    assert_eq!(req.url, format!("{base}/alpha/decisions"));
+    assert!(req
+        .headers
+        .contains(&("Authorization".into(), "Bearer host-key".into())));
+    assert!(req.body.contains("results/*/beta") && req.body.contains("widgets"));
+    assert_eq!(req.timeout_ms, 3000);
+    assert!(seen.lock().unwrap().is_empty());
+
+    // Step 2: the host sends it (here, the stand-in's logic) and hands back the reply.
+    let reply = scoring(|p| if p.ends_with("beta") { 1.0 } else { 0.5 })(&req.body).1;
+    let hosted = shrink_str(
+        &src,
+        &Options {
+            jev_reply: Some(reply),
+            ..opts.clone()
+        },
+    )
+    .unwrap();
+    assert_eq!(keys(&hosted.text), ["beta"]);
+    let note = hosted.report.model_scoring.unwrap();
+    assert!(
+        note.starts_with("scored 3 fields") && !note.contains(" ms"),
+        "{note}"
+    );
+    assert!(
+        seen.lock().unwrap().is_empty(),
+        "with a reply supplied the core makes no request"
+    );
+
+    // A failed attempt by the host is reported and the built-in scoring is used.
+    let failed = shrink_str(
+        &src,
+        &Options {
+            jev_error: Some("the service answered HTTP 429".into()),
+            ..opts.clone()
+        },
+    )
+    .unwrap();
+    let plain = shrink_str(
+        &src,
+        &Options {
+            jev: None,
+            ..opts.clone()
+        },
+    )
+    .unwrap();
+    assert_eq!(failed.text, plain.text);
+    assert!(failed.report.model_scoring.unwrap().contains("HTTP 429"));
+
+    // No request is needed when there is nothing to ask or nothing to cut.
+    assert_eq!(
+        shrinkfit::model_request(
+            &src,
+            &Options {
+                jev: None,
+                ..opts.clone()
+            }
+        ),
+        Ok(None)
+    );
+    let roomy = Options {
+        max_chars: 1_000_000,
+        ..opts.clone()
+    };
+    assert_eq!(shrinkfit::model_request(&src, &roomy), Ok(None));
+    // No key: the host is told why.
+    std::env::remove_var(shrinkfit::jev::KEY_ENV);
+    let keyless = options(&base, None);
+    assert!(shrinkfit::model_request(&src, &keyless)
+        .unwrap_err()
+        .contains("no OpenRouter API key"));
+}
+
+#[test]
+fn a_large_request_survives_the_trip_through_curl() {
+    // Many fields with awkward characters: quotes, backslashes, newlines, unicode.
+    let fields: Vec<String> = (0..100)
+        .map(|i| {
+            format!(
+                r#""f{i}":"line one\nsays \"hi\" \\ café 🙂 {}""#,
+                "x".repeat(40)
+            )
+        })
+        .collect();
+    let src = format!(
+        r#"{{"data":[{{{}}},{{{}}}]}}"#,
+        fields.join(","),
+        fields.join(",")
+    );
+    let (base, seen) = serve(scoring(|_| 0.5), 0);
+    let mut opts = options(&base, Some("k"));
+    opts.max_chars = 800;
+    let out = shrink_str(&src, &opts).unwrap();
+    let note = out.report.model_scoring.unwrap();
+    assert!(note.starts_with("scored 100 fields"), "{note}");
+    let raw = &seen.lock().unwrap()[0];
+    assert!(
+        raw.contains("f99") && raw.contains("caf"),
+        "all fields arrive intact"
+    );
 }

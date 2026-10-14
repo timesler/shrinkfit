@@ -13,6 +13,12 @@
  * ```
  */
 
+/** The part of `fetch` that model scoring needs; the global `fetch` fits, so does any wrapper around it. */
+export type FetchLike = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal },
+) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
+
 export interface ShrinkOptions {
   /** Output format (default "auto": same as the input). */
   format?: "auto" | "json" | "yaml";
@@ -46,11 +52,14 @@ export interface ShrinkOptions {
   fieldScoreWeight?: number;
   /**
    * Blend in scores from a hosted decision model (Jev via OpenRouter). Pass `true` (the key is read from
-   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, model, baseUrl, timeoutMs }`. The WebAssembly build cannot make
-   * network requests, so here it only reports `model_scoring: "unavailable: ..."` and the built-in scoring is used;
-   * the Python package and CLI make the request. Not used with the default `sample` array strategy.
+   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, model, baseUrl, timeoutMs, fetch }`. The WebAssembly core builds the
+   * request and blends the reply but cannot open sockets, so this takes effect in the async functions
+   * (`shrinkAsync`, `shrinkWithReportAsync`), which send the request with the global `fetch`, or with `jev.fetch`
+   * if you give one (a proxy, auth middleware, a runtime without global fetch, a test double). Callers never talk to
+   * the model themselves. The sync functions report `model_scoring: "unavailable: ..."` and use the built-in
+   * scoring. Only used with the `condense` array strategy. Never put a key in browser code.
    */
-  jev?: boolean | { apiKey?: string; tool?: string; model?: string; baseUrl?: string; timeoutMs?: number };
+  jev?: boolean | { apiKey?: string; tool?: string; model?: string; baseUrl?: string; timeoutMs?: number; fetch?: FetchLike };
 }
 
 export interface Report {
@@ -83,6 +92,7 @@ interface Exports {
   shrinkfit_alloc(len: number): number;
   shrinkfit_free(ptr: number, len: number): void;
   shrinkfit_shrink(input: number, inputLen: number, opts: number, optsLen: number, outLen: number): number;
+  shrinkfit_model_request(input: number, inputLen: number, opts: number, optsLen: number, outLen: number): number;
 }
 
 let wasm: Exports | null = null;
@@ -153,7 +163,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
       const j = v as Record<string, unknown>;
       const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model" };
       out[snake] = Object.fromEntries(
-        Object.entries(j).filter(([, x]) => x !== undefined).map(([n, x]) => {
+        Object.entries(j).filter(([n, x]) => x !== undefined && n !== "fetch").map(([n, x]) => {
           if (!names[n]) throw new ShrinkError(`unknown jev option: ${n}`);
           return [names[n], x];
         }),
@@ -172,31 +182,24 @@ function put(w: Exports, bytes: Uint8Array): number {
   return ptr;
 }
 
-/**
- * Shrink `data` to at most `maxChars` characters and report what was cut.
- * A string is treated as a serialized JSON document; anything else is
- * serialized with `JSON.stringify` first.
- */
-export function shrinkWithReport(data: unknown, maxChars = 10_000, options: ShrinkOptions = {}): ShrinkResult {
+/** Call one of the string-in, envelope-out wasm exports. */
+function callWasm(
+  name: "shrinkfit_shrink" | "shrinkfit_model_request",
+  input: Uint8Array,
+  opts: Uint8Array,
+): Record<string, any> {
   const w = wasm;
   if (!w) throw new ShrinkError("shrinkfit is not initialized: await init() first");
-  const json = typeof data === "string" ? data : JSON.stringify(data);
-  if (json === undefined) throw new ShrinkError("data is not JSON-serializable");
-  const input = encoder.encode(json);
-  const opts = encoder.encode(JSON.stringify(toSnakeOptions(maxChars, options)));
-
   const inPtr = put(w, input);
   const optPtr = put(w, opts);
   const lenPtr = w.shrinkfit_alloc(4); // usize is 32-bit on wasm32
   let resPtr = 0;
   let resLen = 0;
   try {
-    resPtr = w.shrinkfit_shrink(inPtr, input.length, optPtr, opts.length, lenPtr);
+    resPtr = w[name](inPtr, input.length, optPtr, opts.length, lenPtr);
     // Memory may have grown during the call: take fresh views.
     resLen = new DataView(w.memory.buffer).getUint32(lenPtr, true);
-    const envelope = JSON.parse(decoder.decode(new Uint8Array(w.memory.buffer, resPtr, resLen)));
-    if (!envelope.ok) throw new ShrinkError(envelope.error);
-    return { text: envelope.text, report: envelope.report };
+    return JSON.parse(decoder.decode(new Uint8Array(w.memory.buffer, resPtr, resLen)));
   } finally {
     w.shrinkfit_free(inPtr, input.length);
     w.shrinkfit_free(optPtr, opts.length);
@@ -205,7 +208,91 @@ export function shrinkWithReport(data: unknown, maxChars = 10_000, options: Shri
   }
 }
 
+function toJson(data: unknown): string {
+  const json = typeof data === "string" ? data : JSON.stringify(data);
+  if (json === undefined) throw new ShrinkError("data is not JSON-serializable");
+  return json;
+}
+
+/**
+ * Shrink `data` to at most `maxChars` characters and report what was cut.
+ * A string is treated as a serialized JSON document; anything else is
+ * serialized with `JSON.stringify` first.
+ */
+export function shrinkWithReport(data: unknown, maxChars = 10_000, options: ShrinkOptions = {}): ShrinkResult {
+  const envelope = callWasm(
+    "shrinkfit_shrink",
+    encoder.encode(toJson(data)),
+    encoder.encode(JSON.stringify(toSnakeOptions(maxChars, options))),
+  );
+  if (!envelope.ok) throw new ShrinkError(envelope.error);
+  return { text: envelope.text, report: envelope.report };
+}
+
 /** Like `shrinkWithReport` but returns only the text. */
 export function shrink(data: unknown, maxChars = 10_000, options: ShrinkOptions = {}): string {
   return shrinkWithReport(data, maxChars, options).text;
+}
+
+function envKey(): string | undefined {
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  return g.process?.env?.OPENROUTER_API_KEY;
+}
+
+/**
+ * Like `shrinkWithReport`, and the way to use the `jev` option: when it is set and the document has to be cut,
+ * the core builds the model-scoring request, this sends it with `fetch` (a 3 s default timeout, `jev.timeoutMs`
+ * to change it; `jev.fetch` replaces the global `fetch`) and hands the reply back to the core, which blends it in. Any failure falls back to the built-in
+ * scoring and is described in `report.model_scoring`.
+ */
+export async function shrinkWithReportAsync(
+  data: unknown,
+  maxChars = 10_000,
+  options: ShrinkOptions = {},
+): Promise<ShrinkResult> {
+  const snake = toSnakeOptions(maxChars, options);
+  const jev = snake.jev;
+  if (jev && !("jev_reply" in snake) && !("jev_error" in snake)) {
+    const input = encoder.encode(toJson(data));
+    const conf: Record<string, unknown> = jev === true ? {} : { ...(jev as Record<string, unknown>) };
+    if (conf.api_key === undefined && envKey()) conf.api_key = envKey();
+    snake.jev = conf;
+    const prepared = callWasm("shrinkfit_model_request", input, encoder.encode(JSON.stringify(snake)));
+    if (!prepared.ok) {
+      snake.jev_error = String(prepared.error);
+    } else if (prepared.request) {
+      const req = prepared.request as { url: string; headers: Record<string, string>; body: string; timeout_ms: number };
+      const custom = typeof options.jev === "object" ? options.jev.fetch : undefined;
+      const send = custom ?? (globalThis as { fetch?: FetchLike }).fetch;
+      if (!send) {
+        snake.jev_error = "no fetch available to send the request";
+      } else {
+        try {
+          const res = await send(req.url, {
+            method: "POST",
+            headers: req.headers,
+            body: req.body,
+            signal: AbortSignal.timeout(req.timeout_ms),
+          });
+          if (res.ok) snake.jev_reply = await res.text();
+          else snake.jev_error = `the service answered HTTP ${res.status}`;
+        } catch (e) {
+          const name = (e as { name?: string }).name;
+          snake.jev_error = name === "TimeoutError" || name === "AbortError" ? "the request timed out" : "the request failed";
+        }
+      }
+    }
+  }
+  const envelope = callWasm("shrinkfit_shrink", encoder.encode(toJson(data)), encoder.encode(JSON.stringify(snake)));
+  if (!envelope.ok) throw new ShrinkError(envelope.error);
+  return { text: envelope.text, report: envelope.report };
+}
+
+/** Like `shrinkWithReportAsync` but returns only the text. */
+export async function shrinkAsync(
+  data: unknown,
+  maxChars = 10_000,
+  options: ShrinkOptions = {},
+): Promise<string> {
+  return (await shrinkWithReportAsync(data, maxChars, options)).text;
 }

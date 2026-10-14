@@ -16,7 +16,14 @@
 //!
 //! **What leaves the machine:** the tool name, the call's arguments (first 400
 //! characters), every field path, and up to two example values (60 characters
-//! each) per path. Needs the `jev` cargo feature; it is never available on wasm.
+//! each) per path.
+//!
+//! **Who sends the request.** This module has no HTTP or TLS code and no
+//! dependencies, so it works on every target including wasm (which has no
+//! sockets). It builds the request ([`crate::model_request`]) and reads the reply
+//! (`Options::jev_reply`). A host with its own HTTP client (Python, TypeScript)
+//! does the sending in between; native Rust builds can instead let the core send
+//! it with the system `curl`, with the key passed on stdin, not on the command line.
 
 use crate::json::{self, Layout};
 use crate::options::Options;
@@ -298,19 +305,24 @@ pub(crate) fn parse_reply(text: &str, n: usize) -> Result<Vec<f64>, String> {
         .collect()
 }
 
-/// Ask the model about `v`'s fields. On success: the `(pattern, score)` list for
-/// [`Options::field_scores`] and a description for the report.
-pub(crate) fn score_fields(
+/// An HTTP request for the host to send, for hosts that make the call themselves
+/// (WebAssembly has no sockets). Send it as is, then pass the response body back
+/// as [`Options::jev_reply`], or the failure as [`Options::jev_error`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct Request {
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+    pub body: String,
+    /// The time the host should allow, in milliseconds.
+    pub timeout_ms: u64,
+}
+
+/// The request for `v`, or why there cannot be one (no API key, too few fields).
+pub(crate) fn build_request(
     v: &Value,
     opts: &Options,
     cfg: &JevOptions,
-) -> Result<(Vec<(String, f64)>, String), String> {
-    if !CAN_REQUEST {
-        return Err(
-            "this build cannot make network requests (needs the `jev` feature; not available on wasm)"
-                .into(),
-        );
-    }
+) -> Result<(Request, usize), String> {
     let key = cfg
         .key()
         .ok_or_else(|| format!("no OpenRouter API key (set {KEY_ENV} or jev.api_key)"))?;
@@ -319,50 +331,151 @@ pub(crate) fn score_fields(
         return Err("too few fields to score".into());
     }
     let body = request_body(cfg, opts.arguments_raw.as_deref(), &listed);
-    let started = std::time::Instant::now();
-    let reply = post(cfg, &key, &body)?;
-    let probs = parse_reply(&reply, listed.len())?;
-    let note = format!(
-        "scored {} fields with {} in {} ms",
+    Ok((
+        Request {
+            url: format!("{}/alpha/decisions", cfg.base_url.trim_end_matches('/')),
+            headers: vec![
+                ("Authorization".into(), format!("Bearer {key}")),
+                ("Content-Type".into(), "application/json".into()),
+            ],
+            body,
+            timeout_ms: cfg.timeout_ms,
+        },
         listed.len(),
-        cfg.model,
-        started.elapsed().as_millis()
-    );
+    ))
+}
+
+/// Ask the model about `v`'s fields. On success: the `(pattern, score)` list for
+/// [`Options::field_scores`] and a description for the report.
+///
+/// The reply comes from the host when it supplied one (`jev_reply`, or
+/// `jev_error` for a failed attempt); otherwise a native build sends the request
+/// itself with the system `curl`.
+pub(crate) fn score_fields(
+    v: &Value,
+    opts: &Options,
+    cfg: &JevOptions,
+) -> Result<(Vec<(String, f64)>, String), String> {
+    if let Some(why) = &opts.jev_error {
+        return Err(why.clone());
+    }
+    let listed = fields(v);
+    if listed.len() < 2 {
+        return Err("too few fields to score".into());
+    }
+    let started = now();
+    let reply = match &opts.jev_reply {
+        Some(r) => r.clone(),
+        None => {
+            let (req, _) = build_request(v, opts, cfg)?;
+            send(&req)?
+        }
+    };
+    let probs = parse_reply(&reply, listed.len())?;
+    let how = match started {
+        Some(t) if opts.jev_reply.is_none() => format!(" in {} ms", t.elapsed().as_millis()),
+        _ => String::new(),
+    };
+    let note = format!("scored {} fields with {}{how}", listed.len(), cfg.model);
     Ok((
         listed.into_iter().map(|f| f.path).zip(probs).collect(),
         note,
     ))
 }
 
-/// Whether this build can reach the network at all.
-const CAN_REQUEST: bool = cfg!(all(feature = "jev", not(target_family = "wasm")));
-
-#[cfg(all(feature = "jev", not(target_family = "wasm")))]
-fn post(cfg: &JevOptions, key: &str, body: &str) -> Result<String, String> {
-    let url = format!("{}/alpha/decisions", cfg.base_url.trim_end_matches('/'));
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_millis(cfg.timeout_ms))
-        .build();
-    match agent
-        .post(&url)
-        .set("Authorization", &format!("Bearer {key}"))
-        .set("Content-Type", "application/json")
-        .send_string(body)
-    {
-        Ok(resp) => resp
-            .into_string()
-            .map_err(|e| format!("reading the reply failed: {e}")),
-        Err(ureq::Error::Status(code, _)) => Err(format!("the service answered HTTP {code}")),
-        Err(ureq::Error::Transport(t)) => Err(format!("the request failed ({})", t.kind())),
-    }
+/// A clock where there is one (wasm has none).
+#[cfg(not(target_family = "wasm"))]
+fn now() -> Option<std::time::Instant> {
+    Some(std::time::Instant::now())
 }
 
-#[cfg(not(all(feature = "jev", not(target_family = "wasm"))))]
-fn post(_cfg: &JevOptions, _key: &str, _body: &str) -> Result<String, String> {
-    Err(
-        "this build cannot make network requests (needs the `jev` feature, not available on wasm)"
-            .into(),
-    )
+#[cfg(target_family = "wasm")]
+fn now() -> Option<std::time::Instant> {
+    None
+}
+
+/// Send the request with the system `curl`: no HTTP or TLS code in this crate
+/// and no extra dependencies, and proxy settings are honoured. The request goes
+/// to curl on stdin as a config file, so the API key never appears in the
+/// process list.
+#[cfg(not(target_family = "wasm"))]
+fn send(req: &Request) -> Result<String, String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    // curl config strings: backslash and double quote are escaped, and so are
+    // control characters, which the config parser would otherwise take literally.
+    let esc = |s: &str| {
+        let mut o = String::with_capacity(s.len() + 8);
+        for c in s.chars() {
+            match c {
+                '\\' => o.push_str("\\\\"),
+                '"' => o.push_str("\\\""),
+                '\n' => o.push_str("\\n"),
+                '\r' => o.push_str("\\r"),
+                '\t' => o.push_str("\\t"),
+                c => o.push(c),
+            }
+        }
+        o
+    };
+    let mut config = format!(
+        "url = \"{}\"\nrequest = \"POST\"\nsilent\nshow-error\nmax-time = {:.3}\n",
+        esc(&req.url),
+        (req.timeout_ms as f64 / 1000.0).max(0.1)
+    );
+    for (k, v) in &req.headers {
+        config.push_str(&format!("header = \"{}: {}\"\n", esc(k), esc(v)));
+    }
+    config.push_str(&format!(
+        "data-raw = \"{}\"\nwrite-out = \"\\n%{{http_code}}\"\n",
+        esc(&req.body)
+    ));
+
+    let mut cmd = Command::new("curl");
+    cmd.args(["-K", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let mut child = cmd.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "curl was not found on PATH (install it, or have the host make the request)".to_string()
+        } else {
+            format!("could not start curl ({})", e.kind())
+        }
+    })?;
+    child
+        .stdin
+        .take()
+        .ok_or("could not write to curl")?
+        .write_all(config.as_bytes())
+        .map_err(|_| "could not write to curl".to_string())?;
+    let out = child
+        .wait_with_output()
+        .map_err(|_| "curl did not finish".to_string())?;
+    if !out.status.success() {
+        return Err(match out.status.code() {
+            Some(28) => "the request timed out".to_string(),
+            Some(code) => format!("the request failed (curl exit {code})"),
+            None => "the request failed".to_string(),
+        });
+    }
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let (body, code) = text.rsplit_once('\n').ok_or("curl returned nothing")?;
+    if code.trim() != "200" {
+        return Err(format!("the service answered HTTP {}", code.trim()));
+    }
+    Ok(body.to_string())
+}
+
+#[cfg(target_family = "wasm")]
+fn send(_req: &Request) -> Result<String, String> {
+    Err("this build cannot make network requests; the host must send the request and pass the reply".into())
 }
 
 #[cfg(test)]

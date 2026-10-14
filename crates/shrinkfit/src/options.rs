@@ -88,6 +88,12 @@ pub struct Options {
     /// The call's arguments as given (JSON text or a plain string), for context
     /// to the model scoring. Unlike `arguments` this keeps the keys.
     pub arguments_raw: Option<String>,
+    /// For hosts that send the model request themselves (see [`crate::model_request`]):
+    /// the response body they got back. With it the core makes no request.
+    pub jev_reply: Option<String>,
+    /// A failed attempt by the host, described in the report; the built-in
+    /// scoring is used.
+    pub jev_error: Option<String>,
 }
 
 /// Default output budget, in characters.
@@ -158,6 +164,8 @@ impl Options {
             field_score_weight: 0.5,
             jev: None,
             arguments_raw: None,
+            jev_reply: None,
+            jev_error: None,
         }
     }
 
@@ -258,6 +266,16 @@ impl Options {
                     };
                 }
                 "jev" => o.jev = crate::jev::JevOptions::from_value(val)?,
+                "jev_reply" | "jev_error" => {
+                    let Value::String(text) = val else {
+                        return Err(format!("{k} must be a string"));
+                    };
+                    if k == "jev_reply" {
+                        o.jev_reply = Some(text.clone());
+                    } else {
+                        o.jev_error = Some(text.clone());
+                    }
+                }
                 "array_strategy" => {
                     o.array_strategy = match val {
                         Value::String(s) if s.eq_ignore_ascii_case("sample") => {
