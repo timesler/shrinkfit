@@ -189,6 +189,30 @@ arguments), the second response was shrunk with the first one's scores and compa
 About a seventh of Jev's gain over the built-in scoring, in exchange for no request, no cost and no latency on every
 repeat. `jev.cache = false` turns it off.
 
+## Real-world check: public APIs, not MCP-Atlas
+
+Everything above was measured on MCP-Atlas responses. As a check on data from elsewhere, `scripts/realworld_fetch.py`
+pulled 36 responses (3,000+ characters each, 29 tools) from public, keyless JSON APIs: GitHub, Hacker News, npm, PyPI,
+crates.io, PokeAPI, Wikipedia, OpenStreetMap, Stack Overflow, Crossref, OpenAlex, USGS, GitLab, Hugging Face, Atlassian
+Jira and Confluence, and others. Two blind labellers (Claude agents, same rubric as above, no user question shown) labelled
+every path; they agreed exactly on 93% of the 313 paths of the 6 cases both labelled. None of these tools are in the bundled
+bank, so the shipped default is evaluated live with no leakage (`scripts/realworld_eval.py`, labelled value kept / essential
+fields kept, paired bootstrap 95% intervals):
+
+| | 25% budget | 10% budget |
+|---|---|---|
+| built-in scoring | 0.771 / 0.870 | 0.565 / 0.667 |
+| Jev zero-shot | 0.746 / 0.847 | 0.595 / 0.700 |
+| Jev default (4 examples, ranked) | 0.803 / 0.937 | 0.653 / 0.775 |
+| default minus built-in | +0.033 [-0.001, +0.064] / +0.067 [+0.027, +0.114] | +0.088 [+0.030, +0.151] / +0.108 [+0.027, +0.189] |
+| default minus zero-shot | +0.058 [+0.021, +0.093] / +0.090 [+0.039, +0.144] | +0.058 [+0.001, +0.114] / +0.075 [+0.012, +0.141] |
+
+The direction matches the main result: examples help, zero-shot is about level with the built-in scoring, and the default
+keeps more of what the labellers called essential, most at the tight budget. The gain over the built-in scoring is smaller
+and the interval is wider (36 responses; the 25% value interval touches zero). By tool, Jev was better on 13, equal on 12 and
+worse on 4 (Jira search and issue, JSONPlaceholder users, crates.io search). Small responses with few fields leave little
+to choose between. Labels and per-response results are in `data/realworld_labels.json` and `data/realworld_results.json`.
+
 ## Caveats
 
 * Labels come from Claude agents who saw the tool arguments; a scorer that shares their taste is

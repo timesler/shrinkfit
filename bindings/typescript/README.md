@@ -71,7 +71,7 @@ tells you why. It sends field names and a few example values to OpenRouter, so n
 code. In an evaluation on 238 tool responses it raised the share of essential fields kept at a 25% budget from
 0.77 to 0.85. See the
 [model scoring guide](https://github.com/timesler/shrinkfit/blob/main/docs/model-scoring.md).
-*(Needs shrinkfit 0.3.0 or later; the labelled examples ship with the release after 0.3.0.)*
+*(Needs shrinkfit 0.3.0 or later; the labelled examples need 0.4.0 or later.)*
 
 ## More
 

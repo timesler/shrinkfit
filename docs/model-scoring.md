@@ -5,8 +5,8 @@ With one option, it can instead ask a **decision model** that has seen the tool 
 a few labelled examples of good choices, and rank the fields by the model's judgement.
 
 > **Availability.** Model scoring needs shrinkfit **0.3.0 or later**. The labelled examples, the `examples`,
-> `weight` and `bank` options, and using Jev's scores on their own by default are on `main` and ship with the
-> release after 0.3.0 (0.3.0 sends no examples and blends the scores 50/50 with the built-in ones). Model scoring is
+> `weight` and `bank` options, and using Jev's scores on their own by default need **0.4.0 or later** (0.3.0 sends
+> no examples and blends the scores 50/50 with the built-in ones); the score cache is on `main` and ships after 0.4.0. Model scoring is
 > opt-in and best effort, and shrinkfit behaves exactly as before unless you turn it on.
 
 * [Try it](#try-it)
