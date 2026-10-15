@@ -53,6 +53,76 @@ All numbers are from this data unless stated.
 TypeScript `shrinkAsync` passes the request to `fetch`); see "Model scoring" in the top-level README. `scripts/ml_jev3.py` is the
 research version of the same call.
 
+## Few-shot examples in Jev's input
+
+*Question: does putting labelled examples in Jev's input improve its field choices, alone or blended with the built-in
+scoring?* Not shipped; this is what the experiment found.
+
+**Method.** The 19 servers are split into two balanced folds. Every response is scored with examples taken **only from
+the other fold**, so the examples never share a server with the response they help judge: the numbers describe unseen
+tools. An example is a labelled response (the tool call and its fields, each with a verdict of `essential`, `useful` or
+`drop`, from the Claude labels) added to the state before the response being scored. Two ways of choosing them:
+*fixed* (a set of 2, 4 or 8 responses, one per server where possible) and *retrieved* (the 2 or 4 most similar labelled
+responses, by overlap of field names, one per tool). One run of zero-shot Jev is repeated to measure run-to-run noise.
+About 1,900 live requests, roughly $0.50.
+
+**Ranking quality improves a lot, standalone** (AUC for essential fields, record-array fields; 95% intervals are paired
+differences against zero-shot):
+
+| Examples | AUC | R-precision | AUC gain over zero-shot |
+|---|---|---|---|
+| none (zero-shot) | 0.879 | 0.635 | |
+| none, repeated | 0.881 | 0.627 | +0.001 (noise: ±0.005) |
+| 2 fixed | 0.936 | 0.761 | +0.057 [+0.046, +0.068] |
+| 4 fixed | 0.940 | 0.771 | +0.061 [+0.050, +0.071] |
+| 8 fixed | 0.945 | 0.774 | +0.065 [+0.053, +0.077] |
+| 2 retrieved | 0.944 | 0.795 | +0.065 [+0.053, +0.077] |
+| 4 retrieved | 0.944 | 0.783 | +0.065 [+0.055, +0.076] |
+
+Over all paths (the whole JSON) the AUC rises from 0.903 to 0.944 to 0.952. Two examples capture most of the gain, and
+which examples (fixed with another seed) barely matters. Blended 50/50 with the built-in score the ranking gain is
+smaller but still real: AUC 0.942 to 0.957 to 0.964.
+
+**But a better ranking did not give a better shrink at the default settings.** With the real CLI at the default blend
+weight of 0.5, few-shot scores were *worse* than zero-shot at a 25% budget (about -0.03 labelled value kept, interval
+excluding zero) and no better at 10%. The reason is calibration: the examples make Jev's scores sharper (the share of
+scores in the uncertain 0.3 to 0.7 band falls from 65% to 49%), so the right blend weight moves.
+
+**With the weight and scaling chosen honestly** (picked on one fold of servers, scored on the other; options were
+the raw score or its rank within the response, at weights 0.25 to 1.0), the picture is:
+
+* *Standalone* (Jev alone, scores replaced by their within-response rank): few-shot helps in every variant. Labelled
+  value kept, averaged over the 10% and 25% budgets: zero-shot 0.729, 4 retrieved examples **0.755**
+  (+0.027 [+0.016, +0.037]), 8 fixed 0.753, 2 retrieved 0.745.
+* *Mixed* (blended with the built-in score): few-shot does **not** help (0.721 to 0.729 against 0.737 for zero-shot).
+  The built-in score dilutes the sharper signal.
+
+**Head to head against the released behaviour** (zero-shot, blended at 0.5), 237 responses, labelled value kept /
+essential fields kept:
+
+| | 25% budget | 10% budget |
+|---|---|---|
+| built-in scoring only | 0.720 / 0.766 | 0.661 / 0.742 |
+| released: zero-shot, mixed | 0.769 / 0.824 | 0.686 / 0.781 |
+| best zero-shot (mixed, rank, weight 0.75) | 0.772 / 0.835 | 0.701 / 0.798 |
+| **4 retrieved examples, Jev alone, rank** | **0.798 / 0.858** | **0.712 / 0.798** |
+
+Against the released behaviour that is +0.029 [+0.013, +0.046] at 25% and +0.026 [+0.009, +0.044] at 10% for labelled
+value (essential fields: +0.033 and +0.016, the second inside the noise); against the built-in scoring, +0.078 and
++0.052.
+
+**Cost.** Two to four examples add 1,700 to 3,400 input tokens (the request grows from about 3,700 to 5,300 or
+7,100 tokens), about $0.0002 per request instead of $0.0001, and a small increase in latency.
+
+**Caveats.** As before the labels come from Claude agents who saw the tool arguments, and the data is 19 servers. The
+weight and scaling were chosen with a nested split, but the examples and the test responses come from one dataset, so
+real-world transfer is not measured. A production bank could use all 238 labelled responses, not half.
+
+**Reproduce.** `scripts/lab_fewshot.py <config>...` (live requests; configs `k0`, `fixed4`, `retr4`, ...) writes
+`data/jev_scores/jev3_fs_*.json`, which are committed. `lab_fewshot_eval.py` (ranking and the end-to-end run at the
+default weight), `lab_fewshot_diag.py` (score distributions, weight and scaling sweep), `lab_fewshot_cv.py` (nested
+selection) and `lab_fewshot_final.py` (the table above) need no API key.
+
 ## Caveats
 
 * Labels come from Claude agents who saw the tool arguments; a scorer that shares their taste is
