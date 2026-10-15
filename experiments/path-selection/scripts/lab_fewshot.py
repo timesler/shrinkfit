@@ -5,6 +5,7 @@ share a server with the case they help judge.
 
 usage: lab_fewshot.py <config> [<config> ...]
 config: k0 | k0b (repeat of k0, for the noise floor) | fixed<K>[_s<seed>] | retr<K>
+        add _choice for ONE choice question over the fields (instead of a yes/no question per field), e.g. retr4_choice
 Needs OPENROUTER_API_KEY in the environment (never printed)."""
 import json
 import os
@@ -98,6 +99,7 @@ def pick_retrieved(c, k):
 
 
 def examples_for(cfg, c):
+    cfg = cfg[:-len("_choice")] if cfg.endswith("_choice") else cfg
     m = re.fullmatch(r"fixed(\d+)(?:_s(\d+))?", cfg)
     if m:
         return pick_fixed(1 - fold_of(c), int(m.group(1)), int(m.group(2) or 0))
@@ -107,7 +109,7 @@ def examples_for(cfg, c):
     return []
 
 
-def build(c, exs):
+def build(c, exs, choice=False):
     state = {}
     if exs:
         state["task"] = ("Judge each output field of the LAST tool call the way the labelled examples do. "
@@ -115,8 +117,14 @@ def build(c, exs):
         state["labelled_examples"] = [example(x) for x in exs]
     state["tool_call"] = {"name": c["tool"], "arguments": args_text(c)[:400]}
     state["output_fields"] = fields_view(c, False, cap=70)
-    questions = {f"p{i}": {"type": "noul", "instructions": f"Is the output field `{p['path']}` {GOAL}?"}
-                 for i, p in enumerate(c["paths"][:70])}
+    if choice:
+        questions = {"key": {"type": "choice",
+                             "instructions": f"Which output field is most important to keep? A field is important when it is {GOAL}.",
+                             "criteria": {p["path"]: ", ".join(v[:30] for v in p["samples"][:2]) or None
+                                          for p in c["paths"][:70]}}}
+    else:
+        questions = {f"p{i}": {"type": "noul", "instructions": f"Is the output field `{p['path']}` {GOAL}?"}
+                     for i, p in enumerate(c["paths"][:70])}
     return json.dumps(state, ensure_ascii=False), questions
 
 
@@ -139,9 +147,10 @@ def call(state, questions):
 
 
 def score_case(cfg, c):
+    choice = cfg.endswith("_choice")
     exs = examples_for(cfg, c)
     while True:
-        state, qs = build(c, exs)
+        state, qs = build(c, exs, choice)
         try:
             r = call(state, qs)
             break
@@ -149,7 +158,11 @@ def score_case(cfg, c):
             exs = exs[:-1]               # too long: drop one example and retry
     a = r["answers"]
     n = len(c["paths"])
-    s = [float(a[f"p{i}"]["noul"]) if i < 70 else 0.0 for i in range(n)]
+    if choice:
+        pr = a["key"]["probabilities"]
+        s = [float(pr.get(p["path"], 0.0)) if i < 70 else 0.0 for i, p in enumerate(c["paths"])]
+    else:
+        s = [float(a[f"p{i}"]["noul"]) if i < 70 else 0.0 for i in range(n)]
     return c["case"], s, r.get("usage", {}).get("input_tokens", 0), r.get("usage", {}).get("cost", 0) or 0, len(exs)
 
 

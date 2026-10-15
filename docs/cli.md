@@ -86,6 +86,9 @@ Full document: /tmp/full-outputs-alice/full-output-1791773177649-41772.json
 | `--tool-name NAME` | The tool that produced the document (context for `--jev`). | |
 | `--jev-timeout MS` | Give up on `--jev` after this long (default 3000). | |
 | `--jev-base-url URL` | Decisions API base (default `https://openrouter.ai/api`). | |
+| `--jev-examples N` | Labelled examples shown with each `--jev` request: the N most similar from the bundled bank (default 4; 0 for none). | [the bank](model-scoring.md#labelled-examples-and-the-bank) |
+| `--jev-weight W` | How far `--jev` scores replace the built-in ones, 0..1 (default 1). | |
+| `--jev-bank FILE` | Your own bank of labelled examples (JSON) instead of the bundled one. | |
 | `--explain` | Print every field's score and keep or drop decision to stderr (`condense`). | |
 | `--report` | Print the [report](options.md#the-report) as JSON to stderr. | |
 | `--no-notice`, `--save-full PATH`, `--no-save-full` | The stderr notice, see above. | |

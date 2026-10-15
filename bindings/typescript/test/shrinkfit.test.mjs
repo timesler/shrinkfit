@@ -74,6 +74,17 @@ test("async jev: the core builds the request, fetch sends it, the core blends th
   assert.equal(log[0].url, "https://example.test/api/alpha/decisions");
   assert.equal(log[0].init.headers.Authorization, "Bearer test-key");
   assert.equal(log[0].body.model, "typesafe/jev-1.13");
+  const state = JSON.parse(log[0].body.state);
+  assert.equal(state.labelled_examples.length, 4, "four labelled examples by default");
+  assert.ok(state.labelled_examples[0].fields.every((f) => ["essential", "useful", "drop"].includes(f.verdict)));
+  // jev.examples and jev.bank reach the core.
+  const none = [];
+  await shrinkAsync({ results: jevRows() }, 1500, { ...options, jev: { ...options.jev, examples: 0, fetch: fakeFetch("beta", none) } });
+  assert.equal(JSON.parse(none[0].body.state).labelled_examples, undefined);
+  const own = [];
+  const bank = [{ tool: "my_tool", arguments: "{}", fields: [{ path: "/a/*/x", example_values: ["1"], verdict: "essential" }, { path: "/a/*/y", example_values: ["2"], verdict: "drop" }] }];
+  await shrinkAsync({ results: jevRows() }, 1500, { ...options, jev: { ...options.jev, bank, fetch: fakeFetch("beta", own) } });
+  assert.equal(JSON.parse(own[0].body.state).labelled_examples[0].tool_call.name, "my_tool");
   const flipped = await shrinkAsync({ results: jevRows() }, 1500, { ...options, jev: { ...options.jev, fetch: fakeFetch("alpha") } });
   assert.deepEqual(Object.keys(JSON.parse(flipped).results[0]), ["alpha"]);
 });

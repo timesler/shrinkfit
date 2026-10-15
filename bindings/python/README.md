@@ -61,9 +61,9 @@ r.report["model_scoring"]       # 'scored 24 fields with typesafe/jev-1.13 in 23
 
 It is opt-in and best effort: if the call cannot be made, shrinkfit uses the built-in scoring and
 `model_scoring` tells you why. It sends field names and a few example values to OpenRouter. In an evaluation
-on 238 tool responses it raised the share of essential fields kept at a 25% budget from 0.77 to 0.83. See the
+on 238 tool responses it raised the share of essential fields kept at a 25% budget from 0.77 to 0.85. See the
 [model scoring guide](https://github.com/timesler/shrinkfit/blob/main/docs/model-scoring.md).
-*(Needs shrinkfit 0.3.0 or later.)*
+*(Needs shrinkfit 0.3.0 or later; the labelled examples ship with the release after 0.3.0.)*
 
 ## More
 

@@ -120,13 +120,14 @@ See [all options](docs/options.md) and the [command-line guide](docs/cli.md).
 > await shrinkAsync(data, 4000, { arrayStrategy: "condense", jev: true }); // TypeScript
 > ```
 >
-> On 238 labelled tool responses, blending in Jev raised the share of useful content kept at a 25% budget
-> from 0.72 to 0.78, and the share of essential fields kept from 0.77 to 0.83. It is **opt-in** (it needs an
+> On 238 labelled tool responses (tested on servers the model had no examples from), Jev raised the share of useful
+> content kept at a 25% budget from 0.72 to 0.79, and the share of essential fields kept from 0.77 to 0.85. It is
+> shown four similar labelled examples with each request, which sharpens its choices. It is **opt-in** (it needs an
 > OpenRouter API key and sends field names and a few example values to OpenRouter) and **best effort**: if the
 > call fails for any reason, shrinkfit uses the built-in scoring and tells you why.
 > [Read the full guide](docs/model-scoring.md).
 >
-> *Model scoring needs shrinkfit 0.3.0 or later.*
+> *Model scoring needs shrinkfit 0.3.0 or later; the labelled examples ship with the release after 0.3.0.*
 
 ## Documentation
 

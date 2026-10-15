@@ -103,6 +103,8 @@ pub struct Pruner<'a> {
     pub(crate) protect: Vec<Pattern>,
     /// Parsed `field_scores`, in the order given.
     pub(crate) external: Vec<(Pattern, f64)>,
+    /// Parsed scores from the decision model.
+    pub(crate) model_scored: Vec<(Pattern, f64)>,
     /// Absolute paths `condense` has marked exact for the array being planned.
     pub(crate) exact_extra: RefCell<std::collections::HashSet<Vec<String>>>,
 }
@@ -144,20 +146,28 @@ impl<'a> Pruner<'a> {
                 .iter()
                 .filter_map(|(p, s)| Pattern::parse(p).map(|p| (p, *s)))
                 .collect(),
+            model_scored: opts
+                .model_scores
+                .iter()
+                .filter_map(|(p, s)| Pattern::parse(p).map(|p| (p, *s)))
+                .collect(),
             exact_extra: RefCell::new(std::collections::HashSet::new()),
         }
     }
 
-    /// The built-in score of the field at `abs`, pulled towards the externally
-    /// supplied score when one of `field_scores` names it.
+    /// The built-in score of the field at `abs`, pulled towards an externally supplied
+    /// score when one names it: the caller's `field_scores` first, else the decision
+    /// model's scores, each with its own weight.
     pub(crate) fn with_external(&self, abs: &[String], base: f64) -> f64 {
-        match self.external.iter().find(|(p, _)| p.matches(abs)) {
-            Some((_, ext)) => {
-                let w = self.opts.field_score_weight;
-                (1.0 - w) * base + w * ext
-            }
-            None => base,
+        if let Some((_, ext)) = self.external.iter().find(|(p, _)| p.matches(abs)) {
+            let w = self.opts.field_score_weight;
+            return (1.0 - w) * base + w * ext;
         }
+        if let Some((_, ext)) = self.model_scored.iter().find(|(p, _)| p.matches(abs)) {
+            let w = self.opts.model_score_weight;
+            return (1.0 - w) * base + w * ext;
+        }
+        base
     }
 
     fn collapsed_array_size(&self, n: usize, depth: usize) -> usize {

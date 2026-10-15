@@ -69,9 +69,9 @@ runtime's `fetch` carries it in between. Pass `jev: { fetch }` to use your own (
 opt-in and best effort: if the call cannot be made, shrinkfit uses the built-in scoring and `model_scoring`
 tells you why. It sends field names and a few example values to OpenRouter, so never put the API key in browser
 code. In an evaluation on 238 tool responses it raised the share of essential fields kept at a 25% budget from
-0.77 to 0.83. See the
+0.77 to 0.85. See the
 [model scoring guide](https://github.com/timesler/shrinkfit/blob/main/docs/model-scoring.md).
-*(Needs shrinkfit 0.3.0 or later.)*
+*(Needs shrinkfit 0.3.0 or later; the labelled examples ship with the release after 0.3.0.)*
 
 ## More
 

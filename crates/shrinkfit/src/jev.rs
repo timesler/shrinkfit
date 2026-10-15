@@ -29,7 +29,9 @@
 use crate::json::{self, Layout};
 use crate::options::Options;
 use crate::value::Value;
+use std::collections::HashSet;
 use std::fmt;
+use std::sync::OnceLock;
 
 /// The model asked by default.
 pub const DEFAULT_MODEL: &str = "typesafe/jev-1.13";
@@ -39,6 +41,12 @@ pub const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api";
 pub const KEY_ENV: &str = "OPENROUTER_API_KEY";
 /// Default time allowed for the whole request.
 pub const DEFAULT_TIMEOUT_MS: u64 = 3000;
+
+/// How many labelled examples go into each request by default.
+pub const DEFAULT_EXAMPLES: usize = 4;
+const MAX_EXAMPLES: usize = 12;
+/// The labelled examples shipped with shrinkfit (see experiments/path-selection).
+const BANK: &str = include_str!("jev_bank.json");
 
 const MAX_FIELDS: usize = 120;
 const MAX_ARRAY_ITEMS: usize = 2000;
@@ -60,6 +68,15 @@ pub struct JevOptions {
     pub timeout_ms: u64,
     /// Name of the tool that produced the document (context for the model).
     pub tool: Option<String>,
+    /// How many labelled examples to show the model with the request (0 for none).
+    /// The most similar ones are picked from the bank.
+    pub examples: usize,
+    /// How strongly the model's scores replace the built-in ones, 0 to 1. At the
+    /// default of 1 a field the model scored is ranked by the model alone.
+    pub weight: f64,
+    /// Your own bank of labelled examples, as JSON text (an array like `jev_bank.json`),
+    /// used instead of the one shipped with shrinkfit.
+    pub bank: Option<String>,
 }
 
 impl Default for JevOptions {
@@ -70,6 +87,9 @@ impl Default for JevOptions {
             base_url: DEFAULT_BASE_URL.into(),
             timeout_ms: DEFAULT_TIMEOUT_MS,
             tool: None,
+            examples: DEFAULT_EXAMPLES,
+            weight: 1.0,
+            bank: None,
         }
     }
 }
@@ -83,13 +103,20 @@ impl fmt::Debug for JevOptions {
             .field("base_url", &self.base_url)
             .field("timeout_ms", &self.timeout_ms)
             .field("tool", &self.tool)
+            .field("examples", &self.examples)
+            .field("weight", &self.weight)
+            .field(
+                "bank",
+                &self.bank.as_ref().map(|b| format!("{} bytes", b.len())),
+            )
             .finish()
     }
 }
 
 impl JevOptions {
     /// Parse the `jev` option: `true`, or an object with any of `api_key`,
-    /// `model`, `base_url`, `timeout_ms`, `tool`. `false`/`null` mean off.
+    /// `model`, `base_url`, `timeout_ms`, `tool`, `examples`, `weight`, `bank`.
+    /// `false`/`null` mean off.
     pub fn from_value(v: &Value) -> Result<Option<JevOptions>, String> {
         let entries = match v {
             Value::Bool(true) => return Ok(Some(JevOptions::default())),
@@ -115,6 +142,33 @@ impl JevOptions {
                     }
                     .ok_or("jev.timeout_ms must be a positive integer")?
                 }
+                "examples" => {
+                    o.examples = match val {
+                        Value::Number(n) => n.parse::<usize>().ok().filter(|k| *k <= MAX_EXAMPLES),
+                        _ => None,
+                    }
+                    .ok_or_else(|| {
+                        format!("jev.examples must be an integer from 0 to {MAX_EXAMPLES}")
+                    })?
+                }
+                "weight" => {
+                    o.weight = match val {
+                        Value::Number(n) => {
+                            n.parse::<f64>().ok().filter(|w| (0.0..=1.0).contains(w))
+                        }
+                        _ => None,
+                    }
+                    .ok_or("jev.weight must be a number from 0 to 1")?
+                }
+                "bank" => {
+                    let text = match val {
+                        Value::String(s) => s.clone(),
+                        Value::Array(_) => json::to_string(val, Layout::Compact),
+                        _ => return Err("jev.bank must be an array of labelled examples".into()),
+                    };
+                    parse_bank(&text).map_err(|e| format!("jev.bank: {e}"))?;
+                    o.bank = Some(text);
+                }
                 other => return Err(format!("unknown jev option: {other}")),
             }
         }
@@ -128,6 +182,142 @@ impl JevOptions {
             .map(|k| k.trim().to_string())
             .filter(|k| !k.is_empty())
     }
+}
+
+/// A labelled example: a tool call, its fields, and a verdict for each.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Example {
+    tool: String,
+    arguments: String,
+    /// `(path, example values, verdict)`.
+    fields: Vec<(String, Vec<String>, String)>,
+    /// Words in the tool name and the last segment of every path, for finding similar ones.
+    words: HashSet<String>,
+}
+
+fn add_words(text: &str, out: &mut HashSet<String>) {
+    let lower = text.to_lowercase();
+    for w in lower.split(|c: char| !c.is_ascii_alphanumeric()) {
+        if !w.is_empty() {
+            out.insert(w.to_string());
+        }
+    }
+}
+
+fn field_words(tool: Option<&str>, paths: impl Iterator<Item = String>) -> HashSet<String> {
+    let mut words = HashSet::new();
+    for p in paths {
+        add_words(p.rsplit('/').next().unwrap_or(""), &mut words);
+    }
+    if let Some(t) = tool {
+        add_words(t, &mut words);
+    }
+    words
+}
+
+/// Read a bank: a JSON array of `{tool, arguments, fields: [{path, example_values, verdict}]}`.
+pub(crate) fn parse_bank(text: &str) -> Result<Vec<Example>, String> {
+    let root = json::parse(text).map_err(|_| "not valid JSON".to_string())?;
+    let Value::Array(items) = &root else {
+        return Err("expected an array of examples".into());
+    };
+    let str_of = |v: &Value, key: &str| match get(v, key) {
+        Some(Value::String(s)) => Some(s.clone()),
+        _ => None,
+    };
+    items
+        .iter()
+        .enumerate()
+        .map(|(n, item)| {
+            let tool = str_of(item, "tool").ok_or_else(|| format!("example {n} has no tool"))?;
+            let Some(Value::Array(fields)) = get(item, "fields") else {
+                return Err(format!("example {n} has no fields"));
+            };
+            let fields = fields
+                .iter()
+                .map(|f| {
+                    let path = str_of(f, "path")
+                        .ok_or_else(|| format!("example {n} has a field without a path"))?;
+                    let verdict = str_of(f, "verdict")
+                        .filter(|v| matches!(v.as_str(), "essential" | "useful" | "drop"));
+                    let verdict = verdict.ok_or_else(|| {
+                        format!(
+                            "example {n}, field {path}: verdict must be essential, useful or drop"
+                        )
+                    })?;
+                    let samples = match get(f, "example_values") {
+                        Some(Value::Array(a)) => a
+                            .iter()
+                            .filter_map(|x| {
+                                if let Value::String(s) = x {
+                                    Some(s.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                        _ => Vec::new(),
+                    };
+                    Ok((path, samples, verdict))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            let words = field_words(Some(&tool), fields.iter().map(|f| f.0.clone()));
+            Ok(Example {
+                arguments: str_of(item, "arguments").unwrap_or_default(),
+                tool,
+                fields,
+                words,
+            })
+        })
+        .collect()
+}
+
+fn builtin_bank() -> &'static [Example] {
+    static PARSED: OnceLock<Vec<Example>> = OnceLock::new();
+    PARSED.get_or_init(|| parse_bank(BANK).expect("the bundled example bank is valid"))
+}
+
+/// The `k` labelled examples most like this document (overlap of field names and
+/// tool name), at most one per tool so they are not near-duplicates.
+fn pick_examples(cfg: &JevOptions, listed: &[Field]) -> Result<Vec<Example>, String> {
+    if cfg.examples == 0 {
+        return Ok(Vec::new());
+    }
+    let custom;
+    let bank: &[Example] = match &cfg.bank {
+        Some(text) => {
+            custom = parse_bank(text).map_err(|e| format!("jev.bank: {e}"))?;
+            &custom
+        }
+        None => builtin_bank(),
+    };
+    let mine = field_words(cfg.tool.as_deref(), listed.iter().map(|f| f.path.clone()));
+    let mut scored: Vec<(f64, usize)> = bank
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let both = mine.intersection(&e.words).count() as f64;
+            let either = mine.union(&e.words).count().max(1) as f64;
+            (both / either, i)
+        })
+        .collect();
+    // Most similar first; ties keep the order of the bank.
+    scored.sort_by(|a, b| {
+        b.0.partial_cmp(&a.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.1.cmp(&b.1))
+    });
+    let mut tools = HashSet::new();
+    let mut picked = Vec::new();
+    for (_, i) in scored {
+        if tools.insert(bank[i].tool.clone()) {
+            picked.push(bank[i].clone());
+        }
+        if picked.len() == cfg.examples {
+            break;
+        }
+    }
+    Ok(picked)
 }
 
 /// One field of the document: its path and example values.
@@ -222,9 +412,15 @@ fn obj(entries: Vec<(&str, Value)>) -> Value {
     )
 }
 
-/// The request body for the Decisions API: the state (tool call and fields as
-/// JSON text) and one yes/no question per field, `p0`, `p1`, ...
-pub(crate) fn request_body(cfg: &JevOptions, arguments: Option<&str>, fields: &[Field]) -> String {
+/// The request body for the Decisions API: the state (labelled examples, then the
+/// tool call and fields, as JSON text) and one yes/no question per field, `p0`,
+/// `p1`, ...
+pub(crate) fn request_body(
+    cfg: &JevOptions,
+    arguments: Option<&str>,
+    fields: &[Field],
+    examples: &[Example],
+) -> String {
     let mut call = Vec::new();
     if let Some(t) = &cfg.tool {
         call.push(("name", string(t)));
@@ -247,10 +443,53 @@ pub(crate) fn request_body(cfg: &JevOptions, arguments: Option<&str>, fields: &[
             ])
         })
         .collect();
-    let state = obj(vec![
-        ("tool_call", obj(call)),
-        ("output_fields", Value::Array(listed)),
-    ]);
+    let mut state = Vec::new();
+    if !examples.is_empty() {
+        state.push((
+            "task",
+            string(
+                "Judge each output field of the LAST tool call the way the labelled examples do. \
+                 A verdict of essential or useful means worth keeping; drop means not worth keeping.",
+            ),
+        ));
+        state.push((
+            "labelled_examples",
+            Value::Array(
+                examples
+                    .iter()
+                    .map(|e| {
+                        let fields = e
+                            .fields
+                            .iter()
+                            .map(|(path, samples, verdict)| {
+                                obj(vec![
+                                    ("path", string(path)),
+                                    (
+                                        "example_values",
+                                        Value::Array(samples.iter().map(|s| string(s)).collect()),
+                                    ),
+                                    ("verdict", string(verdict)),
+                                ])
+                            })
+                            .collect();
+                        obj(vec![
+                            (
+                                "tool_call",
+                                obj(vec![
+                                    ("name", string(&e.tool)),
+                                    ("arguments", string(&e.arguments)),
+                                ]),
+                            ),
+                            ("fields", Value::Array(fields)),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ));
+    }
+    state.push(("tool_call", obj(call)));
+    state.push(("output_fields", Value::Array(listed)));
+    let state = obj(state);
     let questions = Value::Object(
         fields
             .iter()
@@ -331,7 +570,8 @@ pub(crate) fn build_request(
     if listed.len() < 2 {
         return Err("too few fields to score".into());
     }
-    let body = request_body(cfg, opts.arguments_raw.as_deref(), &listed);
+    let examples = pick_examples(cfg, &listed)?;
+    let body = request_body(cfg, opts.arguments_raw.as_deref(), &listed, &examples);
     Ok((
         Request {
             url: format!("{}/alpha/decisions", cfg.base_url.trim_end_matches('/')),
@@ -346,8 +586,34 @@ pub(crate) fn build_request(
     ))
 }
 
+/// Each score replaced by its rank within the response, from 0 (lowest) to 1 (highest);
+/// ties share their average rank. The model's raw probabilities rank fields well but are
+/// bunched together, so blending them with other scores works better on ranks.
+pub(crate) fn rank_scores(p: &[f64]) -> Vec<f64> {
+    let n = p.len();
+    if n < 2 {
+        return vec![0.5; n];
+    }
+    let mut idx: Vec<usize> = (0..n).collect();
+    idx.sort_by(|&a, &b| p[a].partial_cmp(&p[b]).unwrap_or(std::cmp::Ordering::Equal));
+    let mut out = vec![0.0; n];
+    let mut i = 0;
+    while i < n {
+        let mut j = i;
+        while j + 1 < n && p[idx[j + 1]] == p[idx[i]] {
+            j += 1;
+        }
+        let rank = (i + j) as f64 / 2.0 / (n - 1) as f64;
+        for &k in &idx[i..=j] {
+            out[k] = rank;
+        }
+        i = j + 1;
+    }
+    out
+}
+
 /// Ask the model about `v`'s fields. On success: the `(pattern, score)` list for
-/// [`Options::field_scores`] and a description for the report.
+/// [`Options::model_scores`] (rank scores, 0 to 1) and a description for the report.
 ///
 /// The reply comes from the host when it supplied one (`jev_reply`, or
 /// `jev_error` for a failed attempt); otherwise a build with the `jev` feature sends the
@@ -377,7 +643,7 @@ pub(crate) fn score_fields(
             send(&req)?
         }
     };
-    let probs = parse_reply(&reply, listed.len())?;
+    let probs = rank_scores(&parse_reply(&reply, listed.len())?);
     let how = match started {
         Some(t) if opts.jev_reply.is_none() => format!(" in {} ms", t.elapsed().as_millis()),
         _ => String::new(),
@@ -475,7 +741,7 @@ mod tests {
             tool: Some("search".into()),
             ..JevOptions::default()
         };
-        let body = parse(&request_body(&cfg, Some(r#"{"q":"alpha"}"#), &f));
+        let body = parse(&request_body(&cfg, Some(r#"{"q":"alpha"}"#), &f, &[]));
         assert_eq!(get(&body, "model"), Some(&string(DEFAULT_MODEL)));
         let Some(Value::String(state)) = get(&body, "state") else {
             panic!("state is JSON text")
@@ -537,5 +803,164 @@ mod tests {
             ..Options::default()
         };
         assert!(score_fields(&v, &replied, &JevOptions::default()).is_ok());
+    }
+
+    fn bank_of(tools: &[(&str, &[&str])]) -> String {
+        let entries: Vec<String> = tools
+            .iter()
+            .map(|(tool, paths)| {
+                let fields: Vec<String> = paths
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| {
+                        let verdict = ["essential", "useful", "drop"][i % 3];
+                        format!(r#"{{"path":"{p}","example_values":["x"],"verdict":"{verdict}"}}"#)
+                    })
+                    .collect();
+                format!(
+                    r#"{{"tool":"{tool}","arguments":"{{}}","fields":[{}]}}"#,
+                    fields.join(",")
+                )
+            })
+            .collect();
+        format!("[{}]", entries.join(","))
+    }
+
+    #[test]
+    fn ranks_replace_probabilities_and_ties_share() {
+        assert_eq!(rank_scores(&[0.2, 0.9, 0.5]), vec![0.0, 1.0, 0.5]);
+        assert_eq!(rank_scores(&[0.5, 0.5, 0.9]), vec![0.25, 0.25, 1.0]);
+        assert_eq!(rank_scores(&[0.3]), vec![0.5]);
+        assert!(rank_scores(&[]).is_empty());
+    }
+
+    #[test]
+    fn the_bundled_bank_is_valid_and_covers_many_tools() {
+        let bank = builtin_bank();
+        assert!(bank.len() >= 30, "{} examples", bank.len());
+        let tools: HashSet<&str> = bank.iter().map(|e| e.tool.as_str()).collect();
+        assert!(tools.len() >= 15, "{} tools", tools.len());
+        for e in bank {
+            assert!(e.fields.len() >= 8 && e.fields.len() <= 40);
+            assert!(
+                e.fields.iter().any(|f| f.2 == "essential")
+                    && e.fields.iter().any(|f| f.2 != "essential")
+            );
+        }
+    }
+
+    #[test]
+    fn bank_errors_are_specific() {
+        assert!(parse_bank("nope").unwrap_err().contains("JSON"));
+        assert!(parse_bank("{}").unwrap_err().contains("array"));
+        assert!(parse_bank(r#"[{"fields":[]}]"#)
+            .unwrap_err()
+            .contains("no tool"));
+        let bad = r#"[{"tool":"t","fields":[{"path":"/a","verdict":"maybe"}]}]"#;
+        assert!(parse_bank(bad).unwrap_err().contains("verdict"));
+        assert_eq!(parse_bank("[]").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn the_most_similar_examples_are_picked_one_per_tool() {
+        let bank = bank_of(&[
+            (
+                "calendar_list_events",
+                &["/items/*/summary", "/items/*/start", "/items/*/end"],
+            ),
+            (
+                "calendar_list_events_v2",
+                &["/items/*/summary", "/items/*/start", "/items/*/end"],
+            ),
+            (
+                "shop_search",
+                &["/hits/*/sku", "/hits/*/price", "/hits/*/title"],
+            ),
+            ("weather", &["/days/*/temp", "/days/*/wind", "/days/*/rain"]),
+        ]);
+        let cfg = JevOptions {
+            examples: 3,
+            bank: Some(bank),
+            tool: Some("calendar_list_events".into()),
+            ..JevOptions::default()
+        };
+        let v = parse(
+            r#"{"items":[{"summary":"a","start":"1","end":"2"},{"summary":"b","start":"3","end":"4"}]}"#,
+        );
+        let picked = pick_examples(&cfg, &fields(&v)).unwrap();
+        let tools: Vec<&str> = picked.iter().map(|e| e.tool.as_str()).collect();
+        assert_eq!(tools[0], "calendar_list_events", "{tools:?}");
+        assert_eq!(picked.len(), 3);
+        let none = JevOptions {
+            examples: 0,
+            ..cfg.clone()
+        };
+        assert!(pick_examples(&none, &fields(&v)).unwrap().is_empty());
+        let one = JevOptions { examples: 1, ..cfg };
+        assert_eq!(pick_examples(&one, &fields(&v)).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn examples_go_into_the_state_before_the_call() {
+        let v = parse(r#"{"items":[{"id":"1","name":"alpha"},{"id":"2","name":"beta"}]}"#);
+        let f = fields(&v);
+        let cfg = JevOptions {
+            tool: Some("search".into()),
+            ..JevOptions::default()
+        };
+        let examples = pick_examples(&cfg, &f).unwrap();
+        assert_eq!(examples.len(), DEFAULT_EXAMPLES);
+        let body = parse(&request_body(&cfg, None, &f, &examples));
+        let Some(Value::String(state)) = get(&body, "state") else {
+            panic!()
+        };
+        let Value::Object(state) = parse(state) else {
+            panic!()
+        };
+        let keys: Vec<&str> = state.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(
+            keys,
+            ["task", "labelled_examples", "tool_call", "output_fields"]
+        );
+        let Some((_, Value::Array(ex))) = state.iter().find(|(k, _)| k == "labelled_examples")
+        else {
+            panic!()
+        };
+        assert_eq!(ex.len(), DEFAULT_EXAMPLES);
+        let Some(Value::Array(fs)) = get(&ex[0], "fields") else {
+            panic!()
+        };
+        assert!(fs.iter().all(|f| get(f, "verdict").is_some()));
+        // Zero examples leaves the state as before.
+        let plain = parse(&request_body(&cfg, None, &f, &[]));
+        let Some(Value::String(state)) = get(&plain, "state") else {
+            panic!()
+        };
+        assert!(!state.contains("labelled_examples") && !state.contains("task"));
+    }
+
+    #[test]
+    fn example_weight_and_bank_options_are_validated() {
+        let ok = JevOptions::from_value(&parse(r#"{"examples":2,"weight":0.5}"#))
+            .unwrap()
+            .unwrap();
+        assert_eq!((ok.examples, ok.weight), (2, 0.5));
+        let defaults = JevOptions::from_value(&parse("true")).unwrap().unwrap();
+        assert_eq!(
+            (defaults.examples, defaults.weight),
+            (DEFAULT_EXAMPLES, 1.0)
+        );
+        assert!(JevOptions::from_value(&parse(r#"{"examples":99}"#)).is_err());
+        assert!(JevOptions::from_value(&parse(r#"{"examples":-1}"#)).is_err());
+        assert!(JevOptions::from_value(&parse(r#"{"weight":1.5}"#)).is_err());
+        let bank = JevOptions::from_value(&parse(&format!(
+            r#"{{"bank":{}}}"#,
+            bank_of(&[("t", &["/a", "/b"])])
+        )))
+        .unwrap();
+        assert!(bank.unwrap().bank.is_some());
+        assert!(JevOptions::from_value(&parse(r#"{"bank":[{"tool":"t"}]}"#))
+            .unwrap_err()
+            .contains("jev.bank"));
     }
 }

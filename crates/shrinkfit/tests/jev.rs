@@ -365,3 +365,82 @@ fn a_large_request_with_awkward_characters_arrives_intact() {
         "all fields arrive intact"
     );
 }
+
+fn with_jev(base: &str, f: impl FnOnce(&mut JevOptions)) -> Options {
+    let mut opts = options(base, Some("k"));
+    f(opts.jev.as_mut().unwrap());
+    opts
+}
+
+#[test]
+fn the_request_carries_labelled_examples_unless_told_otherwise() {
+    let (base, seen) = serve(scoring(|_| 0.5), 0);
+    let src = records();
+    shrink_str(&src, &with_jev(&base, |_| {})).unwrap();
+    shrink_str(&src, &with_jev(&base, |j| j.examples = 0)).unwrap();
+    shrink_str(
+        &src,
+        &with_jev(&base, |j| {
+            j.bank = Some(
+                r#"[{"tool":"my_own_tool","arguments":"{}","fields":[
+                    {"path":"/results/*/id","example_values":["a"],"verdict":"essential"},
+                    {"path":"/results/*/alpha","example_values":["b"],"verdict":"drop"}]}]"#
+                    .into(),
+            );
+        }),
+    )
+    .unwrap();
+    let requests = seen.lock().unwrap();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[0].contains("labelled_examples") && requests[0].contains("verdict"));
+    assert!(
+        !requests[1].contains("labelled_examples"),
+        "examples: 0 sends none"
+    );
+    assert!(
+        requests[2].contains("my_own_tool"),
+        "a custom bank replaces the bundled one"
+    );
+    assert!(!requests[2].contains("airtable"), "{}", &requests[2][..200]);
+}
+
+#[test]
+fn weight_zero_ignores_the_model_and_the_default_trusts_it() {
+    let favour = |p: &str| if p.ends_with("beta") { 1.0 } else { 0.0 };
+    let (base, _) = serve(scoring(favour), 0);
+    let src = records();
+    let plain = shrink_str(
+        &src,
+        &Options {
+            jev: None,
+            ..options(&base, Some("k"))
+        },
+    )
+    .unwrap();
+    let ignored = shrink_str(&src, &with_jev(&base, |j| j.weight = 0.0)).unwrap();
+    assert_eq!(
+        ignored.text, plain.text,
+        "weight 0 gives the built-in result"
+    );
+    let trusted = shrink_str(&src, &with_jev(&base, |_| {})).unwrap();
+    assert_eq!(keys(&trusted.text), ["beta"]);
+}
+
+#[test]
+fn only_the_order_of_the_probabilities_matters() {
+    // All three answers are close to 0.5; beta is merely the highest.
+    let (base, _) = serve(
+        scoring(|p| {
+            if p.ends_with("beta") {
+                0.52
+            } else if p.ends_with("alpha") {
+                0.51
+            } else {
+                0.50
+            }
+        }),
+        0,
+    );
+    let out = shrink_str(&records(), &options(&base, Some("k"))).unwrap();
+    assert_eq!(keys(&out.text), ["beta"], "{}", out.text);
+}

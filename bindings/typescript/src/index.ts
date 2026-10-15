@@ -52,14 +52,27 @@ export interface ShrinkOptions {
   fieldScoreWeight?: number;
   /**
    * Blend in scores from a hosted decision model (Jev via OpenRouter). Pass `true` (the key is read from
-   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, model, baseUrl, timeoutMs, fetch }`. The WebAssembly core builds the
+   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, examples, weight, bank, model, baseUrl, timeoutMs, fetch }`. The WebAssembly core builds the
    * request and blends the reply but cannot open sockets, so this takes effect in the async functions
    * (`shrinkAsync`, `shrinkWithReportAsync`), which send the request with the global `fetch`, or with `jev.fetch`
    * if you give one (a proxy, auth middleware, a runtime without global fetch, a test double). Callers never talk to
    * the model themselves. The sync functions report `model_scoring: "unavailable: ..."` and use the built-in
    * scoring. Only used with the `condense` array strategy. Never put a key in browser code.
    */
-  jev?: boolean | { apiKey?: string; tool?: string; model?: string; baseUrl?: string; timeoutMs?: number; fetch?: FetchLike };
+  jev?: boolean | {
+    apiKey?: string;
+    tool?: string;
+    /** Labelled examples shown with the request: the N most similar from the bundled bank (default 4; 0 for none). */
+    examples?: number;
+    /** How far the model's scores replace the built-in ones, 0 to 1 (default 1). */
+    weight?: number;
+    /** Your own labelled examples instead of the bundled bank: `[{ tool, arguments, fields: [{ path, example_values, verdict }] }]`, verdict `"essential" | "useful" | "drop"`. */
+    bank?: unknown[] | string;
+    model?: string;
+    baseUrl?: string;
+    timeoutMs?: number;
+    fetch?: FetchLike;
+  };
 }
 
 export interface Report {
@@ -161,7 +174,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     if (!snake) throw new ShrinkError(`unknown option: ${k}`);
     if (k === "jev" && v && typeof v === "object") {
       const j = v as Record<string, unknown>;
-      const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model" };
+      const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model", examples: "examples", weight: "weight", bank: "bank" };
       out[snake] = Object.fromEntries(
         Object.entries(j).filter(([n, x]) => x !== undefined && n !== "fetch").map(([n, x]) => {
           if (!names[n]) throw new ShrinkError(`unknown jev option: ${n}`);

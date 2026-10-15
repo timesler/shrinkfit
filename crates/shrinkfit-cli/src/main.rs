@@ -48,6 +48,12 @@ options:
       --tool-name NAME         the tool that produced the document (context for --jev)
       --jev-timeout MS         give up on --jev after this long (default 3000)
       --jev-base-url URL       Decisions API base (default https://openrouter.ai/api)
+      --jev-examples N         labelled examples shown with each --jev request: the N most
+                               similar from the bundled bank (default 4; 0 for none)
+      --jev-weight W           how far --jev scores replace the built-in ones, 0..1
+                               (default 1: fields it scores are ranked by it alone)
+      --jev-bank FILE          your own bank of labelled examples (JSON) instead of the
+                               bundled one
       --explain                print every field's score and keep/drop decision
                                (condense) to stderr
       --no-keep-last           don't prefer the last item when sampling arrays
@@ -165,6 +171,28 @@ fn run() -> Result<ExitCode, String> {
                     .filter(|t| *t > 0)
                     .ok_or("--jev-timeout needs a number of milliseconds")?;
                 jev.get_or_insert_with(Default::default).timeout_ms = ms;
+            }
+            "--jev-examples" => {
+                let k: usize = args
+                    .next()
+                    .and_then(|x| x.parse().ok())
+                    .filter(|k| *k <= 12)
+                    .ok_or("--jev-examples needs a number from 0 to 12")?;
+                jev.get_or_insert_with(Default::default).examples = k;
+            }
+            "--jev-weight" => {
+                let w: f64 = args
+                    .next()
+                    .and_then(|x| x.parse().ok())
+                    .filter(|w| (0.0..=1.0).contains(w))
+                    .ok_or("--jev-weight needs a number from 0 to 1")?;
+                jev.get_or_insert_with(Default::default).weight = w;
+            }
+            "--jev-bank" => {
+                let path = args.next().ok_or("--jev-bank needs a file")?;
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|e| format!("--jev-bank {path}: {e}"))?;
+                jev.get_or_insert_with(Default::default).bank = Some(text);
             }
             "--jev-base-url" => {
                 let url = args.next().ok_or("--jev-base-url needs a URL")?;

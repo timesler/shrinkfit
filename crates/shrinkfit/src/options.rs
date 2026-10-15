@@ -81,6 +81,11 @@ pub struct Options {
     pub field_scores: Vec<(String, f64)>,
     /// How strongly `field_scores` pull against the built-in score (default 0.5).
     pub field_score_weight: f64,
+    /// Scores from the decision model (set by the `jev` option, not by callers): the
+    /// same `(path pattern, score)` form as `field_scores`, applied after them.
+    pub model_scores: Vec<(String, f64)>,
+    /// How strongly `model_scores` replace the built-in score (`jev.weight`).
+    pub model_score_weight: f64,
     /// Score fields with a hosted decision model and blend that in as
     /// `field_scores` (see [`crate::jev`]). Opt-in; needs an OpenRouter API key
     /// and the `jev` cargo feature, and falls back to the built-in scoring.
@@ -162,6 +167,8 @@ impl Options {
             protect: Vec::new(),
             field_scores: Vec::new(),
             field_score_weight: 0.5,
+            model_scores: Vec::new(),
+            model_score_weight: 1.0,
             jev: None,
             arguments_raw: None,
             jev_reply: None,

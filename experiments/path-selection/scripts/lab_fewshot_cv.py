@@ -13,7 +13,7 @@ sys.path.insert(0, "scripts")
 import lab_eval as E  # noqa: E402
 from ml_paths import paths as leaf_paths  # noqa: E402
 
-CFGS = ["k0", "fixed2", "fixed4", "fixed8", "retr2", "retr4"]
+CFGS = sys.argv[1:] or ["k0", "fixed2", "fixed4", "fixed8", "retr2", "retr4"]
 HOW = ("raw", "rank")
 WS = (0.25, 0.5, 0.75, 1.0)
 FRACS = (0.10, 0.25)

@@ -123,6 +123,56 @@ real-world transfer is not measured. A production bank could use all 238 labelle
 default weight), `lab_fewshot_diag.py` (score distributions, weight and scaling sweep), `lab_fewshot_cv.py` (nested
 selection) and `lab_fewshot_final.py` (the table above) need no API key.
 
+### One question instead of one per field
+
+*Question: can a single "which field matters most?" question (the choice form, whose options are the fields) do
+the job, instead of a yes/no question per field?* Either way it is one request per response; the choice form just
+asks one question inside it, so its request is smaller (about 2,600 input tokens against 3,700 without examples).
+Same grid, same unseen-server protocol (about 1,700 more live requests, roughly $0.35):
+
+| | Ranking AUC (record-array fields) | Labelled value kept, 10% and 25% budgets averaged |
+|---|---|---|
+| yes/no, no examples | 0.879 | 0.729 (Jev alone) |
+| yes/no, 4 retrieved examples | 0.944 | **0.755** |
+| choice, no examples | 0.843 | 0.743 |
+| choice, 2 fixed examples | 0.888 | 0.713 |
+| choice, 4 retrieved examples | 0.877 | 0.709 |
+
+Without examples the two forms are level in the real shrink (+0.015 for choice, interval -0.008 to +0.038), so the
+smaller request is a fair trade. But **examples do not help the choice form: they make it worse** (about -0.015 to
+-0.02 against yes/no with no examples), because a choice question's probabilities compete: they concentrate on the
+top few fields and the rest are ordered by tiny differences. The yes/no form answers each field independently, which
+is what the examples sharpen. Hence yes/no with examples is the default.
+
+### What shipped
+
+The best configuration became the default (`jev` with no other options):
+
+* the **yes/no form** with the **four most similar labelled examples** from a bundled bank of 39 examples from 20 tools
+  (`crates/shrinkfit/src/jev_bank.json`, built by `scripts/build_bank.py` from the labelled responses), at most one per
+  tool, chosen by overlap of field names;
+* Jev's probabilities replaced by their **rank** within the response, used **alone** (`jev.weight` = 1), because
+  blending with the built-in score diluted the better ranking.
+
+`jev.examples`, `jev.weight` and `jev.bank` change each of these; `jev.examples = 0` is the zero-shot form.
+
+**Validation of the shipped code** (`scripts/lab_live_fold.py`): the real CLI, live, on all 238 responses, with the
+bank for each response built only from the other fold of servers. Labelled value kept / essential fields kept:
+
+| | 25% budget | 10% budget |
+|---|---|---|
+| built-in scoring only | 0.720 / 0.766 | 0.661 / 0.742 |
+| Jev, no examples (alone, rank) | 0.778 / 0.843 | 0.682 / 0.771 |
+| **Jev, 4 retrieved examples (the default)** | **0.793 / 0.851** | **0.713 / 0.794** |
+| same, blended 50/50 | 0.750 / 0.798 | 0.694 / 0.772 |
+
+1,421 of 1,422 requests were answered (one network error fell back to the built-in scoring). The default keeps
++0.073 [+0.049, +0.099] more labelled value than the built-in scoring at 25% and +0.053 [+0.033, +0.073] at 10%; the
+examples add +0.015 [0.000, +0.029] at 25% and +0.031 [+0.018, +0.046] at 10% on top of Jev alone. This agrees with
+the research run above (0.798 / 0.858 and 0.712 / 0.798). Measured latency: median 318 ms with the examples, 272 ms
+without. Reproduce: `python scripts/build_bank.py`, then `python scripts/lab_live_fold.py` (needs `OPENROUTER_API_KEY`,
+`SHRINKFIT_BIN` and the case pool in `work/`).
+
 ## Caveats
 
 * Labels come from Claude agents who saw the tool arguments; a scorer that shares their taste is

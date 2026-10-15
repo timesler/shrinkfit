@@ -82,7 +82,7 @@ are kept exact automatically, so you only need `protect` for the ones shrinkfit 
 | Option | TypeScript | Default | Meaning |
 |---|---|---|---|
 | `field_scores` | `fieldScores` | `{}` | Scores you supply: an object mapping a path pattern (same syntax as `protect`) to a number from 0 to 1. The first matching pattern wins. CLI: `--field-scores JSON\|FILE`. |
-| `field_score_weight` | `fieldScoreWeight` | `0.5` | How strongly external scores pull against the built-in score: a named field scores `(1 - w) * built-in + w * external`. `0` ignores them, `1` uses them alone. |
+| `field_score_weight` | `fieldScoreWeight` | `0.5` | How strongly your `field_scores` pull against the built-in score: a named field scores `(1 - w) * built-in + w * external`. `0` ignores them, `1` uses them alone. (The model's scores have their own `jev.weight`.) |
 | `jev` | `jev` | off | Score fields with the hosted decision model Jev and blend that in. `true`, or an object (see below). CLI: `--jev`. |
 
 `jev` accepts `true` or an object with these keys (TypeScript uses camelCase):
@@ -91,6 +91,9 @@ are kept exact automatically, so you only need `protect` for the ones shrinkfit 
 |---|---|---|
 | `api_key` | `OPENROUTER_API_KEY` | OpenRouter API key. |
 | `tool` | none | Name of the tool that produced the document (context for the model). |
+| `examples` | `4` | How many labelled examples to send with the request: the most similar from the bundled bank. `0` sends none. |
+| `weight` | `1` | How far the model's scores replace the built-in ones, 0 to 1. At `1` the fields it scores are ranked by the model alone. |
+| `bank` | bundled | Your own labelled examples instead of the bundled bank, as an array. See [the bank](model-scoring.md#labelled-examples-and-the-bank). |
 | `model` | `typesafe/jev-1.13` | The model asked. |
 | `base_url` | `https://openrouter.ai/api` | The Decisions API base (a gateway or proxy can go here). |
 | `timeout_ms` | `3000` | Give up after this long and use the built-in scoring. |

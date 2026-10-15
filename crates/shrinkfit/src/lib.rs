@@ -414,7 +414,8 @@ pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrun
             match jev::score_fields(v, opts, cfg) {
                 Ok((scores, note)) => {
                     let mut o = opts.clone();
-                    o.field_scores.extend(scores);
+                    o.model_scores = scores;
+                    o.model_score_weight = cfg.weight;
                     enriched = o;
                     model_scoring = Some(note);
                     &enriched

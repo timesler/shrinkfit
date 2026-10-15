@@ -153,11 +153,13 @@ class ShrinkTests(unittest.TestCase):
         import threading
 
         seen = []
+        states = []
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 seen.append((self.path, self.headers.get("Authorization")))
+                states.append(json.loads(body["state"]))
                 answers = {
                     name: {"type": "noul", "noul": 1.0 if q["instructions"].split("`")[1].endswith("beta") else 0.0}
                     for name, q in body["questions"].items()
@@ -184,6 +186,11 @@ class ShrinkTests(unittest.TestCase):
         self.assertEqual(list(json.loads(r.text)["results"][0]), ["beta"])
         self.assertTrue(r.report["model_scoring"].startswith("scored 3 fields"))
         self.assertEqual(seen, [("/api/alpha/decisions", "Bearer test-key")])
+        self.assertEqual(len(states[0]["labelled_examples"]), 4)      # four labelled examples by default
+        shrink_with_report(data, 1500, array_strategy="condense", indent=0,
+                           jev={"api_key": "test-key", "base_url": base, "examples": 0})
+        self.assertNotIn("labelled_examples", states[1])
+        del seen[1:]
         # No key: nothing is sent and the built-in scoring is used.
         os.environ.pop("OPENROUTER_API_KEY", None)
         r = shrink_with_report(data, 1500, array_strategy="condense", indent=0, jev={"base_url": base})
