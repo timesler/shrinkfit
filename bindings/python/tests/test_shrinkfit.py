@@ -187,6 +187,12 @@ class ShrinkTests(unittest.TestCase):
         self.assertTrue(r.report["model_scoring"].startswith("scored 3 fields"))
         self.assertEqual(seen, [("/api/alpha/decisions", "Bearer test-key")])
         self.assertEqual(len(states[0]["labelled_examples"]), 4)      # four labelled examples by default
+        # The same field set again (different values) is answered from memory: no second request.
+        again = {"results": [{**row, "alpha": "other " + row["alpha"]} for row in rows]}
+        r2 = shrink_with_report(again, 1500, array_strategy="condense", indent=0,
+                                jev={"api_key": "test-key", "base_url": base, "tool": "search"})
+        self.assertIn("(cached)", r2.report["model_scoring"])
+        self.assertEqual(len(seen), 1)
         shrink_with_report(data, 1500, array_strategy="condense", indent=0,
                            jev={"api_key": "test-key", "base_url": base, "examples": 0})
         self.assertNotIn("labelled_examples", states[1])

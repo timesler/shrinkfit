@@ -338,7 +338,7 @@ The `jev` option does the fetching: before pruning a document that has to be cut
 model one yes/no question per field path (the tool call, two example values per field and four
 similar labelled examples are the context), replaces the answers by their rank within the
 response, and applies them as the fields' scores (`jev.weight` sets how far they replace the
-built-in ones; the default is entirely). Native builds with the `jev` cargo feature send the
+built-in ones; the default is entirely) and remembers them for the next response with the same fields. Native builds with the `jev` cargo feature send the
 request themselves; on WebAssembly, which has no sockets, the core only builds the request
 (`model_request`) and reads the reply (`jev_reply`) and the host carries it. Any failure leaves
 the built-in scoring in charge and is recorded in `Report::model_scoring`.

@@ -324,6 +324,9 @@ pub fn model_request(input: &str, opts: &Options) -> Result<Option<ModelRequest>
     if chars(&render(&v, &opts)) <= opts.max_chars {
         return Ok(None);
     }
+    if jev::is_cached(&v, cfg) {
+        return Ok(None); // the scores are remembered: nothing to send
+    }
     jev::build_request(&v, &opts, cfg).map(|(req, _)| Some(req))
 }
 

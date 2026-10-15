@@ -94,6 +94,7 @@ are kept exact automatically, so you only need `protect` for the ones shrinkfit 
 | `examples` | `4` | How many labelled examples to send with the request: the most similar from the bundled bank. `0` sends none. |
 | `weight` | `1` | How far the model's scores replace the built-in ones, 0 to 1. At `1` the fields it scores are ranked by the model alone. |
 | `bank` | bundled | Your own labelled examples instead of the bundled bank, as an array. See [the bank](model-scoring.md#labelled-examples-and-the-bank). |
+| `cache` | `true` | Remember the scores per tool and field set, so the next response of the same shape needs no request. See [cost and speed](model-scoring.md#cost-and-speed). |
 | `model` | `typesafe/jev-1.13` | The model asked. |
 | `base_url` | `https://openrouter.ai/api` | The Decisions API base (a gateway or proxy can go here). |
 | `timeout_ms` | `3000` | Give up after this long and use the built-in scoring. |

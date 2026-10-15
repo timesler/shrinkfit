@@ -173,6 +173,22 @@ the research run above (0.798 / 0.858 and 0.712 / 0.798). Measured latency: medi
 without. Reproduce: `python scripts/build_bank.py`, then `python scripts/lab_live_fold.py` (needs `OPENROUTER_API_KEY`,
 `SHRINKFIT_BIN` and the case pool in `work/`).
 
+### Reusing the scores for the next response
+
+A tool returns the same field set again and again, so `jev` remembers the scores per tool and field list and skips the
+request the next time. The cache key leaves out the call's arguments (so it hits as often as possible); this measures
+what that costs. For the 59 pairs of responses in the data with the same tool and field set (47 of them with different
+arguments), the second response was shrunk with the first one's scores and compared with its own scores
+(`scripts/lab_cache_eval.py`, Jev alone, rank scores, labelled value kept):
+
+| budget | own scores | scores reused from the sibling | change |
+|---|---|---|---|
+| 25% | 0.791 | 0.780 | -0.011 [-0.035, +0.001] |
+| 10% | 0.763 | 0.758 | -0.006 [-0.017, +0.003] |
+
+About a seventh of Jev's gain over the built-in scoring, in exchange for no request, no cost and no latency on every
+repeat. `jev.cache = false` turns it off.
+
 ## Caveats
 
 * Labels come from Claude agents who saw the tool arguments; a scorer that shares their taste is

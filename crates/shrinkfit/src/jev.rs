@@ -29,9 +29,10 @@
 use crate::json::{self, Layout};
 use crate::options::Options;
 use crate::value::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
-use std::sync::OnceLock;
+use std::hash::{Hash, Hasher};
+use std::sync::{Mutex, OnceLock};
 
 /// The model asked by default.
 pub const DEFAULT_MODEL: &str = "typesafe/jev-1.13";
@@ -45,6 +46,8 @@ pub const DEFAULT_TIMEOUT_MS: u64 = 3000;
 /// How many labelled examples go into each request by default.
 pub const DEFAULT_EXAMPLES: usize = 4;
 const MAX_EXAMPLES: usize = 12;
+/// How many score sets the process-wide cache keeps.
+const CACHE_ENTRIES: usize = 256;
 /// The labelled examples shipped with shrinkfit (see experiments/path-selection).
 const BANK: &str = include_str!("jev_bank.json");
 
@@ -77,6 +80,11 @@ pub struct JevOptions {
     /// Your own bank of labelled examples, as JSON text (an array like `jev_bank.json`),
     /// used instead of the one shipped with shrinkfit.
     pub bank: Option<String>,
+    /// Remember the scores for a tool's field set, so the next response of the same
+    /// shape needs no request (default on). The arguments are not part of the key:
+    /// measured on pairs of responses, reusing the scores cost about 0.01 of labelled
+    /// value kept, against a gain of about 0.07 from the model.
+    pub cache: bool,
 }
 
 impl Default for JevOptions {
@@ -90,6 +98,7 @@ impl Default for JevOptions {
             examples: DEFAULT_EXAMPLES,
             weight: 1.0,
             bank: None,
+            cache: true,
         }
     }
 }
@@ -115,7 +124,7 @@ impl fmt::Debug for JevOptions {
 
 impl JevOptions {
     /// Parse the `jev` option: `true`, or an object with any of `api_key`,
-    /// `model`, `base_url`, `timeout_ms`, `tool`, `examples`, `weight`, `bank`.
+    /// `model`, `base_url`, `timeout_ms`, `tool`, `examples`, `weight`, `bank`, `cache`.
     /// `false`/`null` mean off.
     pub fn from_value(v: &Value) -> Result<Option<JevOptions>, String> {
         let entries = match v {
@@ -159,6 +168,12 @@ impl JevOptions {
                         _ => None,
                     }
                     .ok_or("jev.weight must be a number from 0 to 1")?
+                }
+                "cache" => {
+                    o.cache = match val {
+                        Value::Bool(b) => *b,
+                        _ => return Err("jev.cache must be true or false".into()),
+                    }
                 }
                 "bank" => {
                     let text = match val {
@@ -557,6 +572,66 @@ pub struct Request {
     pub timeout_ms: u64,
 }
 
+/// Scores remembered for a field set, oldest dropped first.
+struct Cache {
+    scores: HashMap<u64, Vec<f64>>,
+    order: VecDeque<u64>,
+}
+
+fn cache() -> &'static Mutex<Cache> {
+    static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        Mutex::new(Cache {
+            scores: HashMap::new(),
+            order: VecDeque::new(),
+        })
+    })
+}
+
+/// What the scores depend on: the model and endpoint, the tool, how the request is
+/// built (examples, bank) and the exact field list. Not the arguments or the values.
+fn cache_key(cfg: &JevOptions, listed: &[Field]) -> u64 {
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (
+        &cfg.model,
+        &cfg.base_url,
+        &cfg.tool,
+        cfg.examples,
+        &cfg.bank,
+    )
+        .hash(&mut h);
+    for f in listed {
+        f.path.hash(&mut h);
+    }
+    h.finish()
+}
+
+fn cache_get(key: u64, n: usize) -> Option<Vec<f64>> {
+    let c = cache().lock().ok()?;
+    c.scores.get(&key).filter(|s| s.len() == n).cloned()
+}
+
+fn cache_put(key: u64, scores: &[f64], cap: usize) {
+    let Ok(mut c) = cache().lock() else { return };
+    if c.scores.insert(key, scores.to_vec()).is_none() {
+        c.order.push_back(key);
+    }
+    while c.order.len() > cap {
+        if let Some(old) = c.order.pop_front() {
+            c.scores.remove(&old);
+        }
+    }
+}
+
+/// Are this document's scores already remembered (so no request is needed)?
+pub(crate) fn is_cached(v: &Value, cfg: &JevOptions) -> bool {
+    if !cfg.cache {
+        return false;
+    }
+    let listed = fields(v);
+    listed.len() >= 2 && cache_get(cache_key(cfg, &listed), listed.len()).is_some()
+}
+
 /// The request for `v`, or why there cannot be one (no API key, too few fields).
 pub(crate) fn build_request(
     v: &Value,
@@ -626,14 +701,24 @@ pub(crate) fn score_fields(
     if let Some(why) = &opts.jev_error {
         return Err(why.clone());
     }
-    if opts.jev_reply.is_none() && !CAN_SEND {
-        // Say so before anything else: such a build cannot read the key either
-        // (wasm has no environment), so "no API key" would be misleading.
-        return Err(CANNOT_SEND.into());
-    }
     let listed = fields(v);
     if listed.len() < 2 {
         return Err("too few fields to score".into());
+    }
+    let key = cfg.cache.then(|| cache_key(cfg, &listed));
+    if opts.jev_reply.is_none() {
+        if let Some(ranks) = key.and_then(|k| cache_get(k, listed.len())) {
+            let note = format!("scored {} fields with {} (cached)", listed.len(), cfg.model);
+            return Ok((
+                listed.into_iter().map(|f| f.path).zip(ranks).collect(),
+                note,
+            ));
+        }
+        if !CAN_SEND {
+            // Say so before anything else: such a build cannot read the key either
+            // (wasm has no environment), so "no API key" would be misleading.
+            return Err(CANNOT_SEND.into());
+        }
     }
     let started = now();
     let reply = match &opts.jev_reply {
@@ -644,6 +729,9 @@ pub(crate) fn score_fields(
         }
     };
     let probs = rank_scores(&parse_reply(&reply, listed.len())?);
+    if let Some(k) = key {
+        cache_put(k, &probs, CACHE_ENTRIES);
+    }
     let how = match started {
         Some(t) if opts.jev_reply.is_none() => format!(" in {} ms", t.elapsed().as_millis()),
         _ => String::new(),
@@ -962,5 +1050,44 @@ mod tests {
         assert!(JevOptions::from_value(&parse(r#"{"bank":[{"tool":"t"}]}"#))
             .unwrap_err()
             .contains("jev.bank"));
+    }
+
+    #[test]
+    fn the_cache_forgets_the_oldest_entries_first() {
+        let base = 0xABCD_0000_0000_0000u64;
+        for i in 0..5 {
+            cache_put(base + i, &[i as f64, 0.0], 3);
+        }
+        // Only the three newest of this test's keys can still be there.
+        let present: Vec<u64> = (0..5)
+            .filter(|i| cache_get(base + i, 2).is_some())
+            .collect();
+        assert!(present.len() <= 3, "{present:?}");
+        assert!(cache_get(base + 4, 2).is_some(), "the newest is kept");
+        assert!(cache_get(base, 2).is_none(), "the oldest is gone");
+        assert!(
+            cache_get(base + 4, 3).is_none(),
+            "a different length is a miss"
+        );
+    }
+
+    #[test]
+    fn the_cache_key_ignores_values_but_not_fields_or_settings() {
+        let a = fields(&parse(r#"{"items":[{"id":"1","name":"x"}]}"#));
+        let b = fields(&parse(r#"{"items":[{"id":"2","name":"y"}]}"#));
+        let c = fields(&parse(r#"{"items":[{"id":"2","title":"y"}]}"#));
+        let cfg = JevOptions::default();
+        assert_eq!(cache_key(&cfg, &a), cache_key(&cfg, &b));
+        assert_ne!(cache_key(&cfg, &a), cache_key(&cfg, &c));
+        let other = JevOptions {
+            model: "other/model".into(),
+            ..JevOptions::default()
+        };
+        assert_ne!(cache_key(&cfg, &a), cache_key(&other, &a));
+        let off = JevOptions::from_value(&parse(r#"{"cache":false}"#))
+            .unwrap()
+            .unwrap();
+        assert!(!off.cache);
+        assert!(JevOptions::from_value(&parse(r#"{"cache":"no"}"#)).is_err());
     }
 }

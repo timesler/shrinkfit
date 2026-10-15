@@ -52,7 +52,7 @@ export interface ShrinkOptions {
   fieldScoreWeight?: number;
   /**
    * Blend in scores from a hosted decision model (Jev via OpenRouter). Pass `true` (the key is read from
-   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, examples, weight, bank, model, baseUrl, timeoutMs, fetch }`. The WebAssembly core builds the
+   * `OPENROUTER_API_KEY`) or `{ apiKey, tool, examples, weight, bank, cache, model, baseUrl, timeoutMs, fetch }`. The WebAssembly core builds the
    * request and blends the reply but cannot open sockets, so this takes effect in the async functions
    * (`shrinkAsync`, `shrinkWithReportAsync`), which send the request with the global `fetch`, or with `jev.fetch`
    * if you give one (a proxy, auth middleware, a runtime without global fetch, a test double). Callers never talk to
@@ -68,6 +68,8 @@ export interface ShrinkOptions {
     weight?: number;
     /** Your own labelled examples instead of the bundled bank: `[{ tool, arguments, fields: [{ path, example_values, verdict }] }]`, verdict `"essential" | "useful" | "drop"`. */
     bank?: unknown[] | string;
+    /** Remember the scores for a tool's field set so the next response of the same shape needs no request (default true). */
+    cache?: boolean;
     model?: string;
     baseUrl?: string;
     timeoutMs?: number;
@@ -174,7 +176,7 @@ function toSnakeOptions(maxChars: number, o: ShrinkOptions): Record<string, unkn
     if (!snake) throw new ShrinkError(`unknown option: ${k}`);
     if (k === "jev" && v && typeof v === "object") {
       const j = v as Record<string, unknown>;
-      const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model", examples: "examples", weight: "weight", bank: "bank" };
+      const names: Record<string, string> = { apiKey: "api_key", baseUrl: "base_url", timeoutMs: "timeout_ms", tool: "tool", model: "model", examples: "examples", weight: "weight", bank: "bank", cache: "cache" };
       out[snake] = Object.fromEntries(
         Object.entries(j).filter(([n, x]) => x !== undefined && n !== "fetch").map(([n, x]) => {
           if (!names[n]) throw new ShrinkError(`unknown jev option: ${n}`);

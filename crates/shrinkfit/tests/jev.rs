@@ -331,7 +331,7 @@ fn a_host_can_send_the_request_itself() {
     assert_eq!(shrinkfit::model_request(&src, &roomy), Ok(None));
     // No key: the host is told why.
     std::env::remove_var(shrinkfit::jev::KEY_ENV);
-    let keyless = options(&base, None);
+    let keyless = with_jev_cache_off(options(&base, None));
     assert!(shrinkfit::model_request(&src, &keyless)
         .unwrap_err()
         .contains("no OpenRouter API key"));
@@ -443,4 +443,88 @@ fn only_the_order_of_the_probabilities_matters() {
     );
     let out = shrink_str(&records(), &options(&base, Some("k"))).unwrap();
     assert_eq!(keys(&out.text), ["beta"], "{}", out.text);
+}
+
+fn with_jev_cache_off(mut opts: Options) -> Options {
+    opts.jev.as_mut().unwrap().cache = false;
+    opts
+}
+
+/// Same field set, different values: what a tool returns call after call.
+fn records_again() -> String {
+    records()
+        .replace("alpha text", "alpha other")
+        .replace("beta text", "beta other")
+}
+
+#[test]
+fn the_second_response_of_the_same_shape_needs_no_request() {
+    let (base, seen) = serve(scoring(|p| if p.ends_with("beta") { 1.0 } else { 0.0 }), 0);
+    let opts = options(&base, Some("k"));
+    let first = shrink_str(&records(), &opts).unwrap();
+    assert!(first
+        .report
+        .model_scoring
+        .as_deref()
+        .unwrap()
+        .starts_with("scored 3 fields"));
+    assert!(!first
+        .report
+        .model_scoring
+        .as_deref()
+        .unwrap()
+        .contains("cached"));
+    // A host that sends requests itself is told none is needed.
+    assert_eq!(shrinkfit::model_request(&records_again(), &opts), Ok(None));
+
+    let second = shrink_str(&records_again(), &opts).unwrap();
+    let note = second.report.model_scoring.unwrap();
+    assert!(
+        note.starts_with("scored 3 fields") && note.contains("(cached)"),
+        "{note}"
+    );
+    assert_eq!(
+        keys(&second.text),
+        ["beta"],
+        "the remembered scores still steer the result"
+    );
+    assert_eq!(
+        seen.lock().unwrap().len(),
+        1,
+        "only the first response was sent"
+    );
+}
+
+#[test]
+fn the_cache_keys_on_tool_endpoint_examples_and_fields_and_can_be_switched_off() {
+    let (base, seen) = serve(scoring(|_| 0.5), 0);
+    let src = records();
+    let requests = || seen.lock().unwrap().len();
+    shrink_str(&src, &options(&base, Some("k"))).unwrap();
+    assert_eq!(requests(), 1);
+    shrink_str(&src, &options(&base, Some("k"))).unwrap();
+    assert_eq!(requests(), 1, "the same call is remembered");
+    shrink_str(
+        &src,
+        &with_jev(&base, |j| j.tool = Some("another_tool".into())),
+    )
+    .unwrap();
+    assert_eq!(requests(), 2, "another tool is a different key");
+    shrink_str(&src, &with_jev(&base, |j| j.examples = 2)).unwrap();
+    assert_eq!(
+        requests(),
+        3,
+        "a different number of examples is a different key"
+    );
+    let fewer = src.replace(r#","beta":"#, r#","gamma":"#);
+    shrink_str(&fewer, &options(&base, Some("k"))).unwrap();
+    assert_eq!(requests(), 4, "a different field set is a different key");
+    shrink_str(&src, &with_jev(&base, |j| j.cache = false)).unwrap();
+    shrink_str(&src, &with_jev(&base, |j| j.cache = false)).unwrap();
+    assert_eq!(requests(), 6, "cache: false asks every time");
+    // The arguments are deliberately not part of the key.
+    let mut other_args = options(&base, Some("k"));
+    other_args.arguments_raw = Some(r#"{"query":"something else"}"#.into());
+    shrink_str(&src, &other_args).unwrap();
+    assert_eq!(requests(), 6);
 }

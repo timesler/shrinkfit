@@ -125,7 +125,8 @@ The data, labelling protocol, scripts and every result, including the experiment
 
 ## How it works
 
-1. **Decide.** shrinkfit parses the document and only continues if it does not fit the budget.
+1. **Decide.** shrinkfit parses the document and only continues if it does not fit the budget. If the scores for this
+   tool's field set are already remembered (see [cost and speed](#cost-and-speed)), it skips to step 7.
 2. **List the fields.** Every distinct leaf path, with arrays written as `*` (`/issues/*/fields/summary`),
    and up to two short example values for each. At most 120 fields are sent.
 3. **Pick examples.** The four labelled examples from the [bank](#labelled-examples-and-the-bank) whose field names
@@ -196,7 +197,14 @@ logged or included in the report or in error messages.
   `examples: 0`).
 * Measured latency from a laptop: median about **320 ms** with four examples (270 ms without), 90th percentile
   about 450 ms. The default timeout is 3 seconds (`timeout_ms`).
-* One request per document that needs cutting. There is no result cache yet.
+* One request per document that needs cutting, **the first time**. The scores are remembered per tool and field
+  set (the model, endpoint, `tool`, example settings and the exact list of field paths; up to 256 sets, in memory
+  for the life of the process). The next response with the same fields makes no request and costs nothing, and the
+  report says `(cached)`. Reusing scores costs a little accuracy, because the call's arguments are not part of the
+  key: measured on 59 pairs of responses from the same tool, it was -0.011 labelled value kept at a 25% budget
+  (interval -0.035 to +0.001) and -0.006 at 10%, against a gain of about +0.07 from the model. Set `cache: false`
+  to ask every time. The command line starts a new process for each document, so it has nothing to remember; the
+  cache is for long-running Python, Rust and TypeScript processes such as a proxy.
 
 ## When it cannot answer
 
@@ -207,6 +215,7 @@ one-line note to stderr.
 | `report.model_scoring` says | Meaning and what to do |
 |---|---|
 | `scored 24 fields with typesafe/jev-1.13 in 318 ms` | It worked. |
+| `scored 24 fields with typesafe/jev-1.13 (cached)` | The scores for this tool's field set were remembered; no request was made. |
 | `unavailable: no OpenRouter API key (set OPENROUTER_API_KEY or jev.api_key); used the built-in scoring` | No key found. |
 | `unavailable: the service answered HTTP 401` | The key was rejected. |
 | `unavailable: the service answered HTTP 402` | The OpenRouter account has no credit. |
@@ -296,6 +305,6 @@ the request and reply formats are those of Jev's Decisions API (yes/no questions
 **Is the output deterministic?** Not strictly: the model's probabilities can vary slightly between calls. The
 built-in scoring is fully deterministic and is what you get whenever the model cannot answer.
 
-**Will it slow my tool down?** By one extra round trip (about 320 ms) for each response that has to be cut.
+**Will it slow my tool down?** By one extra round trip (about 320 ms) the first time a response of a given shape has to be cut. After that the scores are remembered and there is no delay.
 
 **How do I switch it off?** Leave `jev` unset. Nothing else changes.

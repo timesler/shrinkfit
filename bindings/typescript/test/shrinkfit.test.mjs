@@ -66,7 +66,7 @@ const fakeFetch = (favour, log = []) => async (url, init) => {
 
 test("async jev: the core builds the request, fetch sends it, the core blends the reply", async () => {
   const log = [];
-  const options = { ...jevOpts, jev: { apiKey: "test-key", tool: "search", baseUrl: "https://example.test/api", fetch: fakeFetch("beta", log) } };
+  const options = { ...jevOpts, jev: { apiKey: "test-key", tool: "search", baseUrl: "https://example.test/api", cache: false, fetch: fakeFetch("beta", log) } };
   const r = await shrinkWithReportAsync({ results: jevRows() }, 1500, options);
   assert.deepEqual(Object.keys(JSON.parse(r.text).results[0]), ["beta"]);
   assert.match(r.report.model_scoring, /^scored 3 fields/);
@@ -144,4 +144,24 @@ test("async jev: the global fetch works against a real HTTP server, and a slow o
   } finally {
     server.close();
   }
+});
+
+test("async jev: the second response of the same shape needs no fetch", async () => {
+  const log = [];
+  const options = { ...jevOpts, jev: { apiKey: "k", tool: "cache_check", baseUrl: "https://cache.test/api", fetch: fakeFetch("beta", log) } };
+  const first = await shrinkWithReportAsync({ results: jevRows() }, 1500, options);
+  assert.equal(log.length, 1);
+  assert.doesNotMatch(first.report.model_scoring, /cached/);
+  // Same fields, different values.
+  const again = jevRows().map((r) => ({ ...r, alpha: "other " + r.alpha, beta: "other " + r.beta }));
+  const second = await shrinkWithReportAsync({ results: again }, 1500, options);
+  assert.equal(log.length, 1, "no second request");
+  assert.match(second.report.model_scoring, /\(cached\)/);
+  assert.deepEqual(Object.keys(JSON.parse(second.text).results[0]), ["beta"], "the remembered scores still steer");
+  // The synchronous API can use remembered scores too, even though it can never fetch.
+  const sync = shrinkWithReport({ results: again }, 1500, { ...options, jev: { ...options.jev, fetch: undefined } });
+  assert.match(sync.report.model_scoring, /\(cached\)/);
+  // cache: false asks again.
+  await shrinkAsync({ results: again }, 1500, { ...options, jev: { ...options.jev, cache: false } });
+  assert.equal(log.length, 2);
 });
