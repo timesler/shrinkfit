@@ -1,0 +1,570 @@
+{
+  "apiVersion": "v2",
+  "command": "jira.board.query",
+  "request": {
+    "site": "demo"
+  },
+  "data": {
+    "boards": [
+      {
+        "id": 422851,
+        "self": "https://demo.example.com/resource/1026953465294",
+        "name": "Queue capacity 64",
+        "type": "scrum",
+        "location": {
+          "userId": 346954,
+          "userAccountId": "demo-005d5ae632a0",
+          "displayName": "Cache reliability 41",
+          "avatarURI": "https://demo.example.com/resource/736748332104",
+          "name": "Cache reliability 41"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 16,
+        "self": "https://demo.example.com/resource/819219102417",
+        "name": "Release automation 83",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 37,
+        "self": "https://demo.example.com/resource/884219259986",
+        "name": "Build performance 19",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 24,
+        "self": "https://demo.example.com/resource/782091413465",
+        "name": "Search indexing 62",
+        "type": "scrum",
+        "location": {
+          "userId": 501734,
+          "userAccountId": "demo-000dadaaf3d6",
+          "displayName": "Search indexing 52",
+          "avatarURI": "https://demo.example.com/resource/285641714514",
+          "name": "Search indexing 52"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 641999,
+        "self": "https://demo.example.com/resource/21304733196",
+        "name": "API pagination 75",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 428669,
+        "self": "https://demo.example.com/resource/612820413524",
+        "name": "Cache reliability 31",
+        "type": "scrum",
+        "location": {
+          "projectId": 194207,
+          "displayName": "Queue capacity 54",
+          "projectName": "Incident response 80",
+          "projectKey": "DEMO-4540",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/1008530399343",
+          "name": "Queue capacity 54"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 714577,
+        "self": "https://demo.example.com/resource/127951444087",
+        "name": "API pagination 15",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 167802,
+        "self": "https://demo.example.com/resource/940906329353",
+        "name": "Incident response 50",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 14,
+        "self": "https://demo.example.com/resource/571578862985",
+        "name": "Build performance 99",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 93,
+        "self": "https://demo.example.com/resource/511803827690",
+        "name": "Queue capacity 14",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 30,
+        "self": "https://demo.example.com/resource/695983752143",
+        "name": "Cache reliability 31",
+        "type": "scrum",
+        "location": {
+          "userId": 717542,
+          "userAccountId": "demo-000db699c21a",
+          "displayName": "Cache reliability 91",
+          "avatarURI": "https://demo.example.com/resource/613157893304",
+          "name": "Cache reliability 91"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 9,
+        "self": "https://demo.example.com/resource/20329979111",
+        "name": "Storage migration 57",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 328133,
+        "self": "https://demo.example.com/resource/284662881571",
+        "name": "API pagination 65",
+        "type": "scrum",
+        "location": {
+          "projectId": 458847,
+          "displayName": "Search indexing 92",
+          "projectName": "Storage migration 17",
+          "projectKey": "DEMO-3471",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/763732940646",
+          "name": "Search indexing 92"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 568221,
+        "self": "https://demo.example.com/resource/1505165947",
+        "name": "Queue capacity 34",
+        "type": "scrum",
+        "location": {
+          "userId": 436631,
+          "userAccountId": "demo-00c32d04df83",
+          "displayName": "Service observability 56",
+          "avatarURI": "https://demo.example.com/resource/16837000600",
+          "name": "Service observability 56"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 892462,
+        "self": "https://demo.example.com/resource/737333347396",
+        "name": "Service observability 56",
+        "type": "scrum",
+        "location": {
+          "projectId": 47484,
+          "displayName": "Incident response 30",
+          "projectName": "Access controls 78",
+          "projectKey": "DEMO-1959",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/978619230400",
+          "name": "Incident response 30"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 411090,
+        "self": "https://demo.example.com/resource/386825647498",
+        "name": "Incident response 40",
+        "type": "scrum",
+        "location": {
+          "userId": 458996,
+          "userAccountId": "demo-0056a39d95eb",
+          "displayName": "Search indexing 32",
+          "avatarURI": "https://demo.example.com/resource/37853624788",
+          "name": "Search indexing 32"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 23,
+        "self": "https://demo.example.com/resource/1046465925106",
+        "name": "Access controls 58",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 552330,
+        "self": "https://demo.example.com/resource/256640778740",
+        "name": "Search indexing 2",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 358671,
+        "self": "https://demo.example.com/resource/241720637758",
+        "name": "Queue capacity 34",
+        "type": "scrum",
+        "location": {
+          "projectId": 480026,
+          "displayName": "Incident response 60",
+          "projectName": "Storage migration 27",
+          "projectKey": "DEMO-1512",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/824101101679",
+          "name": "Incident response 60"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 861512,
+        "self": "https://demo.example.com/resource/515659792890",
+        "name": "Build performance 89",
+        "type": "scrum",
+        "location": {
+          "projectId": 608623,
+          "displayName": "Service observability 6",
+          "projectName": "Build performance 39",
+          "projectKey": "DEMO-6186",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/205166799559",
+          "name": "Service observability 6"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 59,
+        "self": "https://demo.example.com/resource/304011528529",
+        "name": "Access controls 58",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 39,
+        "self": "https://demo.example.com/resource/1010679586057",
+        "name": "Release automation 73",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 2,
+        "self": "https://demo.example.com/resource/735500804625",
+        "name": "Access controls 58",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 72787,
+        "self": "https://demo.example.com/resource/331235912742",
+        "name": "API pagination 75",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 687138,
+        "self": "https://demo.example.com/resource/796324053538",
+        "name": "Access controls 8",
+        "type": "scrum",
+        "location": {
+          "projectId": 942836,
+          "displayName": "Storage migration 77",
+          "projectName": "Cache reliability 21",
+          "projectKey": "DEMO-4179",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/978657242629",
+          "name": "Storage migration 77"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 490504,
+        "self": "https://demo.example.com/resource/72472743910",
+        "name": "Search indexing 42",
+        "type": "scrum",
+        "location": {
+          "userId": 78248,
+          "userAccountId": "demo-0020b5016894",
+          "displayName": "Incident response 20",
+          "avatarURI": "https://demo.example.com/resource/705657512776",
+          "name": "Incident response 20"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 82,
+        "self": "https://demo.example.com/resource/207744177830",
+        "name": "Incident response 40",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 10,
+        "self": "https://demo.example.com/resource/515214038572",
+        "name": "Queue capacity 34",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 788900,
+        "self": "https://demo.example.com/resource/178318915770",
+        "name": "Incident response 60",
+        "type": "scrum",
+        "location": {
+          "projectId": 551864,
+          "displayName": "Access controls 48",
+          "projectName": "Build performance 49",
+          "projectKey": "DEMO-8918",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/27945480395",
+          "name": "Access controls 48"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 92,
+        "self": "https://demo.example.com/resource/1070713249297",
+        "name": "Release automation 53",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 883092,
+        "self": "https://demo.example.com/resource/149519682406",
+        "name": "Build performance 69",
+        "type": "scrum",
+        "location": {
+          "projectId": 266474,
+          "displayName": "Release automation 93",
+          "projectName": "Build performance 9",
+          "projectKey": "DEMO-1395",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/149179122123",
+          "name": "Release automation 93"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 7,
+        "self": "https://demo.example.com/resource/486022972416",
+        "name": "Incident response 70",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 592271,
+        "self": "https://demo.example.com/resource/434199658159",
+        "name": "Incident response 30",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 92715,
+        "self": "https://demo.example.com/resource/1022397472516",
+        "name": "Access controls 38",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 557507,
+        "self": "https://demo.example.com/resource/605991114553",
+        "name": "Access controls 18",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 410522,
+        "self": "https://demo.example.com/resource/95970152775",
+        "name": "Access controls 48",
+        "type": "scrum",
+        "location": {
+          "projectId": 957260,
+          "displayName": "Cache reliability 1",
+          "projectName": "Cache reliability 71",
+          "projectKey": "DEMO-2475",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/149179122123",
+          "name": "Cache reliability 1"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 9,
+        "self": "https://demo.example.com/resource/263452213872",
+        "name": "Cache reliability 71",
+        "type": "scrum",
+        "location": {
+          "projectId": 59346,
+          "displayName": "Incident response 80",
+          "projectName": "Cache reliability 71",
+          "projectKey": "DEMO-6198",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/984469025064",
+          "name": "Incident response 80"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 908868,
+        "self": "https://demo.example.com/resource/247070013224",
+        "name": "Incident response 100",
+        "type": "scrum",
+        "location": {
+          "projectId": 783380,
+          "displayName": "API pagination 35",
+          "projectName": "Incident response 100",
+          "projectKey": "DEMO-5310",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/479335242214",
+          "name": "API pagination 35"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 982035,
+        "self": "https://demo.example.com/resource/520654601336",
+        "name": "Incident response 30",
+        "type": "scrum",
+        "location": {
+          "projectId": 480026,
+          "displayName": "Incident response 60",
+          "projectName": "Storage migration 27",
+          "projectKey": "DEMO-1512",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/824101101679",
+          "name": "Incident response 60"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 5,
+        "self": "https://demo.example.com/resource/942697177366",
+        "name": "Cache reliability 41",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 19,
+        "self": "https://demo.example.com/resource/445450015696",
+        "name": "Build performance 69",
+        "type": "scrum",
+        "location": {
+          "userId": 518817,
+          "userAccountId": "demo-00efd5eb5005",
+          "displayName": "Service observability 36",
+          "avatarURI": "https://demo.example.com/resource/732465139917",
+          "name": "Service observability 36"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 52,
+        "self": "https://demo.example.com/resource/388073006301",
+        "name": "API pagination 95",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 928428,
+        "self": "https://demo.example.com/resource/357965119684",
+        "name": "Incident response 80",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 225175,
+        "self": "https://demo.example.com/resource/401463537814",
+        "name": "Service observability 46",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 683181,
+        "self": "https://demo.example.com/resource/631016559855",
+        "name": "Build performance 19",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 170061,
+        "self": "https://demo.example.com/resource/379756229155",
+        "name": "Storage migration 97",
+        "type": "scrum",
+        "isPrivate": false
+      },
+      {
+        "id": 63931,
+        "self": "https://demo.example.com/resource/111836529736",
+        "name": "Search indexing 82",
+        "type": "scrum",
+        "location": {
+          "projectId": 379284,
+          "displayName": "Cache reliability 51",
+          "projectName": "Cache reliability 51",
+          "projectKey": "DEMO-8630",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/789747227368",
+          "name": "Cache reliability 51"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 418286,
+        "self": "https://demo.example.com/resource/45579060813",
+        "name": "Queue capacity 64",
+        "type": "scrum",
+        "location": {
+          "projectId": 529346,
+          "displayName": "Release automation 83",
+          "projectName": "Incident response 40",
+          "projectKey": "DEMO-6625",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/600371529929",
+          "name": "Release automation 83"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 504050,
+        "self": "https://demo.example.com/resource/186056453185",
+        "name": "Cache reliability 61",
+        "type": "scrum",
+        "location": {
+          "projectId": 957260,
+          "displayName": "Cache reliability 1",
+          "projectName": "Cache reliability 71",
+          "projectKey": "DEMO-2475",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/149179122123",
+          "name": "Cache reliability 1"
+        },
+        "isPrivate": false
+      },
+      {
+        "id": 186814,
+        "self": "https://demo.example.com/resource/472573163114",
+        "name": "Build performance 89",
+        "type": "scrum",
+        "location": {
+          "projectId": 777776,
+          "displayName": "Build performance 39",
+          "projectName": "Build performance 69",
+          "projectKey": "DEMO-5125",
+          "projectTypeKey": "software",
+          "avatarURI": "https://demo.example.com/resource/827442126246",
+          "name": "Build performance 39"
+        },
+        "isPrivate": false
+      }
+    ],
+    "total": 467638,
+    "startAt": 0,
+    "maxResults": 39,
+    "isLast": false
+  },
+  "meta": {
+    "resourceClass": "entity",
+    "sourceMode": "native",
+    "resourceType": "demo-0063b9ecf45f",
+    "backend": "demo-00548e750b9c",
+    "meta": {
+      "resourceClass": "entity",
+      "sourceMode": "rest",
+      "apiVersion": "demo-0094c70e6897",
+      "resourceType": "demo-0063b9ecf45f"
+    }
+  }
+}

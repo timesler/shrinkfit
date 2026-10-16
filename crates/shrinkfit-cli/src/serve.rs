@@ -6,9 +6,42 @@ use shrinkfit::{json, shrink_str, Options, Value};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
+#[cfg(test)]
+#[path = "serve_tests.rs"]
+mod tests;
+
 const INDEX: &str = include_str!("../web/index.html");
 const EXAMPLES_JS: &str = include_str!("../web/examples.js");
+const TWG_MANIFEST: &str = include_str!("../web/twg/manifest.json");
+// Explicit compile-time assets: the server never reads arbitrary filesystem paths.
+const TWG_EXAMPLES: &[(&str, &str)] = &[
+    ("jira-search", include_str!("../web/twg/jira-search.json")),
+    (
+        "jira-all-fields",
+        include_str!("../web/twg/jira-all-fields.json"),
+    ),
+    ("jira-details", include_str!("../web/twg/jira-details.json")),
+    (
+        "confluence-search",
+        include_str!("../web/twg/confluence-search.json"),
+    ),
+    ("teams", include_str!("../web/twg/teams.json")),
+    ("projects", include_str!("../web/twg/projects.json")),
+    ("goals", include_str!("../web/twg/goals.json")),
+    ("boards", include_str!("../web/twg/boards.json")),
+];
 const MAX_BODY: usize = 256 * 1024 * 1024;
+
+fn twg_asset(path: &str) -> Option<&'static str> {
+    if path == "/twg/manifest.json" {
+        return Some(TWG_MANIFEST);
+    }
+    let id = path.strip_prefix("/twg/")?.strip_suffix(".json")?;
+    TWG_EXAMPLES
+        .iter()
+        .find(|(name, _)| *name == id)
+        .map(|(_, text)| *text)
+}
 
 pub const USAGE: &str = "\
 usage: shrinkfit serve [--port N] [--host ADDR]
@@ -60,6 +93,12 @@ fn handle(mut s: TcpStream) -> std::io::Result<()> {
             200,
             "text/javascript; charset=utf-8",
             EXAMPLES_JS.as_bytes(),
+        ),
+        ("GET", path) if twg_asset(path).is_some() => respond(
+            &mut s,
+            200,
+            "application/json; charset=utf-8",
+            twg_asset(path).unwrap().as_bytes(),
         ),
         ("POST", "/api/shrink") => {
             let out = api_shrink(&body);

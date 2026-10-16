@@ -1,0 +1,2269 @@
+{
+  "apiVersion": "v2",
+  "command": "confluence.search.query",
+  "request": {
+    "site": "demo",
+    "cql": "Demo service migration improves request routing and cache reliability",
+    "limit": 39,
+    "excerpt": true,
+    "cursor": null
+  },
+  "data": {
+    "results": [
+      {
+        "content": {
+          "id": "demo-0095694e6dbc",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 59",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-009e6fa7560e",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/11663819456",
+            "self": "https://demo.example.com/resource/310437794099",
+            "tinyui": "https://demo.example.com/resource/254925041498"
+          }
+        },
+        "title": "Build performance 59",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/11663819456",
+        "resultGlobalContainer": {
+          "title": "Service observability 96",
+          "displayUrl": "https://demo.example.com/resource/740189182784"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-10-22T12:00:00.000Z",
+        "friendlyLastModified": "demo-0053507d286c",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00a88d1b7d9e",
+          "type": "page",
+          "status": "current",
+          "title": "Search indexing 2",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-002ebab38a0e",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-0004b041df36"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/131784377076",
+            "self": "https://demo.example.com/resource/912744520287",
+            "tinyui": "https://demo.example.com/resource/500904833670"
+          }
+        },
+        "title": "Search indexing 2",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability",
+        "url": "https://demo.example.com/resource/131784377076",
+        "resultGlobalContainer": {
+          "title": "Service observability 46",
+          "displayUrl": "https://demo.example.com/resource/724604430710"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-07-15T12:00:00.000Z",
+        "friendlyLastModified": "demo-00eb1a8a377a",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00ea52a4c163",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Service observability 6",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00cf6df86c80",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-003b9b7431eb"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/724730098119",
+            "self": "https://demo.example.com/resource/884197314267",
+            "tinyui": "https://demo.example.com/resource/826530655834"
+          }
+        },
+        "title": "Service observability 6",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the",
+        "url": "https://demo.example.com/resource/724730098119",
+        "resultGlobalContainer": {
+          "title": "Search indexing 32",
+          "displayUrl": "https://demo.example.com/resource/1068118347031"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-06-18T12:00:00.000Z",
+        "friendlyLastModified": "demo-009033b10e1a",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-000be4e03e48",
+          "type": "page",
+          "status": "current",
+          "title": "Storage migration 7",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00479ae4ff41",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-005aca5b6d0d"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/559964585803",
+            "self": "https://demo.example.com/resource/203074128786",
+            "tinyui": "https://demo.example.com/resource/67795956687"
+          }
+        },
+        "title": "Storage migration 7",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/559964585803",
+        "resultGlobalContainer": {
+          "title": "Build performance 49",
+          "displayUrl": "https://demo.example.com/resource/832310123233"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-04-28T12:00:00.000Z",
+        "friendlyLastModified": "demo-00438f795c09",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0000136bfc27",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Cache reliability 41",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f2324711ec",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/577822387858",
+            "self": "https://demo.example.com/resource/565213185364",
+            "tinyui": "https://demo.example.com/resource/206432222237"
+          }
+        },
+        "title": "Incident response 70",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the ne",
+        "url": "https://demo.example.com/resource/577822387858",
+        "resultGlobalContainer": {
+          "title": "Storage migration 47",
+          "displayUrl": "https://demo.example.com/resource/971856440102"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-01-21T12:00:00.000Z",
+        "friendlyLastModified": "demo-00cc4f424cb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0055d64aadcb",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Access controls 38",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f75ca1878d",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/63932292545",
+            "self": "https://demo.example.com/resource/202595869320",
+            "tinyui": "https://demo.example.com/resource/80746450450"
+          }
+        },
+        "title": "Queue capacity 44",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache rel",
+        "url": "https://demo.example.com/resource/63932292545",
+        "resultGlobalContainer": {
+          "title": "Build performance 59",
+          "displayUrl": "https://demo.example.com/resource/519710847500"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-05-21T12:00:00.000Z",
+        "friendlyLastModified": "demo-00945389d4d3",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00515fe83b4b",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 79",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-006c9aeb91e0",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00edc5eacf3b"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/2718812009",
+            "self": "https://demo.example.com/resource/476882311425",
+            "tinyui": "https://demo.example.com/resource/188438519673"
+          }
+        },
+        "title": "Build performance 79",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next re",
+        "url": "https://demo.example.com/resource/2718812009",
+        "resultGlobalContainer": {
+          "title": "Storage migration 17",
+          "displayUrl": "https://demo.example.com/resource/686904029561"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-04-08T12:00:00.000Z",
+        "friendlyLastModified": "demo-003fb3cb05a8",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0089cb2dd91b",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 49",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-001949805709",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/212575238221",
+            "self": "https://demo.example.com/resource/612801123191",
+            "tinyui": "https://demo.example.com/resource/480562212110"
+          }
+        },
+        "title": "Build performance 49",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the n",
+        "url": "https://demo.example.com/resource/212575238221",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 34",
+          "displayUrl": "https://demo.example.com/resource/1085502079045"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-04-12T12:00:00.000Z",
+        "friendlyLastModified": "demo-002b6406b0db",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00f65497f2a7",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Release automation 53",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f72e600825",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/835791830056",
+            "self": "https://demo.example.com/resource/516940494204",
+            "tinyui": "https://demo.example.com/resource/241524744878"
+          }
+        },
+        "title": "Release automation 53",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the ne",
+        "url": "https://demo.example.com/resource/835791830056",
+        "resultGlobalContainer": {
+          "title": "Search indexing 12",
+          "displayUrl": "https://demo.example.com/resource/257817143316"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-05-01T12:00:00.000Z",
+        "friendlyLastModified": "demo-00839280b74d",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00e9f3e12261",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "API pagination 75",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00491e5ed396",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-003912b0bc9f"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/512868583055",
+            "self": "https://demo.example.com/resource/3712689415",
+            "tinyui": "https://demo.example.com/resource/498284970361"
+          }
+        },
+        "title": "API pagination 75",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthet",
+        "url": "https://demo.example.com/resource/512868583055",
+        "resultGlobalContainer": {
+          "title": "Cache reliability 51",
+          "displayUrl": "https://demo.example.com/resource/385019727351"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-04-24T12:00:00.000Z",
+        "friendlyLastModified": "demo-00235e383a6c",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00dcda58d628",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Service observability 36",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00529ffeeac0",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-0062526eefb5"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/374696589853",
+            "self": "https://demo.example.com/resource/885691812519",
+            "tinyui": "https://demo.example.com/resource/388526750867"
+          }
+        },
+        "title": "Service observability 36",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team",
+        "url": "https://demo.example.com/resource/374696589853",
+        "resultGlobalContainer": {
+          "title": "Service observability 16",
+          "displayUrl": "https://demo.example.com/resource/407461829478"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-08-16T12:00:00.000Z",
+        "friendlyLastModified": "demo-00ccfcac6c8b",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00d7d35ba7e6",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 39",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-005cd8fc39c5",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/1032279316317",
+            "self": "https://demo.example.com/resource/19727513248",
+            "tinyui": "https://demo.example.com/resource/836333851098"
+          }
+        },
+        "title": "Build performance 39",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/1032279316317",
+        "resultGlobalContainer": {
+          "title": "Release automation 3",
+          "displayUrl": "https://demo.example.com/resource/181738932243"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-04-24T12:00:00.000Z",
+        "friendlyLastModified": "demo-00a8191ca7fa",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0099d80c3dcb",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Queue capacity 94",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-004001ca1332",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-003d6412156f"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/971026915215",
+            "self": "https://demo.example.com/resource/1038584891824",
+            "tinyui": "https://demo.example.com/resource/464780380771"
+          }
+        },
+        "title": "Queue capacity 94",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/971026915215",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 34",
+          "displayUrl": "https://demo.example.com/resource/690987215134"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-10-22T12:00:00.000Z",
+        "friendlyLastModified": "demo-00a8191ca7fa",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00e1d7b8d239",
+          "type": "page",
+          "status": "current",
+          "title": "Access controls 68",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-003ad41faefd",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and ca"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/27815460119",
+            "self": "https://demo.example.com/resource/92243467377",
+            "tinyui": "https://demo.example.com/resource/1017151075944"
+          }
+        },
+        "title": "Access controls 68",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/27815460119",
+        "resultGlobalContainer": {
+          "title": "API pagination 5",
+          "displayUrl": "https://demo.example.com/resource/135753308655"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-08-28T12:00:00.000Z",
+        "friendlyLastModified": "demo-00a8191ca7fa",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00b1c59b8407",
+          "type": "page",
+          "status": "current",
+          "title": "Access controls 88",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-004a37c1ebb8",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00416d9dda20"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/498828238084",
+            "self": "https://demo.example.com/resource/969349822481",
+            "tinyui": "https://demo.example.com/resource/972411167864"
+          }
+        },
+        "title": "Access controls 88",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/498828238084",
+        "resultGlobalContainer": {
+          "title": "Storage migration 57",
+          "displayUrl": "https://demo.example.com/resource/240752024349"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-06-18T12:00:00.000Z",
+        "friendlyLastModified": "demo-00a8191ca7fa",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0027de7befe1",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 99",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f2c208681a",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/446968210352",
+            "self": "https://demo.example.com/resource/701804296535",
+            "tinyui": "https://demo.example.com/resource/390303343435"
+          }
+        },
+        "title": "Build performance 99",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents roll",
+        "url": "https://demo.example.com/resource/446968210352",
+        "resultGlobalContainer": {
+          "title": "Release automation 3",
+          "displayUrl": "https://demo.example.com/resource/300359453545"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-09-17T12:00:00.000Z",
+        "friendlyLastModified": "demo-00a8191ca7fa",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00bf3c0a21f1",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Release automation 53",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00e815b8b27e",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/703043674752",
+            "self": "https://demo.example.com/resource/867995941134",
+            "tinyui": "https://demo.example.com/resource/888759066812"
+          }
+        },
+        "title": "Release automation 53",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/703043674752",
+        "resultGlobalContainer": {
+          "title": "API pagination 55",
+          "displayUrl": "https://demo.example.com/resource/6660954898"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-07-03T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0026a6f720cf",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Queue capacity 64",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-0028d4709ac3",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/73238850074",
+            "self": "https://demo.example.com/resource/923396799160",
+            "tinyui": "https://demo.example.com/resource/822781932413"
+          }
+        },
+        "title": "Queue capacity 64",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next",
+        "url": "https://demo.example.com/resource/73238850074",
+        "resultGlobalContainer": {
+          "title": "Access controls 48",
+          "displayUrl": "https://demo.example.com/resource/1012668341947"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-07-15T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-005b118be54b",
+          "type": "page",
+          "status": "current",
+          "title": "Storage migration 17",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00bcc8a3ce47",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and ca"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/321810721880",
+            "self": "https://demo.example.com/resource/458250185993",
+            "tinyui": "https://demo.example.com/resource/1058204767691"
+          }
+        },
+        "title": "Storage migration 17",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/321810721880",
+        "resultGlobalContainer": {
+          "title": "Storage migration 57",
+          "displayUrl": "https://demo.example.com/resource/951679980352"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-02-02T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-009a173c56c2",
+          "type": "page",
+          "status": "current",
+          "title": "Queue capacity 4",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-009e16208f6f",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/802409081968",
+            "self": "https://demo.example.com/resource/728614107762",
+            "tinyui": "https://demo.example.com/resource/418159131458"
+          }
+        },
+        "title": "Queue capacity 4",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/802409081968",
+        "resultGlobalContainer": {
+          "title": "API pagination 55",
+          "displayUrl": "https://demo.example.com/resource/138367818140"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-05-21T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00b8f944475e",
+          "type": "page",
+          "status": "current",
+          "title": "Queue capacity 94",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f4ff88f1dc",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/403078134961",
+            "self": "https://demo.example.com/resource/438298075183",
+            "tinyui": "https://demo.example.com/resource/428793038663"
+          }
+        },
+        "title": "Queue capacity 94",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. D",
+        "url": "https://demo.example.com/resource/403078134961",
+        "resultGlobalContainer": {
+          "title": "Access controls 38",
+          "displayUrl": "https://demo.example.com/resource/467880532398"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-12-28T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00581871bdb2",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Search indexing 52",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-0067770876c2",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/529607685160",
+            "self": "https://demo.example.com/resource/342870039935",
+            "tinyui": "https://demo.example.com/resource/731867982229"
+          }
+        },
+        "title": "Search indexing 52",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves ",
+        "url": "https://demo.example.com/resource/529607685160",
+        "resultGlobalContainer": {
+          "title": "Access controls 98",
+          "displayUrl": "https://demo.example.com/resource/64097742787"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-11-11T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-002d78072fe5",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Service observability 66",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f40db77ed8",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-0006618926ba"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/462602819984",
+            "self": "https://demo.example.com/resource/1017247975616",
+            "tinyui": "https://demo.example.com/resource/756786479508"
+          }
+        },
+        "title": "Service observability 66",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/462602819984",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 34",
+          "displayUrl": "https://demo.example.com/resource/908575690761"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-05-17T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00a1eee1f763",
+          "type": "page",
+          "status": "current",
+          "title": "Access controls 8",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00bd1dff4510",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00b944125306"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/996792514605",
+            "self": "https://demo.example.com/resource/919692633093",
+            "tinyui": "https://demo.example.com/resource/764166005537"
+          }
+        },
+        "title": "Access controls 8",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/996792514605",
+        "resultGlobalContainer": {
+          "title": "Release automation 33",
+          "displayUrl": "https://demo.example.com/resource/310816100956"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-05-17T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-009f577fdc89",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Queue capacity 84",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00b539f15ff1",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-003825624da4"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/386572884404",
+            "self": "https://demo.example.com/resource/642022721382",
+            "tinyui": "https://demo.example.com/resource/393768333069"
+          }
+        },
+        "title": "Queue capacity 84",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/386572884404",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 34",
+          "displayUrl": "https://demo.example.com/resource/960137528606"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-03-11T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-002a70512b3b",
+          "type": "page",
+          "status": "current",
+          "title": "Release automation 63",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00b43892c070",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/1009065594641",
+            "self": "https://demo.example.com/resource/170617472620",
+            "tinyui": "https://demo.example.com/resource/538718407068"
+          }
+        },
+        "title": "Release automation 63",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates r",
+        "url": "https://demo.example.com/resource/1009065594641",
+        "resultGlobalContainer": {
+          "title": "Storage migration 87",
+          "displayUrl": "https://demo.example.com/resource/212367602523"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-02-14T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00adc4a4723a",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Release automation 93",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-008c80ab7c21",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00ce5df7cfd4"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/149727669195",
+            "self": "https://demo.example.com/resource/1021743416401",
+            "tinyui": "https://demo.example.com/resource/936615746667"
+          }
+        },
+        "title": "Release automation 3",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before ",
+        "url": "https://demo.example.com/resource/149727669195",
+        "resultGlobalContainer": {
+          "title": "Search indexing 52",
+          "displayUrl": "https://demo.example.com/resource/156931824985"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-11-03T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-003dc8017e84",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Release automation 93",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00fd8edf1146",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00ec37980649"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/1062550344420",
+            "self": "https://demo.example.com/resource/338734954463",
+            "tinyui": "https://demo.example.com/resource/152531038902"
+          }
+        },
+        "title": "Release automation 93",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the ne",
+        "url": "https://demo.example.com/resource/1062550344420",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 84",
+          "displayUrl": "https://demo.example.com/resource/242386846039"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-11-23T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-007c6ddc8a7c",
+          "type": "page",
+          "status": "current",
+          "title": "Incident response 70",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-001074cfd1cc",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/945703905771",
+            "self": "https://demo.example.com/resource/1021847192832",
+            "tinyui": "https://demo.example.com/resource/322054686176"
+          }
+        },
+        "title": "Incident response 70",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The sy",
+        "url": "https://demo.example.com/resource/945703905771",
+        "resultGlobalContainer": {
+          "title": "Build performance 79",
+          "displayUrl": "https://demo.example.com/resource/544127098542"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-05-21T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0093145f0e0a",
+          "type": "page",
+          "status": "current",
+          "title": "Release automation 43",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00ea1ea2a780",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00948a85f465"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/292411408622",
+            "self": "https://demo.example.com/resource/262308183105",
+            "tinyui": "https://demo.example.com/resource/869994496128"
+          }
+        },
+        "title": "Release automation 43",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/292411408622",
+        "resultGlobalContainer": {
+          "title": "Service observability 36",
+          "displayUrl": "https://demo.example.com/resource/1068167354968"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-11-15T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00878b5ea83f",
+          "type": "page",
+          "status": "current",
+          "title": "Search indexing 22",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00e16f2a73bc",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-002c7f39f8eb"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/875005578287",
+            "self": "https://demo.example.com/resource/1069013705120",
+            "tinyui": "https://demo.example.com/resource/886733929694"
+          }
+        },
+        "title": "Search indexing 22",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the n",
+        "url": "https://demo.example.com/resource/875005578287",
+        "resultGlobalContainer": {
+          "title": "Search indexing 12",
+          "displayUrl": "https://demo.example.com/resource/470897191150"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-02-14T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-004ce61294d2",
+          "type": "page",
+          "status": "current",
+          "title": "Storage migration 57",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00fc7195027a",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-0026df6816d4"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/328491140464",
+            "self": "https://demo.example.com/resource/888333737946",
+            "tinyui": "https://demo.example.com/resource/539361021700"
+          }
+        },
+        "title": "Storage migration 57",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo servi",
+        "url": "https://demo.example.com/resource/328491140464",
+        "resultGlobalContainer": {
+          "title": "Cache reliability 51",
+          "displayUrl": "https://demo.example.com/resource/918778544493"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-11-07T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0076d6e5bf36",
+          "type": "page",
+          "status": "current",
+          "title": "Build performance 79",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-006966b5a9af",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/520655448902",
+            "self": "https://demo.example.com/resource/773976624553",
+            "tinyui": "https://demo.example.com/resource/352109412359"
+          }
+        },
+        "title": "Build performance 79",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/520655448902",
+        "resultGlobalContainer": {
+          "title": "Access controls 98",
+          "displayUrl": "https://demo.example.com/resource/86919453787"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-12-04T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0022a07ce959",
+          "type": "page",
+          "status": "current",
+          "title": "Release automation 83",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00be55d06c2a",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-0098c3922055"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/410638116650",
+            "self": "https://demo.example.com/resource/1001323080009",
+            "tinyui": "https://demo.example.com/resource/294186203613"
+          }
+        },
+        "title": "Release automation 83",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/410638116650",
+        "resultGlobalContainer": {
+          "title": "Service observability 16",
+          "displayUrl": "https://demo.example.com/resource/313387494662"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-02-26T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-001db382b630",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Search indexing 82",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00cbd0325ab4",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00f2ba9d47c1"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/197227029584",
+            "self": "https://demo.example.com/resource/886404661444",
+            "tinyui": "https://demo.example.com/resource/135707391449"
+          }
+        },
+        "title": "Search indexing 82",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/197227029584",
+        "resultGlobalContainer": {
+          "title": "Build performance 49",
+          "displayUrl": "https://demo.example.com/resource/477005890275"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-12-20T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00940a9f2d8f",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Cache reliability 81",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f088d9706a",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/796715395314",
+            "self": "https://demo.example.com/resource/189511332881",
+            "tinyui": "https://demo.example.com/resource/331642691903"
+          }
+        },
+        "title": "Cache reliability 81",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before t",
+        "url": "https://demo.example.com/resource/796715395314",
+        "resultGlobalContainer": {
+          "title": "Incident response 30",
+          "displayUrl": "https://demo.example.com/resource/605438287903"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-09-13T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00075ea25ffb",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Cache reliability 1",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f71af04097",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/74756021912",
+            "self": "https://demo.example.com/resource/709304237280",
+            "tinyui": "https://demo.example.com/resource/492024800863"
+          }
+        },
+        "title": "Search indexing 52",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migratio",
+        "url": "https://demo.example.com/resource/74756021912",
+        "resultGlobalContainer": {
+          "title": "Release automation 3",
+          "displayUrl": "https://demo.example.com/resource/300359453545"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-01-01T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-009dfa0c7b59",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Build performance 29",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-004b7a47e07f",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and cac"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/1070333492521",
+            "self": "https://demo.example.com/resource/304321005576",
+            "tinyui": "https://demo.example.com/resource/1026065710851"
+          }
+        },
+        "title": "API pagination 65",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/1070333492521",
+        "resultGlobalContainer": {
+          "title": "Build performance 39",
+          "displayUrl": "https://demo.example.com/resource/678953006180"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-01-17T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-000388318b3a",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Storage migration 47",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00c85569eb38",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing and ca"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/88533602036",
+            "self": "https://demo.example.com/resource/134650771660",
+            "tinyui": "https://demo.example.com/resource/3626238895"
+          }
+        },
+        "title": "Storage migration 47",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/88533602036",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 74",
+          "displayUrl": "https://demo.example.com/resource/137644623232"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-01-17T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-002748ce2ebb",
+          "type": "page",
+          "status": "current",
+          "title": "Storage migration 27",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00b33910aa27",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-001daf577da9"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/478712728755",
+            "self": "https://demo.example.com/resource/392984204624",
+            "tinyui": "https://demo.example.com/resource/188664427618"
+          }
+        },
+        "title": "Storage migration 27",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routi",
+        "url": "https://demo.example.com/resource/478712728755",
+        "resultGlobalContainer": {
+          "title": "Release automation 63",
+          "displayUrl": "https://demo.example.com/resource/626282116182"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-02-14T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00d453656f6d",
+          "type": "page",
+          "status": "current",
+          "title": "Storage migration 87",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00061189d1ef",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/59522063616",
+            "self": "https://demo.example.com/resource/801028600243",
+            "tinyui": "https://demo.example.com/resource/987633824513"
+          }
+        },
+        "title": "Storage migration 87",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/59522063616",
+        "resultGlobalContainer": {
+          "title": "Incident response 30",
+          "displayUrl": "https://demo.example.com/resource/813345165202"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-11-15T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00eb1384bfa8",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Storage migration 67",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-0009c7c4692c",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/261441350104",
+            "self": "https://demo.example.com/resource/385910307124",
+            "tinyui": "https://demo.example.com/resource/67123269731"
+          }
+        },
+        "title": "Storage migration 67",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/261441350104",
+        "resultGlobalContainer": {
+          "title": "Release automation 23",
+          "displayUrl": "https://demo.example.com/resource/4974170713"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-11-27T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0079d41e7619",
+          "type": "page",
+          "status": "current",
+          "title": "Incident response 60",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00a48b114fc4",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "Demo service migration improves request routing "
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/613300283750",
+            "self": "https://demo.example.com/resource/941943734957",
+            "tinyui": "https://demo.example.com/resource/571331134890"
+          }
+        },
+        "title": "Incident response 60",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and docume",
+        "url": "https://demo.example.com/resource/613300283750",
+        "resultGlobalContainer": {
+          "title": "Queue capacity 94",
+          "displayUrl": "https://demo.example.com/resource/101434012921"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-04-08T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00cf2b05b8e9",
+          "type": "page",
+          "status": "current",
+          "title": "Incident response 90",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00aef016f27b",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-001cfc4da241"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/734323987631",
+            "self": "https://demo.example.com/resource/1046107731744",
+            "tinyui": "https://demo.example.com/resource/904034875527"
+          }
+        },
+        "title": "Incident response 90",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/734323987631",
+        "resultGlobalContainer": {
+          "title": "Cache reliability 31",
+          "displayUrl": "https://demo.example.com/resource/34922216274"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-08-20T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00ca12031a5c",
+          "type": "page",
+          "status": "current",
+          "title": "Release automation 93",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00cd1125dade",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00c3fa3a0768"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/335219116078",
+            "self": "https://demo.example.com/resource/748638688949",
+            "tinyui": "https://demo.example.com/resource/125717946272"
+          }
+        },
+        "title": "Release automation 93",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/335219116078",
+        "resultGlobalContainer": {
+          "title": "Search indexing 52",
+          "displayUrl": "https://demo.example.com/resource/689107948293"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-06-10T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-001254717cf4",
+          "type": "page",
+          "status": "current",
+          "title": "Incident response 30",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-000e7419d7a5",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-001d9cf03ada"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/836682576894",
+            "self": "https://demo.example.com/resource/115417202564",
+            "tinyui": "https://demo.example.com/resource/643094628093"
+          }
+        },
+        "title": "Incident response 30",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cach",
+        "url": "https://demo.example.com/resource/836682576894",
+        "resultGlobalContainer": {
+          "title": "Cache reliability 11",
+          "displayUrl": "https://demo.example.com/resource/169988195594"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-04-28T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00876a012631",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "Release automation 93",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f9aecf5fa7",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00b31e962107"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/222935897256",
+            "self": "https://demo.example.com/resource/284748568220",
+            "tinyui": "https://demo.example.com/resource/474310706066"
+          }
+        },
+        "title": "Release automation 93",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and docu",
+        "url": "https://demo.example.com/resource/222935897256",
+        "resultGlobalContainer": {
+          "title": "Incident response 80",
+          "displayUrl": "https://demo.example.com/resource/654012801835"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-08-04T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00f59f465398",
+          "type": "page",
+          "status": "current",
+          "title": "API pagination 65",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00f6805b9546",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00265b95a0a3"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/12673994395",
+            "self": "https://demo.example.com/resource/569276795471",
+            "tinyui": "https://demo.example.com/resource/503688726784"
+          }
+        },
+        "title": "API pagination 65",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollbac",
+        "url": "https://demo.example.com/resource/12673994395",
+        "resultGlobalContainer": {
+          "title": "Incident response 80",
+          "displayUrl": "https://demo.example.com/resource/1076474742016"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-09-01T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-0018560eb73d",
+          "type": "page",
+          "subType": "demo-00247610f4de",
+          "subtype": "demo-00247610f4de",
+          "status": "current",
+          "title": "API pagination 5",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-0013ae21a0b6",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-00ab5e3dbb29"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/473726027423",
+            "self": "https://demo.example.com/resource/121382871981",
+            "tinyui": "https://demo.example.com/resource/16260349288"
+          }
+        },
+        "title": "API pagination 5",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps befo",
+        "url": "https://demo.example.com/resource/473726027423",
+        "resultGlobalContainer": {
+          "title": "Search indexing 92",
+          "displayUrl": "https://demo.example.com/resource/415486861408"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0078c6f3fdc7",
+        "lastModified": "2025-07-03T12:00:00.000Z",
+        "friendlyLastModified": "demo-00274416cbb4",
+        "score": 0
+      },
+      {
+        "content": {
+          "id": "demo-00775ca1c39f",
+          "type": "page",
+          "status": "current",
+          "title": "Release automation 13",
+          "childTypes": {},
+          "macroRenderedOutput": {},
+          "restrictions": {},
+          "_expandable": {
+            "container": "",
+            "metadata": "",
+            "extensions": "",
+            "operations": "",
+            "children": "",
+            "history": "demo-00bf6377fd6d",
+            "ancestors": "",
+            "body": "",
+            "version": "",
+            "descendants": "",
+            "space": "demo-001b923ba4d8"
+          },
+          "_links": {
+            "webui": "https://demo.example.com/resource/842027514948",
+            "self": "https://demo.example.com/resource/611345153375",
+            "tinyui": "https://demo.example.com/resource/1088702325328"
+          }
+        },
+        "title": "Release automation 13",
+        "excerpt": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before th",
+        "url": "https://demo.example.com/resource/842027514948",
+        "resultGlobalContainer": {
+          "title": "Storage migration 47",
+          "displayUrl": "https://demo.example.com/resource/1086935090403"
+        },
+        "breadcrumbs": [],
+        "entityType": "content",
+        "iconCssClass": "demo-0047e6bef4e2",
+        "lastModified": "2025-05-25T12:00:00.000Z",
+        "friendlyLastModified": "demo-00def008d7c1",
+        "score": 0
+      }
+    ],
+    "start": 0,
+    "limit": 39,
+    "size": 39,
+    "totalSize": 66372,
+    "cqlQuery": "Demo service migration improves request routing and cache reliability. T",
+    "searchDuration": 26,
+    "archivedResultCount": 0,
+    "_links": {
+      "base": "https://demo.example.com/resource/540266819856",
+      "context": "demo-00fdf33dfda1",
+      "next": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and ca",
+      "self": "https://demo.example.com/resource/928559006917"
+    },
+    "nextCursor": "demo-005d4a96b80c"
+  },
+  "meta": {
+    "resourceClass": "entity",
+    "sourceMode": "native",
+    "resourceType": "demo-00ff22c0b941",
+    "acquisition": {
+      "requested": 39,
+      "returned": 39,
+      "failed": 0,
+      "omitted": 0,
+      "truncated": 752627,
+      "matched": 66372,
+      "matchedExact": true
+    },
+    "page": {
+      "cursor": null,
+      "nextCursor": "demo-005d4a96b80c",
+      "start": 0,
+      "limit": 39,
+      "size": 39,
+      "totalSize": 66372
+    },
+    "evidence": {
+      "provenance": {
+        "source": "demo-009c1c934e33"
+      },
+      "coverage": {
+        "status": "demo-009834a14ab9",
+        "covered": [
+          "demo-00f77a7435d5",
+          "demo-00c68375138d",
+          "demo-005081e0a4a5",
+          "demo-00638abf5efd",
+          "demo-000b7f18a3f8",
+          "demo-00c200aaf011",
+          "demo-009ed9ba9d77",
+          "demo-005dea8141e1",
+          "demo-00a4a1ede4d8",
+          "demo-00d0b27dafc1",
+          "demo-006a63096089",
+          "demo-000ed06f7cdf",
+          "demo-00f55fa2889c",
+          "demo-00aa7230796a",
+          "demo-008b6b0cc1bb",
+          "demo-00e42e98727f",
+          "demo-00319f503eb3",
+          "demo-002ae2cd5443",
+          "demo-0057fc802446",
+          "demo-00de1d18e185",
+          "demo-00ca3cd745e2",
+          "demo-0037773d8b53",
+          "demo-008d554dbd08",
+          "demo-0052c202cb0a",
+          "demo-00f2c2474980",
+          "demo-00a85b48c52b",
+          "demo-00c2be112cd5",
+          "demo-0005c418f7c1",
+          "demo-00effab4710a",
+          "demo-00f4707afab6",
+          "demo-0075e0053be5",
+          "demo-00942479547d",
+          "demo-00addd92788d",
+          "demo-000bbc569bca",
+          "demo-00e2e961b487",
+          "demo-00ace42e4dd6",
+          "demo-0097ed5b4806",
+          "demo-009036c5c984",
+          "demo-00502185c90c",
+          "demo-004cb5a0ee4c",
+          "demo-0018101f3beb",
+          "demo-004212712c3b",
+          "demo-000e81abe9e3",
+          "demo-0006bfdfc1f7",
+          "demo-00555256bdc0",
+          "demo-003fff4a6f22",
+          "demo-00c0bb15e616",
+          "demo-00c75ec24ae1",
+          "demo-0033b36e5435",
+          "demo-000eaeb9f039"
+        ]
+      },
+      "truncation": {
+        "truncated": true,
+        "reason": "demo-00b4d4f1bc72"
+      }
+    }
+  }
+}

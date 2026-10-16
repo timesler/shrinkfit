@@ -1,0 +1,1470 @@
+{
+  "apiVersion": "v2",
+  "command": "goals.query",
+  "request": {
+    "scope": "demo-005ef5ef0364",
+    "role": "demo-004c1029697e",
+    "status": null,
+    "statusAll": false,
+    "resolvedStatusFilter": null,
+    "tql": "demo-00bf03b2c3ab",
+    "tag": null,
+    "rootAccountId": null,
+    "rootName": null,
+    "rootEmail": null,
+    "updatedSince": null,
+    "createdSince": null,
+    "includeContributingProjects": true,
+    "includeParentGoal": true,
+    "includeDescription": true,
+    "limit": 37,
+    "sqliteFile": null
+  },
+  "data": [
+    {
+      "key": "DEMO-1952",
+      "name": "Service observability 66",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-006b2b841281",
+        "key": "DEMO-1829",
+        "name": "Incident response 100",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-000f9a7369d5",
+          "name": "Demo Person 231"
+        },
+        "targetDate": {
+          "label": "Service observability 46",
+          "dateRange": {
+            "start": "2025-12-04T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": [
+            {
+              "node": {
+                "name": "Service observability 56"
+              }
+            },
+            {
+              "node": {
+                "name": "API pagination 45"
+              }
+            },
+            {
+              "node": {
+                "name": "Storage migration 67"
+              }
+            }
+          ]
+        },
+        "url": "https://demo.example.com/resource/612370625249"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": [
+          {
+            "node": {
+              "name": "Service observability 56"
+            }
+          },
+          {
+            "node": {
+              "name": "API pagination 45"
+            }
+          },
+          {
+            "node": {
+              "name": "Storage migration 67"
+            }
+          },
+          {
+            "node": {
+              "name": "Queue capacity 24"
+            }
+          }
+        ]
+      },
+      "url": "https://demo.example.com/resource/625818278581",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Service observability 46",
+        "dateRange": {
+          "start": "2025-12-04T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-000f9a7369d5",
+        "name": "Demo Person 231"
+      },
+      "id": "demo-004aadba41b6",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-6480",
+      "name": "Search indexing 32",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service mig",
+      "parentGoal": {
+        "id": "demo-006b2b841281",
+        "key": "DEMO-1829",
+        "name": "Incident response 100",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-000f9a7369d5",
+          "name": "Demo Person 231"
+        },
+        "targetDate": {
+          "label": "Service observability 46",
+          "dateRange": {
+            "start": "2025-12-04T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": [
+            {
+              "node": {
+                "name": "Service observability 56"
+              }
+            },
+            {
+              "node": {
+                "name": "API pagination 45"
+              }
+            },
+            {
+              "node": {
+                "name": "Storage migration 67"
+              }
+            }
+          ]
+        },
+        "url": "https://demo.example.com/resource/612370625249"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": [
+          {
+            "node": {
+              "name": "Service observability 56"
+            }
+          },
+          {
+            "node": {
+              "name": "Queue capacity 24"
+            }
+          },
+          {
+            "node": {
+              "name": "API pagination 45"
+            }
+          }
+        ]
+      },
+      "url": "https://demo.example.com/resource/1011736462879",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Service observability 46",
+        "dateRange": {
+          "start": "2025-12-04T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-00d4c64635be",
+        "name": "Demo Person 740"
+      },
+      "id": "demo-003015861b34",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-3180",
+      "name": "Storage migration 17",
+      "state": {
+        "label": "Build performance 79",
+        "value": "on_track"
+      },
+      "status": {
+        "label": "",
+        "value": "on_track"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migratio",
+      "parentGoal": {
+        "id": "demo-00c843b226ca",
+        "key": "DEMO-3505",
+        "name": "Service observability 86",
+        "state": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "owner": {
+          "accountId": "demo-00c0fcec26ae",
+          "name": "Demo Person 216"
+        },
+        "targetDate": {
+          "label": "API pagination 65",
+          "dateRange": {
+            "start": "2025-08-04T12:00:00.000Z",
+            "end": "2025-01-01T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": {
+          "ari": "demo-0025439637d4",
+          "creationDate": "2025-06-26T12:00:00.000Z",
+          "summary": "API pagination 15",
+          "url": "https://demo.example.com/resource/794842992462",
+          "newState": {
+            "label": "Build performance 79",
+            "value": "on_track"
+          },
+          "creator": {
+            "name": "Demo Person 594"
+          }
+        },
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/280367528871"
+      },
+      "latestUserUpdate": {
+        "ari": "demo-008f46db761f",
+        "creationDate": "2025-11-15T12:00:00.000Z",
+        "summary": "Storage migration 77",
+        "url": "https://demo.example.com/resource/546593222439",
+        "newState": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "creator": {
+          "name": "Demo Person 216"
+        }
+      },
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/952170529995",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Release automation 3",
+        "dateRange": {
+          "start": "2025-09-17T12:00:00.000Z",
+          "end": "2025-07-07T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-005cd0322c1c",
+        "name": "Demo Person 878"
+      },
+      "id": "demo-00fab8901890",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-5703",
+      "name": "Storage migration 27",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the",
+      "parentGoal": {
+        "id": "demo-0084453d3561",
+        "key": "DEMO-5529",
+        "name": "Storage migration 27",
+        "state": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "owner": {
+          "accountId": "demo-00a8d33e864c",
+          "name": "Demo Person 737"
+        },
+        "targetDate": {
+          "label": "Incident response 50",
+          "dateRange": {
+            "start": "2025-12-12T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": {
+          "ari": "demo-0021ead768ea",
+          "creationDate": "2025-02-02T12:00:00.000Z",
+          "summary": "Release automation 93",
+          "url": "https://demo.example.com/resource/845484050118",
+          "newState": {
+            "label": "Build performance 79",
+            "value": "on_track"
+          },
+          "creator": {
+            "name": "Demo Person 737"
+          }
+        },
+        "tags": {
+          "edges": [
+            {
+              "node": {
+                "name": "Service observability 6"
+              }
+            },
+            {
+              "node": {
+                "name": "Service observability 56"
+              }
+            },
+            {
+              "node": {
+                "name": "Search indexing 62"
+              }
+            }
+          ]
+        },
+        "url": "https://demo.example.com/resource/488005502353"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/617098287348",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Incident response 10",
+        "dateRange": {
+          "start": "2025-10-14T12:00:00.000Z",
+          "end": "2025-10-14T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-00c6c2c4e4ec",
+        "name": "Demo Person 287"
+      },
+      "id": "demo-0099b2bfc905",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-8011",
+      "name": "Build performance 69",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-00ba0104f034",
+        "key": "DEMO-2691",
+        "name": "Service observability 66",
+        "state": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "owner": {
+          "accountId": "demo-000a32d0aeed",
+          "name": "Demo Person 928"
+        },
+        "targetDate": {
+          "label": "Service observability 46",
+          "dateRange": {
+            "start": "2025-12-04T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": {
+          "ari": "demo-00cba242ccda",
+          "creationDate": "2025-03-27T12:00:00.000Z",
+          "summary": "Cache reliability 1",
+          "url": "https://demo.example.com/resource/824337309359",
+          "newState": {
+            "label": "Build performance 79",
+            "value": "on_track"
+          },
+          "creator": {
+            "name": "Demo Person 928"
+          }
+        },
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/450640587071"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/676832745116",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Service observability 46",
+        "dateRange": {
+          "start": "2025-12-04T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-000a32d0aeed",
+        "name": "Demo Person 928"
+      },
+      "id": "demo-00dbbf12f03b",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-2691",
+      "name": "Service observability 66",
+      "state": {
+        "label": "Build performance 79",
+        "value": "on_track"
+      },
+      "status": {
+        "label": "",
+        "value": "on_track"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service mi",
+      "parentGoal": {
+        "id": "demo-0050038e5a1d",
+        "key": "DEMO-4547",
+        "name": "Search indexing 42",
+        "state": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "owner": {
+          "accountId": "demo-00f0bda004f1",
+          "name": "Demo Person 15"
+        },
+        "targetDate": {
+          "label": "Service observability 46",
+          "dateRange": {
+            "start": "2025-12-04T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": {
+          "ari": "demo-00dbd4ce8027",
+          "creationDate": "2025-05-09T12:00:00.000Z",
+          "summary": "Queue capacity 24",
+          "url": "https://demo.example.com/resource/897896896156",
+          "newState": {
+            "label": "Build performance 79",
+            "value": "on_track"
+          },
+          "creator": {
+            "name": "Demo Person 15"
+          }
+        },
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/702701262847"
+      },
+      "latestUserUpdate": {
+        "ari": "demo-00cba242ccda",
+        "creationDate": "2025-03-27T12:00:00.000Z",
+        "summary": "Cache reliability 1",
+        "url": "https://demo.example.com/resource/824337309359",
+        "newState": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "creator": {
+          "name": "Demo Person 928"
+        }
+      },
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/450640587071",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Service observability 46",
+        "dateRange": {
+          "start": "2025-12-04T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-000a32d0aeed",
+        "name": "Demo Person 928"
+      },
+      "id": "demo-00ba0104f034",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-527",
+      "name": "Service observability 16",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/876391102450",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-00e3807f92c4",
+        "name": "Demo Person 767"
+      },
+      "id": "demo-00722c1d2ec6",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-4084",
+      "name": "Service observability 36",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-009b9352de5c",
+        "key": "DEMO-5234",
+        "name": "API pagination 25",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/807120472202"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/1002919722669",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-002bb57fe686",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-1848",
+      "name": "Service observability 86",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-009b9352de5c",
+        "key": "DEMO-5234",
+        "name": "API pagination 25",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/807120472202"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/799319964182",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-00a32f8efb1f",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-5234",
+      "name": "Release automation 13",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/807120472202",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-009b9352de5c",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-2158",
+      "name": "Service observability 36",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-006828fc765f",
+        "key": "DEMO-359",
+        "name": "API pagination 25",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/914957137456"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/608331862992",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-009317cad335",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-359",
+      "name": "Release automation 13",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/914957137456",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-006828fc765f",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-8640",
+      "name": "Service observability 36",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-0057de3dd513",
+        "key": "DEMO-8776",
+        "name": "API pagination 25",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/415816748417"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/216748070074",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-0028fcbef9bf",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-1380",
+      "name": "API pagination 65",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-0057de3dd513",
+        "key": "DEMO-8776",
+        "name": "API pagination 25",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/415816748417"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/147573845615",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-00f65f159936",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-8776",
+      "name": "Release automation 13",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/415816748417",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-0057de3dd513",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-8282",
+      "name": "Service observability 96",
+      "state": {
+        "label": "Build performance 79",
+        "value": "on_track"
+      },
+      "status": {
+        "label": "",
+        "value": "on_track"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next",
+      "parentGoal": null,
+      "latestUserUpdate": {
+        "ari": "demo-00369ab01f53",
+        "creationDate": "2025-07-11T12:00:00.000Z",
+        "summary": "Incident response 50",
+        "url": "https://demo.example.com/resource/186670616806",
+        "newState": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "creator": {
+          "name": "Demo Person 207"
+        }
+      },
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/1098167592903",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Access controls 38",
+        "dateRange": {
+          "start": "2025-04-12T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-00914b77a4de",
+        "name": "Demo Person 207"
+      },
+      "id": "demo-002dd33b7791",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-911",
+      "name": "Access controls 78",
+      "state": {
+        "label": "Service observability 6",
+        "value": "at_risk"
+      },
+      "status": {
+        "label": "",
+        "value": "at_risk"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and",
+      "parentGoal": {
+        "id": "demo-005bd02c3b3d",
+        "key": "DEMO-2355",
+        "name": "Search indexing 62",
+        "state": {
+          "label": "Build performance 79",
+          "value": "on_track"
+        },
+        "owner": {
+          "accountId": "demo-00162b3a16cf",
+          "name": "Demo Person 131"
+        },
+        "targetDate": {
+          "label": "Service observability 46",
+          "dateRange": {
+            "start": "2025-12-04T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": {
+          "ari": "demo-00b6e1df5285",
+          "creationDate": "2025-03-27T12:00:00.000Z",
+          "summary": "Service observability 96",
+          "url": "https://demo.example.com/resource/643416774802",
+          "newState": {
+            "label": "Build performance 79",
+            "value": "on_track"
+          },
+          "creator": {
+            "name": "Demo Person 131"
+          }
+        },
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/383298193896"
+      },
+      "latestUserUpdate": {
+        "ari": "demo-002d4a663618",
+        "creationDate": "2025-09-17T12:00:00.000Z",
+        "summary": "Storage migration 57",
+        "url": "https://demo.example.com/resource/891885605947",
+        "newState": {
+          "label": "Service observability 6",
+          "value": "at_risk"
+        },
+        "creator": {
+          "name": "Demo Person 606"
+        }
+      },
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/347116921857",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Service observability 46",
+        "dateRange": {
+          "start": "2025-12-04T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-001ffd5e6fdc",
+        "name": "Demo Person 606"
+      },
+      "id": "demo-0026924b311e",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-7823",
+      "name": "Search indexing 62",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-002b131363c3",
+        "key": "DEMO-4370",
+        "name": "Release automation 13",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/198387987390"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/772248517883",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-00535b0e858b",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-117",
+      "name": "API pagination 65",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-002b131363c3",
+        "key": "DEMO-4370",
+        "name": "Release automation 13",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/198387987390"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/732280722403",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-000a415c66db",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-4370",
+      "name": "Release automation 13",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/198387987390",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-002b131363c3",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-3824",
+      "name": "Search indexing 62",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-001a73bd0fff",
+        "key": "DEMO-6428",
+        "name": "API pagination 5",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/643317598876"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/338532228397",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-007fa51f6c15",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-5366",
+      "name": "API pagination 65",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": {
+        "id": "demo-001a73bd0fff",
+        "key": "DEMO-6428",
+        "name": "API pagination 5",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-005b1dd0959b",
+          "name": "Demo Person 298"
+        },
+        "targetDate": {
+          "label": "Queue capacity 24",
+          "dateRange": null
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/643317598876"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/252807846309",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-00066b265945",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-6428",
+      "name": "API pagination 5",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/643317598876",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-001a73bd0fff",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-688",
+      "name": "Release automation 43",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps bef",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/788239157635",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-00308f7a81a7",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-6567",
+      "name": "Cache reliability 91",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The",
+      "parentGoal": {
+        "id": "demo-009e53100e32",
+        "key": "DEMO-1608",
+        "name": "Search indexing 32",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-002a37c3cdc6",
+          "name": "Demo Person 219"
+        },
+        "targetDate": {
+          "label": "Access controls 38",
+          "dateRange": {
+            "start": "2025-04-12T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/313351589731"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/948580908674",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Access controls 38",
+        "dateRange": {
+          "start": "2025-04-12T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-002a37c3cdc6",
+        "name": "Demo Person 219"
+      },
+      "id": "demo-002148bcebbc",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-5103",
+      "name": "API pagination 85",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next release. Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next",
+      "parentGoal": {
+        "id": "demo-009e53100e32",
+        "key": "DEMO-1608",
+        "name": "Search indexing 32",
+        "state": {
+          "label": "Storage migration 27",
+          "value": "pending"
+        },
+        "owner": {
+          "accountId": "demo-002a37c3cdc6",
+          "name": "Demo Person 219"
+        },
+        "targetDate": {
+          "label": "Access controls 38",
+          "dateRange": {
+            "start": "2025-04-12T12:00:00.000Z",
+            "end": "2025-12-12T12:00:00.000Z"
+          }
+        },
+        "latestUserUpdate": null,
+        "tags": {
+          "edges": []
+        },
+        "url": "https://demo.example.com/resource/313351589731"
+      },
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/188595039528",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Access controls 38",
+        "dateRange": {
+          "start": "2025-04-12T12:00:00.000Z",
+          "end": "2025-12-12T12:00:00.000Z"
+        }
+      },
+      "owner": {
+        "accountId": "demo-002a37c3cdc6",
+        "name": "Demo Person 219"
+      },
+      "id": "demo-0017ca1f0e8d",
+      "contributingProjects": []
+    },
+    {
+      "key": "DEMO-8637",
+      "name": "Service observability 96",
+      "state": {
+        "label": "Storage migration 27",
+        "value": "pending"
+      },
+      "status": {
+        "label": "",
+        "value": "pending"
+      },
+      "description": "",
+      "parentGoal": null,
+      "latestUserUpdate": null,
+      "tags": {
+        "edges": []
+      },
+      "url": "https://demo.example.com/resource/105276482498",
+      "isArchived": false,
+      "targetDate": {
+        "label": "Queue capacity 24",
+        "dateRange": null
+      },
+      "owner": {
+        "accountId": "demo-005b1dd0959b",
+        "name": "Demo Person 298"
+      },
+      "id": "demo-001c5bb8ea75",
+      "contributingProjects": []
+    }
+  ],
+  "meta": {
+    "resourceClass": "entity",
+    "sourceMode": "native",
+    "resourceType": "demo-00b5b471c61b",
+    "count": 84,
+    "scope": "demo-005ef5ef0364"
+  }
+}

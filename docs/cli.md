@@ -129,4 +129,14 @@ shrinkfit serve [--port 8765]      # then open http://127.0.0.1:8765/
 
 A dependency-free local web page for exploring how the options behave: paste JSON or YAML, change any
 option, and watch the output and the report update live. It runs the same Rust code, through the same options
-object, as the bindings. It listens on loopback only and is a development tool, not a production server.
+object, as the bindings. It listens on loopback by default and is a development tool, not a production server.
+
+Under **Large TWG CLI outputs**, eight examples reproduce the shapes of oversized TWG responses (Jira,
+Confluence, teams, projects, goals, and boards). All business content is replaced with synthetic values for
+public demos. Each button displays its size and loads a suggested budget; the source command and provenance
+appear above the editor. See the [fixture guide](../crates/shrinkfit-cli/web/twg/README.md) for a demo
+walkthrough and validation commands.
+
+The **Jev scoring** checkbox uses the server's `OPENROUTER_API_KEY` environment variable. It is enabled by
+default with `condense`; disable it to compare built-in scorers without model calls. The API key is never
+sent to the browser.

@@ -1,0 +1,1530 @@
+{
+  "apiVersion": "v2",
+  "command": "jira.workitem.get",
+  "request": {
+    "issueIdOrKey": [
+      "demo-0078dd30b274",
+      "demo-00fc565e4992",
+      "demo-00aa9d268f8c"
+    ],
+    "site": "demo",
+    "fields": [
+      "demo-00a6a8e75424"
+    ],
+    "comments": true,
+    "remoteLinks": true,
+    "full": true
+  },
+  "data": {
+    "items": [
+      {
+        "input": "demo-0078dd30b274",
+        "ok": true,
+        "data": {
+          "expand": "Demo service migration improves request routing and cache reliability. The synthet",
+          "id": "demo-00d3f159cb52",
+          "self": "https://demo.example.com/resource/387991785853",
+          "key": "DEMO-768",
+          "statuscategorychangedate": "2025-05-25T12:00:00.000Z",
+          "issuetype": {
+            "self": "https://demo.example.com/resource/667795275183",
+            "id": "demo-0078422873b3",
+            "description": "",
+            "name": "Release automation 63",
+            "subtask": false,
+            "avatarId": 325464,
+            "entityId": "demo-00a069ff8850",
+            "hierarchyLevel": 0
+          },
+          "timespent": null,
+          "customfield_92836": "demo-004129b8f3e2",
+          "customfield_61260": null,
+          "project": {
+            "self": "https://demo.example.com/resource/376657138774",
+            "id": "demo-0089789ff07b",
+            "key": "DEMO-2629",
+            "name": "Storage migration 77",
+            "projectTypeKey": "software",
+            "simplified": true
+          },
+          "fixVersions": [],
+          "aggregatetimespent": null,
+          "statusCategory": {
+            "self": "https://demo.example.com/resource/514782854230",
+            "id": 63,
+            "key": "DEMO-5435",
+            "colorName": "demo-00f05d271942",
+            "name": "Build performance 69"
+          },
+          "resolution": null,
+          "customfield_65211": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handlin",
+          "customfield_36631": null,
+          "resolutiondate": null,
+          "workratio": 2,
+          "issuerestriction": {
+            "issuerestrictions": {},
+            "shouldDisplay": true
+          },
+          "watches": {
+            "self": "https://demo.example.com/resource/617466813426",
+            "watchCount": 20,
+            "isWatching": false
+          },
+          "lastViewed": null,
+          "created": "2025-01-09T12:00:00.000Z",
+          "customfield_42841": null,
+          "customfield_88664": null,
+          "priority": {
+            "self": "https://demo.example.com/resource/386621525946",
+            "name": "Incident response 50",
+            "id": "demo-004b227777d4"
+          },
+          "labels": [
+            "demo-002ab871c9fd"
+          ],
+          "timeestimate": null,
+          "aggregatetimeoriginalestimate": null,
+          "customfield_52830": 20,
+          "versions": [],
+          "issuelinks": [
+            {
+              "id": "demo-00726886f01a",
+              "self": "https://demo.example.com/resource/817880365451",
+              "type": {
+                "id": "demo-0003b1a0d341",
+                "name": "Service observability 36",
+                "inward": "demo-00c9a1ae4f0a",
+                "outward": "demo-00a768d80204",
+                "self": "https://demo.example.com/resource/874673673023"
+              },
+              "inwardIssue": {
+                "id": "demo-002bd7bf6bec",
+                "key": "DEMO-448",
+                "self": "https://demo.example.com/resource/938576282115",
+                "fields": {
+                  "summary": "Search indexing 92",
+                  "status": {
+                    "self": "https://demo.example.com/resource/830930764732",
+                    "description": "",
+                    "name": "Incident response 100",
+                    "id": "demo-000282faf0aa",
+                    "statusCategory": {
+                      "self": "https://demo.example.com/resource/514782854230",
+                      "id": 63,
+                      "key": "DEMO-5435",
+                      "colorName": "demo-00f05d271942",
+                      "name": "Build performance 69"
+                    }
+                  },
+                  "priority": {
+                    "self": "https://demo.example.com/resource/386621525946",
+                    "name": "Incident response 50",
+                    "id": "demo-004b227777d4"
+                  },
+                  "issuetype": {
+                    "self": "https://demo.example.com/resource/134687808858",
+                    "id": "demo-00f4c713ae92",
+                    "description": "",
+                    "name": "Cache reliability 81",
+                    "subtask": false,
+                    "avatarId": 842014,
+                    "entityId": "demo-00e2a5bdb76c",
+                    "hierarchyLevel": 0
+                  }
+                }
+              }
+            }
+          ],
+          "assignee": {
+            "self": "https://demo.example.com/resource/753423288105",
+            "accountId": "demo-004323c4a04e",
+            "emailAddress": "person-280@example.com",
+            "displayName": "Demo Person 270",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "updated": "2025-11-23T12:00:00.000Z",
+          "status": {
+            "self": "https://demo.example.com/resource/830930764732",
+            "description": "",
+            "name": "Incident response 100",
+            "id": "demo-000282faf0aa",
+            "statusCategory": {
+              "self": "https://demo.example.com/resource/514782854230",
+              "id": 63,
+              "key": "DEMO-5435",
+              "colorName": "demo-00f05d271942",
+              "name": "Build performance 69"
+            }
+          },
+          "components": [],
+          "customfield_48488": {
+            "self": "https://demo.example.com/resource/615567980880",
+            "accountId": "demo-009b6f972641",
+            "emailAddress": "person-233@example.com",
+            "displayName": "Access controls 18",
+            "active": true,
+            "timeZone": "demo-002280076043",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "timeoriginalestimate": null,
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request routing and cache reliability. The synthetic team vali"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service migrati",
+                    "marks": [
+                      {
+                        "type": "strong"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration i",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/306470314679"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration improves request routing and c"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration improves request routing"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration im"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration "
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "dataclassification": {},
+          "timetracking": {},
+          "customfield_24207": "demo-00319227cf52",
+          "customfield_27643": {
+            "self": "https://demo.example.com/resource/113092088490",
+            "value": "De",
+            "id": "demo-007f85868083",
+            "color": "demo-004e472530ad"
+          },
+          "customfield_87540": 205216,
+          "customfield_22121": "2025-08-04T12:00:00.000Z",
+          "security": null,
+          "customfield_15072": "demo-0093d3357598",
+          "customfield_41919": {
+            "id": "demo-004efa642f52",
+            "name": "Service observability 86",
+            "isVisible": true,
+            "isVerified": true,
+            "title": "Service observability 86",
+            "isShared": true
+          },
+          "attachment": [],
+          "aggregatetimeestimate": null,
+          "customfield_96713": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "De"
+                  }
+                ]
+              }
+            ]
+          },
+          "customfield_80676": null,
+          "summary": "Storage migration 37",
+          "creator": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "subtasks": [],
+          "customfield_81340": null,
+          "customfield_97444": null,
+          "reporter": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "aggregateprogress": {
+            "progress": 0,
+            "total": 0
+          },
+          "environment": null,
+          "customfield_95103": {
+            "self": "https://demo.example.com/resource/988574232214",
+            "value": "De",
+            "id": "demo-00eb376544cb",
+            "color": "demo-00ea03954479"
+          },
+          "customfield_56977": 20,
+          "duedate": null,
+          "customfield_23615": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "https://demo.example.com/resource/669833764336"
+                  }
+                ]
+              }
+            ]
+          },
+          "progress": {
+            "progress": 0,
+            "total": 0
+          },
+          "votes": {
+            "self": "https://demo.example.com/resource/213191267809",
+            "votes": 0,
+            "hasVoted": false
+          },
+          "comment": {
+            "comments": [],
+            "self": "https://demo.example.com/resource/454473703702",
+            "maxResults": 0,
+            "total": 0,
+            "startAt": 0
+          },
+          "worklog": {
+            "startAt": 0,
+            "maxResults": 73,
+            "total": 0,
+            "worklogs": []
+          },
+          "url": "https://demo.example.com/resource/767614265521",
+          "remoteLinks": [],
+          "comments": []
+        }
+      },
+      {
+        "input": "demo-00fc565e4992",
+        "ok": true,
+        "data": {
+          "expand": "Demo service migration improves request routing and cache reliability. The synthet",
+          "id": "demo-00b936faf475",
+          "self": "https://demo.example.com/resource/640567319489",
+          "key": "DEMO-4486",
+          "statuscategorychangedate": "2025-01-17T12:00:00.000Z",
+          "issuetype": {
+            "self": "https://demo.example.com/resource/667795275183",
+            "id": "demo-0078422873b3",
+            "description": "",
+            "name": "Release automation 63",
+            "subtask": false,
+            "avatarId": 325464,
+            "entityId": "demo-00a069ff8850",
+            "hierarchyLevel": 0
+          },
+          "timespent": null,
+          "customfield_92836": "demo-005ce881bea7",
+          "customfield_61260": null,
+          "project": {
+            "self": "https://demo.example.com/resource/376657138774",
+            "id": "demo-0089789ff07b",
+            "key": "DEMO-2629",
+            "name": "Storage migration 77",
+            "projectTypeKey": "software",
+            "simplified": true
+          },
+          "fixVersions": [],
+          "aggregatetimespent": null,
+          "statusCategory": {
+            "self": "https://demo.example.com/resource/514782854230",
+            "id": 63,
+            "key": "DEMO-5435",
+            "colorName": "demo-00f05d271942",
+            "name": "Build performance 69"
+          },
+          "resolution": null,
+          "customfield_65211": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handlin",
+          "customfield_36631": null,
+          "resolutiondate": null,
+          "workratio": 2,
+          "issuerestriction": {
+            "issuerestrictions": {},
+            "shouldDisplay": true
+          },
+          "watches": {
+            "self": "https://demo.example.com/resource/473970805272",
+            "watchCount": 20,
+            "isWatching": false
+          },
+          "lastViewed": null,
+          "created": "2025-05-13T12:00:00.000Z",
+          "customfield_42841": null,
+          "customfield_88664": null,
+          "priority": {
+            "self": "https://demo.example.com/resource/386621525946",
+            "name": "Incident response 50",
+            "id": "demo-004b227777d4"
+          },
+          "labels": [
+            "demo-002ab871c9fd"
+          ],
+          "timeestimate": null,
+          "aggregatetimeoriginalestimate": null,
+          "customfield_52830": 20,
+          "versions": [],
+          "issuelinks": [
+            {
+              "id": "demo-0044c481c04f",
+              "self": "https://demo.example.com/resource/389313816522",
+              "type": {
+                "id": "demo-0003b1a0d341",
+                "name": "Service observability 36",
+                "inward": "demo-00c9a1ae4f0a",
+                "outward": "demo-00a768d80204",
+                "self": "https://demo.example.com/resource/874673673023"
+              },
+              "inwardIssue": {
+                "id": "demo-002bd7bf6bec",
+                "key": "DEMO-448",
+                "self": "https://demo.example.com/resource/938576282115",
+                "fields": {
+                  "summary": "Search indexing 92",
+                  "status": {
+                    "self": "https://demo.example.com/resource/830930764732",
+                    "description": "",
+                    "name": "Incident response 100",
+                    "id": "demo-000282faf0aa",
+                    "statusCategory": {
+                      "self": "https://demo.example.com/resource/514782854230",
+                      "id": 63,
+                      "key": "DEMO-5435",
+                      "colorName": "demo-00f05d271942",
+                      "name": "Build performance 69"
+                    }
+                  },
+                  "priority": {
+                    "self": "https://demo.example.com/resource/386621525946",
+                    "name": "Incident response 50",
+                    "id": "demo-004b227777d4"
+                  },
+                  "issuetype": {
+                    "self": "https://demo.example.com/resource/134687808858",
+                    "id": "demo-00f4c713ae92",
+                    "description": "",
+                    "name": "Cache reliability 81",
+                    "subtask": false,
+                    "avatarId": 842014,
+                    "entityId": "demo-00e2a5bdb76c",
+                    "hierarchyLevel": 0
+                  }
+                }
+              }
+            }
+          ],
+          "assignee": {
+            "self": "https://demo.example.com/resource/753423288105",
+            "accountId": "demo-004323c4a04e",
+            "emailAddress": "person-280@example.com",
+            "displayName": "Demo Person 270",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "updated": "2025-06-14T12:00:00.000Z",
+          "status": {
+            "self": "https://demo.example.com/resource/830930764732",
+            "description": "",
+            "name": "Incident response 100",
+            "id": "demo-000282faf0aa",
+            "statusCategory": {
+              "self": "https://demo.example.com/resource/514782854230",
+              "id": 63,
+              "key": "DEMO-5435",
+              "colorName": "demo-00f05d271942",
+              "name": "Build performance 69"
+            }
+          },
+          "components": [],
+          "customfield_48488": {
+            "self": "https://demo.example.com/resource/615567980880",
+            "accountId": "demo-009b6f972641",
+            "emailAddress": "person-233@example.com",
+            "displayName": "Access controls 18",
+            "active": true,
+            "timeZone": "demo-002280076043",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "timeoriginalestimate": null,
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request routing and cache reliability. The synthetic team vali"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service migrati",
+                    "marks": [
+                      {
+                        "type": "strong"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration i",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/119904637512"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration improves request routing and cache "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration improves request routing"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration im"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration "
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "dataclassification": {},
+          "timetracking": {},
+          "customfield_24207": "demo-00319227cf52",
+          "customfield_27643": {
+            "self": "https://demo.example.com/resource/113092088490",
+            "value": "De",
+            "id": "demo-007f85868083",
+            "color": "demo-004e472530ad"
+          },
+          "customfield_87540": 205216,
+          "customfield_22121": "2025-08-04T12:00:00.000Z",
+          "security": null,
+          "customfield_15072": "demo-0093d3357598",
+          "customfield_41919": {
+            "id": "demo-004efa642f52",
+            "name": "Service observability 86",
+            "isVisible": true,
+            "isVerified": true,
+            "title": "Service observability 86",
+            "isShared": true
+          },
+          "attachment": [],
+          "aggregatetimeestimate": null,
+          "customfield_96713": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "De"
+                  }
+                ]
+              }
+            ]
+          },
+          "customfield_80676": null,
+          "summary": "Release automation 43",
+          "creator": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "subtasks": [],
+          "customfield_81340": null,
+          "customfield_97444": null,
+          "reporter": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "aggregateprogress": {
+            "progress": 0,
+            "total": 0
+          },
+          "environment": null,
+          "customfield_95103": {
+            "self": "https://demo.example.com/resource/988574232214",
+            "value": "De",
+            "id": "demo-00eb376544cb",
+            "color": "demo-00ea03954479"
+          },
+          "customfield_56977": 20,
+          "duedate": null,
+          "customfield_23615": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "https://demo.example.com/resource/269528463270"
+                  }
+                ]
+              }
+            ]
+          },
+          "progress": {
+            "progress": 0,
+            "total": 0
+          },
+          "votes": {
+            "self": "https://demo.example.com/resource/552984943525",
+            "votes": 0,
+            "hasVoted": false
+          },
+          "comment": {
+            "comments": [],
+            "self": "https://demo.example.com/resource/975946766639",
+            "maxResults": 0,
+            "total": 0,
+            "startAt": 0
+          },
+          "worklog": {
+            "startAt": 0,
+            "maxResults": 73,
+            "total": 0,
+            "worklogs": []
+          },
+          "url": "https://demo.example.com/resource/360990022286",
+          "remoteLinks": [],
+          "comments": []
+        }
+      },
+      {
+        "input": "demo-00aa9d268f8c",
+        "ok": true,
+        "data": {
+          "expand": "Demo service migration improves request routing and cache reliability. The synthetic team validates retry handling, monitors latency, and documents rollback steps before the next",
+          "id": "demo-002bd7bf6bec",
+          "self": "https://demo.example.com/resource/938576282115",
+          "key": "DEMO-448",
+          "statuscategorychangedate": "2025-09-13T12:00:00.000Z",
+          "customfield_61260": null,
+          "fixVersions": [],
+          "statusCategory": {
+            "self": "https://demo.example.com/resource/514782854230",
+            "id": 63,
+            "key": "DEMO-5435",
+            "colorName": "demo-00f05d271942",
+            "name": "Build performance 69"
+          },
+          "resolution": null,
+          "customfield_36498": [],
+          "customfield_39294": null,
+          "customfield_18172": null,
+          "customfield_48382": null,
+          "customfield_77463": null,
+          "customfield_34589": null,
+          "customfield_70778": null,
+          "lastViewed": null,
+          "customfield_86592": null,
+          "customfield_47323": "demo-00fcbcf16590",
+          "customfield_88664": null,
+          "priority": {
+            "self": "https://demo.example.com/resource/386621525946",
+            "name": "Incident response 50",
+            "id": "demo-004b227777d4"
+          },
+          "customfield_80797": null,
+          "customfield_28753": null,
+          "labels": [
+            "demo-002ab871c9fd"
+          ],
+          "customfield_41864": null,
+          "timeestimate": null,
+          "aggregatetimeoriginalestimate": null,
+          "versions": [],
+          "customfield_99000": null,
+          "customfield_28760": null,
+          "issuelinks": [
+            {
+              "id": "demo-0044c481c04f",
+              "self": "https://demo.example.com/resource/389313816522",
+              "type": {
+                "id": "demo-0003b1a0d341",
+                "name": "Service observability 36",
+                "inward": "demo-00c9a1ae4f0a",
+                "outward": "demo-00a768d80204",
+                "self": "https://demo.example.com/resource/874673673023"
+              },
+              "outwardIssue": {
+                "id": "demo-00b936faf475",
+                "key": "DEMO-4486",
+                "self": "https://demo.example.com/resource/640567319489",
+                "fields": {
+                  "summary": "Release automation 43",
+                  "status": {
+                    "self": "https://demo.example.com/resource/830930764732",
+                    "description": "",
+                    "name": "Incident response 100",
+                    "id": "demo-000282faf0aa",
+                    "statusCategory": {
+                      "self": "https://demo.example.com/resource/514782854230",
+                      "id": 63,
+                      "key": "DEMO-5435",
+                      "colorName": "demo-00f05d271942",
+                      "name": "Build performance 69"
+                    }
+                  },
+                  "priority": {
+                    "self": "https://demo.example.com/resource/386621525946",
+                    "name": "Incident response 50",
+                    "id": "demo-004b227777d4"
+                  },
+                  "issuetype": {
+                    "self": "https://demo.example.com/resource/667795275183",
+                    "id": "demo-0078422873b3",
+                    "description": "",
+                    "name": "Release automation 63",
+                    "subtask": false,
+                    "avatarId": 325464,
+                    "entityId": "demo-00a069ff8850",
+                    "hierarchyLevel": 0
+                  }
+                }
+              }
+            },
+            {
+              "id": "demo-00726886f01a",
+              "self": "https://demo.example.com/resource/817880365451",
+              "type": {
+                "id": "demo-0003b1a0d341",
+                "name": "Service observability 36",
+                "inward": "demo-00c9a1ae4f0a",
+                "outward": "demo-00a768d80204",
+                "self": "https://demo.example.com/resource/874673673023"
+              },
+              "outwardIssue": {
+                "id": "demo-00d3f159cb52",
+                "key": "DEMO-768",
+                "self": "https://demo.example.com/resource/387991785853",
+                "fields": {
+                  "summary": "Storage migration 37",
+                  "status": {
+                    "self": "https://demo.example.com/resource/830930764732",
+                    "description": "",
+                    "name": "Incident response 100",
+                    "id": "demo-000282faf0aa",
+                    "statusCategory": {
+                      "self": "https://demo.example.com/resource/514782854230",
+                      "id": 63,
+                      "key": "DEMO-5435",
+                      "colorName": "demo-00f05d271942",
+                      "name": "Build performance 69"
+                    }
+                  },
+                  "priority": {
+                    "self": "https://demo.example.com/resource/386621525946",
+                    "name": "Incident response 50",
+                    "id": "demo-004b227777d4"
+                  },
+                  "issuetype": {
+                    "self": "https://demo.example.com/resource/667795275183",
+                    "id": "demo-0078422873b3",
+                    "description": "",
+                    "name": "Release automation 63",
+                    "subtask": false,
+                    "avatarId": 325464,
+                    "entityId": "demo-00a069ff8850",
+                    "hierarchyLevel": 0
+                  }
+                }
+              }
+            }
+          ],
+          "assignee": {
+            "self": "https://demo.example.com/resource/753423288105",
+            "accountId": "demo-004323c4a04e",
+            "emailAddress": "person-280@example.com",
+            "displayName": "Demo Person 270",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "status": {
+            "self": "https://demo.example.com/resource/830930764732",
+            "description": "",
+            "name": "Incident response 100",
+            "id": "demo-000282faf0aa",
+            "statusCategory": {
+              "self": "https://demo.example.com/resource/514782854230",
+              "id": 63,
+              "key": "DEMO-5435",
+              "colorName": "demo-00f05d271942",
+              "name": "Build performance 69"
+            }
+          },
+          "components": [],
+          "dataclassification": {},
+          "customfield_24207": "demo-00319227cf52",
+          "customfield_27643": {
+            "self": "https://demo.example.com/resource/113092088490",
+            "value": "De",
+            "id": "demo-007f85868083",
+            "color": "demo-004e472530ad"
+          },
+          "customfield_87540": 205216,
+          "customfield_41919": {
+            "id": "demo-004efa642f52",
+            "name": "Service observability 86",
+            "isVisible": true,
+            "isVerified": true,
+            "title": "Service observability 86",
+            "isShared": true
+          },
+          "customfield_77479": null,
+          "aggregatetimeestimate": null,
+          "customfield_96713": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "De"
+                  }
+                ]
+              }
+            ]
+          },
+          "customfield_80676": null,
+          "creator": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "subtasks": [],
+          "customfield_81340": null,
+          "reporter": {
+            "self": "https://demo.example.com/resource/1032565769019",
+            "accountId": "demo-000a203b94c2",
+            "emailAddress": "person-105@example.com",
+            "displayName": "Demo Person 561",
+            "active": true,
+            "timeZone": "demo-00b27b602aa5",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "aggregateprogress": {
+            "progress": 0,
+            "total": 0
+          },
+          "customfield_70437": null,
+          "customfield_79854": null,
+          "customfield_95103": {
+            "self": "https://demo.example.com/resource/988574232214",
+            "value": "De",
+            "id": "demo-00eb376544cb",
+            "color": "demo-00ea03954479"
+          },
+          "customfield_55455": null,
+          "progress": {
+            "progress": 0,
+            "total": 0
+          },
+          "votes": {
+            "self": "https://demo.example.com/resource/772797922927",
+            "votes": 0,
+            "hasVoted": false
+          },
+          "worklog": {
+            "startAt": 0,
+            "maxResults": 73,
+            "total": 0,
+            "worklogs": []
+          },
+          "issuetype": {
+            "self": "https://demo.example.com/resource/134687808858",
+            "id": "demo-00f4c713ae92",
+            "description": "",
+            "name": "Cache reliability 81",
+            "subtask": false,
+            "avatarId": 842014,
+            "entityId": "demo-00e2a5bdb76c",
+            "hierarchyLevel": 0
+          },
+          "timespent": null,
+          "customfield_43285": null,
+          "customfield_92836": "demo-00c93a0ce4db",
+          "customfield_51068": null,
+          "project": {
+            "self": "https://demo.example.com/resource/376657138774",
+            "id": "demo-0089789ff07b",
+            "key": "DEMO-2629",
+            "name": "Storage migration 77",
+            "projectTypeKey": "software",
+            "simplified": true
+          },
+          "customfield_69960": null,
+          "customfield_83400": null,
+          "aggregatetimespent": null,
+          "customfield_65211": null,
+          "customfield_57669": null,
+          "customfield_32006": null,
+          "customfield_14499": null,
+          "customfield_36631": [
+            "demo-002e711740e9"
+          ],
+          "resolutiondate": null,
+          "workratio": 2,
+          "customfield_23449": null,
+          "customfield_55296": null,
+          "watches": {
+            "self": "https://demo.example.com/resource/880784219363",
+            "watchCount": 20,
+            "isWatching": false
+          },
+          "issuerestriction": {
+            "issuerestrictions": {},
+            "shouldDisplay": true
+          },
+          "customfield_68213": null,
+          "created": "2025-05-01T12:00:00.000Z",
+          "customfield_42841": null,
+          "customfield_28052": null,
+          "customfield_60263": null,
+          "customfield_46144": null,
+          "customfield_18719": null,
+          "customfield_52830": 63,
+          "updated": "2025-08-24T12:00:00.000Z",
+          "customfield_76963": null,
+          "customfield_48488": {
+            "self": "https://demo.example.com/resource/615567980880",
+            "accountId": "demo-009b6f972641",
+            "emailAddress": "person-233@example.com",
+            "displayName": "Access controls 18",
+            "active": true,
+            "timeZone": "demo-002280076043",
+            "accountType": "demo-00651b2c67d5"
+          },
+          "timeoriginalestimate": null,
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves"
+                  },
+                  {
+                    "type": "demo-000e87632cd4",
+                    "attrs": {
+                      "timestamp": "demo-0072bb10d0c7"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request r"
+                  },
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request routing and cache reliability. The synthetic team validates"
+                  },
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request routin"
+                  },
+                  {
+                    "type": "text",
+                    "text": "Demo",
+                    "marks": [
+                      {
+                        "type": "strong"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "Demo service migration improves request routing and c"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Demo service",
+                    "marks": [
+                      {
+                        "type": "strong"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration imp",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/498564490593"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migr",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/475839000629"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration improves requ",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/1065647441658"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migr",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/859749466386"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service migration i",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/910091776632"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Demo service mig",
+                            "marks": [
+                              {
+                                "type": "link",
+                                "attrs": {
+                                  "href": "https://demo.example.com/resource/176271363961"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "expand",
+                "content": [
+                  {
+                    "type": "bulletList",
+                    "content": [
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service migration improves request routing and cache reliability. The synthetic team validates r"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service "
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service migration improves request routing"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service migration "
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service migration im"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Demo service migration "
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "attrs": {
+                  "title": "Access controls 8"
+                }
+              }
+            ]
+          },
+          "timetracking": {},
+          "security": null,
+          "customfield_15072": "demo-0093d3357598",
+          "attachment": [],
+          "customfield_68372": null,
+          "customfield_37654": null,
+          "customfield_45522": null,
+          "summary": "Search indexing 92",
+          "customfield_97444": null,
+          "environment": null,
+          "duedate": "2025-04-08T12:00:00.000Z",
+          "customfield_56977": 63,
+          "customfield_40312": null,
+          "customfield_23615": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "https://demo.example.com/resource/386260912612"
+                  }
+                ]
+              }
+            ]
+          },
+          "customfield_95642": null,
+          "comment": {
+            "comments": [],
+            "self": "https://demo.example.com/resource/299849626846",
+            "maxResults": 0,
+            "total": 0,
+            "startAt": 0
+          },
+          "url": "https://demo.example.com/resource/662744592915",
+          "remoteLinks": [],
+          "comments": []
+        }
+      }
+    ],
+    "summary": {
+      "requested": 51,
+      "returned": 51,
+      "succeeded": 51,
+      "failed": 0,
+      "omitted": 0,
+      "truncated": 0
+    }
+  },
+  "meta": {
+    "resourceClass": "entity",
+    "sourceMode": "native",
+    "resourceType": "demo-005a4405329d",
+    "backend": "demo-00548e750b9c",
+    "meta": {
+      "resourceClass": "entity",
+      "sourceMode": "rest",
+      "apiVersion": "demo-00e3b9f48668",
+      "resourceType": "demo-005a4405329d"
+    },
+    "acquisition": {
+      "requested": 51,
+      "returned": 51,
+      "succeeded": 51,
+      "failed": 0,
+      "omitted": 0,
+      "truncated": 0
+    },
+    "evidence": {
+      "provenance": {
+        "source": "demo-00828674b601"
+      },
+      "coverage": {
+        "status": "demo-00eebbf6457e",
+        "covered": [
+          "demo-0078dd30b274",
+          "demo-00fc565e4992",
+          "demo-00aa9d268f8c"
+        ]
+      },
+      "truncation": {
+        "truncated": false
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "jira-search",
+    "name": "Jira search",
+    "desc": "50 issues with descriptions, people, links and repeated metadata.",
+    "command": "twg jira workitem query --jql \"assignee = currentUser() ORDER BY updated DESC\" --first 50 --fields summary,status,assignee,reporter,description,priority,issuetype,created,updated,labels,components,project -o json",
+    "max_chars": 12000,
+    "source_bytes": 541319,
+    "bytes": 502292,
+    "chars": 502292,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "jira-all-fields",
+    "name": "Jira: all fields",
+    "desc": "30 issues with full custom fields, rich text, comments and nested metadata.",
+    "command": "twg jira workitem query --jql \"assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC\" --first 50 --fields \"*all\" -o json",
+    "max_chars": 16000,
+    "source_bytes": 1424791,
+    "bytes": 1326536,
+    "chars": 1326536,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "jira-details",
+    "name": "Jira batch details",
+    "desc": "Three full issue envelopes with rich text and supplemental details.",
+    "command": "twg jira workitem get DEMO-101 DEMO-102 DEMO-103 --full -o json",
+    "max_chars": 8000,
+    "source_bytes": 57764,
+    "bytes": 53281,
+    "chars": 53281,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "confluence-search",
+    "name": "Confluence search",
+    "desc": "50 page results with excerpts, duplicate titles, links and coverage metadata.",
+    "command": "twg confluence search query --cql 'type = page AND lastmodified >= now(\"-7d\") ORDER BY lastmodified DESC' --limit 50 --excerpt -o json",
+    "max_chars": 12000,
+    "source_bytes": 99301,
+    "bytes": 93631,
+    "chars": 93631,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "teams",
+    "name": "Team directory",
+    "desc": "49 teams with nested members, avatars and pagination.",
+    "command": "twg teams query --all --limit 50 -o json",
+    "max_chars": 10000,
+    "source_bytes": 163392,
+    "bytes": 124061,
+    "chars": 124061,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "projects",
+    "name": "Project portfolio",
+    "desc": "38 projects with descriptions, owners, dates and linked goals.",
+    "command": "twg projects query --scope all --limit 40 --include-description --include-linked-goals -o json",
+    "max_chars": 10000,
+    "source_bytes": 107355,
+    "bytes": 91161,
+    "chars": 91161,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "goals",
+    "name": "Goal hierarchy",
+    "desc": "27 goals with parent relationships and contributing project metadata.",
+    "command": "twg goals query --scope all --limit 30 --include-description --include-parent-goal --include-contributing-projects -o json",
+    "max_chars": 8000,
+    "source_bytes": 60844,
+    "bytes": 48618,
+    "chars": 48618,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  },
+  {
+    "id": "boards",
+    "name": "Scrum boards",
+    "desc": "50 boards with project and personal locations, IDs and avatar URLs.",
+    "command": "twg jira board query --type scrum --max-results 50 -o json",
+    "max_chars": 6000,
+    "source_bytes": 22369,
+    "bytes": 17792,
+    "chars": 17792,
+    "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
+  }
+]

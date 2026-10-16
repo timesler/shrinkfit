@@ -24,8 +24,13 @@
   input[type=number], select { width:100%; padding:4px 6px; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:4px; }
   input[type=checkbox] { margin-right:6px; }
   textarea, pre { flex:1; width:100%; margin:0; padding:8px; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:4px; font:12px/1.45 ui-monospace, Menlo, Consolas, monospace; overflow:auto; white-space:pre-wrap; word-break:break-word; resize:none; }
-  #examples { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
-  #examples button { font-size:12px; }
+  #examples, #twg-examples { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+  #examples button, #twg-examples button { font-size:12px; }
+  #twg-demo { margin-bottom:8px; }
+  #twg-demo summary { cursor:pointer; font-weight:600; }
+  #twg-demo p, #example-info { font-size:12px; color:var(--muted); margin:6px 0; }
+  #example-info { white-space:pre-wrap; overflow-wrap:anywhere; max-height:100px; overflow:auto; }
+  #opts { overflow-y:auto; }
   #stats { margin-top:8px; font-size:12px; color:var(--muted); }
   #stats b.ok { color:var(--good); } #stats b.bad { color:var(--bad); }
   #report { margin-top:6px; font:11px ui-monospace, Menlo, Consolas, monospace; color:var(--muted); white-space:pre-wrap; }
@@ -51,7 +56,8 @@
     <label>max_samples<small>shape-distinct samples when no item fits</small><input type="number" id="max_samples" min="0" value="3"></label>
     <label>min_partial_chars<small>smallest budget for a partial item</small><input type="number" id="min_partial_chars" min="0" value="40"></label>
     <label>array_strategy<small>sample = whole items; condense = every item, fewer fields</small>
-      <select id="array_strategy"><option>sample</option><option>condense</option></select></label>
+      <select id="array_strategy"><option>sample</option><option selected>condense</option></select></label>
+    <label><input type="checkbox" id="jev" checked>Jev scoring<small>Uses OpenRouter when array_strategy is condense; sends field summaries to the hosted model.</small></label>
     <label>arguments<small>the tool call's arguments (text or JSON; values only): fields they mention are boosted</small>
       <input type="text" id="arguments" placeholder='{"jql": "status = Open"}'></label>
     <label>field_scorer<small>how condense ranks fields</small>
@@ -61,6 +67,12 @@
   <section>
     <h2>Input <span id="inlen"></span></h2>
     <div id="examples"></div>
+    <details id="twg-demo" open>
+      <summary>Large TWG CLI outputs</summary>
+      <p>Captured response shapes with synthetic content — safe for public demos. Original outputs were automatically saved to files by TWG.</p>
+      <div id="twg-examples" aria-label="TWG examples"></div>
+    </details>
+    <div id="example-info" role="status" aria-live="polite"></div>
     <textarea id="input" spellcheck="false" placeholder="Paste JSON or YAML here"></textarea>
   </section>
   <section>
@@ -84,6 +96,7 @@ function options() {
   const args = $("arguments").value.trim();
   if (args) { try { o.arguments = JSON.parse(args); } catch { o.arguments = args; } }
   o.keep_last_item = $("keep_last_item").checked;
+  o.jev = $("jev").checked;
   return o;
 }
 
@@ -120,6 +133,7 @@ function load() {
     const s = JSON.parse(localStorage.getItem("shrinkfit") || "null"); if (!s) return;
     for (const k of [...NUM, ...SEL]) if (k in s.o) $(k).value = s.o[k];
     $("keep_last_item").checked = s.o.keep_last_item !== false;
+    $("jev").checked = s.o.jev !== false;
     $("input").value = s.input || "";
   } catch {}
 }
@@ -127,14 +141,62 @@ function load() {
 document.querySelectorAll("#opts input, #opts select, #input").forEach((el) => el.addEventListener("input", schedule));
 $("reset").onclick = () => {
   for (const k of [...NUM, ...SEL]) $(k).value = DEFAULTS[k];
-  $("keep_last_item").checked = true; schedule();
+  $("keep_last_item").checked = true;
+  $("jev").checked = true; schedule();
 };
 $("copy").onclick = () => navigator.clipboard && navigator.clipboard.writeText($("out").textContent);
+// Fetch only the selected fixture; the largest is over a megabyte.
+// Ignore stale responses when another example is selected or the input is edited.
+let exampleSelection = 0;
+$("input").addEventListener("input", () => {
+  ++exampleSelection;
+  $("example-info").textContent = "";
+});
+async function loadTwgExamples() {
+  try {
+    const response = await fetch("/twg/manifest.json");
+    if (!response.ok) throw new Error(`Example catalog: HTTP ${response.status}`);
+    const examples = await response.json();
+    for (const ex of examples) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `${ex.name} · ${Math.round(ex.bytes / 1024).toLocaleString()} KiB`;
+      b.title = `${ex.desc}\n${ex.command}`;
+      b.onclick = async () => {
+        const selection = ++exampleSelection;
+        $("example-info").textContent = `Loading ${ex.name}…`;
+        try {
+          const r = await fetch(`/twg/${encodeURIComponent(ex.id)}.json`);
+          if (!r.ok) throw new Error(`Example: HTTP ${r.status}`);
+          const text = await r.text();
+          if (selection !== exampleSelection) return;
+          $("input").value = text;
+          $("input_format").value = "json";
+          $("format").value = "json";
+          $("array_strategy").value = "condense";
+          $("max_chars").value = ex.max_chars;
+          $("arguments").value = "";
+          $("example-info").textContent = `${ex.command}\n${ex.desc}\n${ex.provenance}\n${ex.chars.toLocaleString()} input chars → ${ex.max_chars.toLocaleString()} char budget`;
+          schedule();
+        } catch (error) {
+          if (selection === exampleSelection) $("example-info").textContent = `Could not load example: ${error.message}`;
+        }
+      };
+      $("twg-examples").append(b);
+    }
+  } catch (error) {
+    $("twg-examples").textContent = `Could not load TWG examples: ${error.message}`;
+  }
+}
+loadTwgExamples();
 for (const make of EXAMPLES) {
   const ex = make();
   const b = document.createElement("button");
   b.type = "button"; b.textContent = ex.name; b.title = ex.desc;
   b.onclick = () => {
+    ++exampleSelection;
+    $("example-info").textContent = ex.desc;
+    $("input_format").value = "auto";
     $("input").value = ex.text;
     if (ex.max_chars) $("max_chars").value = ex.max_chars;
     $("arguments").value = ex.arguments ? JSON.stringify(ex.arguments) : "";
