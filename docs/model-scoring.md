@@ -21,6 +21,17 @@ a few labelled examples of good choices, and rank the fields by the model's judg
 * [Bring your own scores](#bring-your-own-scores)
 * [FAQ](#faq)
 
+## TWG CLI evaluation
+
+For wide TWG responses, see the [reproducible TWG evaluation](../experiments/twg/README.md).
+The measured recommendation is `condense` with JEV weight `0.7` and a 6K–12K+ character budget,
+not a change to the global default. The evaluation includes identity-retention regressions,
+metadata-heavy stress cases, privacy constraints and model-cost limitations.
+
+When more than 120 leaf paths exist, populated, shallower fields get model coverage before empty
+or deeply nested fields. This is coverage selection, not a replacement for JEV ranking. The
+remaining fields still use built-in scoring.
+
 ## Try it
 
 You need an [OpenRouter](https://openrouter.ai) API key with credit. Jev is the TypeSafe decision model

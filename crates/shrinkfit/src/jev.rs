@@ -56,9 +56,11 @@ const MAX_ARRAY_ITEMS: usize = 2000;
 const SAMPLE_CHARS: usize = 60;
 const ARGUMENT_CHARS: usize = 400;
 
-const GOAL: &str = "one of the fields worth keeping when this response is truncated so that an \
-agent can still scan what it contains (some descriptive content) and make targeted follow-up \
-calls (identifiers, URLs)";
+const GOAL: &str = "worth keeping in a compact tool response that lets an agent identify records, \
+understand their meaning and current state, and choose a follow-up action? Prefer a record's \
+primary identifier, readable title, useful content, status, and responsible person. One usable \
+identifier or canonical link is enough: duplicate identifiers, secondary links, avatars, \
+expansion hints, transport metadata and empty fields should not displace descriptive content";
 
 /// Settings for model scoring. `Default` uses the public OpenRouter endpoint
 /// and the key from the environment.
@@ -347,24 +349,29 @@ pub(crate) struct Field {
 /// distinct example values each. Keys containing `/` or `*` cannot be written
 /// as a pattern and are skipped.
 pub(crate) fn fields(v: &Value) -> Vec<Field> {
-    fn touch(path: &str, out: &mut Vec<Field>) -> usize {
-        match out.iter().position(|f| f.path == path) {
-            Some(i) => i,
-            None => {
-                out.push(Field {
-                    path: path.to_string(),
-                    samples: Vec::new(),
-                });
-                out.len() - 1
-            }
+    fn touch(path: &str, out: &mut Vec<Field>, index: &mut HashMap<String, usize>) -> usize {
+        if let Some(&i) = index.get(path) {
+            return i;
         }
+        let i = out.len();
+        out.push(Field {
+            path: path.to_string(),
+            samples: Vec::new(),
+        });
+        index.insert(path.to_string(), i);
+        i
     }
-    fn walk(v: &Value, path: &mut String, out: &mut Vec<Field>) {
+    fn walk(
+        v: &Value,
+        path: &mut String,
+        out: &mut Vec<Field>,
+        index: &mut HashMap<String, usize>,
+    ) {
         let sample = |s: &str| s.chars().take(SAMPLE_CHARS).collect::<String>();
         match v {
             Value::Object(entries) => {
                 if entries.is_empty() && !path.is_empty() {
-                    touch(path, out);
+                    touch(path, out, index);
                 }
                 for (k, x) in entries {
                     if k.is_empty() || k.contains('/') || k == "*" {
@@ -373,18 +380,18 @@ pub(crate) fn fields(v: &Value) -> Vec<Field> {
                     let n = path.len();
                     path.push('/');
                     path.push_str(k);
-                    walk(x, path, out);
+                    walk(x, path, out, index);
                     path.truncate(n);
                 }
             }
             Value::Array(items) => {
                 if items.is_empty() && !path.is_empty() {
-                    touch(path, out);
+                    touch(path, out, index);
                 }
                 for x in items.iter().take(MAX_ARRAY_ITEMS) {
                     let n = path.len();
                     path.push_str("/*");
-                    walk(x, path, out);
+                    walk(x, path, out, index);
                     path.truncate(n);
                 }
             }
@@ -392,7 +399,7 @@ pub(crate) fn fields(v: &Value) -> Vec<Field> {
                 if path.is_empty() {
                     return;
                 }
-                let i = touch(path, out);
+                let i = touch(path, out, index);
                 let text = match scalar {
                     Value::String(s) => Some(sample(s)),
                     Value::Number(n) => Some(sample(n)),
@@ -409,8 +416,20 @@ pub(crate) fn fields(v: &Value) -> Vec<Field> {
         }
     }
     let mut out = Vec::new();
-    walk(v, &mut String::new(), &mut out);
-    out.truncate(MAX_FIELDS);
+    walk(v, &mut String::new(), &mut out, &mut HashMap::new());
+    // Wide responses often contain hundreds of null custom fields or deeply
+    // nested metadata before the record's title/status. Give populated, shallow
+    // fields coverage first; Jev still decides their importance. Preserve the
+    // original ordering for ordinary documents and among equally deep fields.
+    if out.len() > MAX_FIELDS {
+        out.sort_by_key(|f| {
+            (
+                f.samples.is_empty(),
+                f.path.bytes().filter(|&b| b == b'/').count(),
+            )
+        });
+        out.truncate(MAX_FIELDS);
+    }
     out
 }
 
@@ -819,6 +838,64 @@ mod tests {
         assert_eq!(f[1].samples, ["a", "b"]);
         assert_eq!(f[2].samples, ["x", "y"]);
         assert!(f[3].samples.is_empty());
+    }
+
+    #[test]
+    fn wide_records_do_not_spend_the_model_cap_on_empty_custom_fields() {
+        let mut record: Vec<(String, Value)> = (0..MAX_FIELDS * 3)
+            .map(|i| (format!("custom_{i}"), Value::Null))
+            .collect();
+        record.push(("id".into(), string("DEMO-1")));
+        record.push(("title".into(), string("Synthetic incident")));
+        record.push(("status".into(), string("Open")));
+        let v = obj(vec![("items", Value::Array(vec![Value::Object(record)]))]);
+        let listed = fields(&v);
+        assert_eq!(listed.len(), MAX_FIELDS);
+        assert_eq!(
+            &listed[..3]
+                .iter()
+                .map(|f| f.path.as_str())
+                .collect::<Vec<_>>(),
+            &["/items/*/id", "/items/*/title", "/items/*/status"]
+        );
+    }
+
+    #[test]
+    fn wide_discovery_is_deterministic_and_retains_distinct_samples() {
+        let make = |name: &str| {
+            let mut entries = vec![("title".into(), string(name))];
+            entries.extend((0..MAX_FIELDS * 2).map(|i| (format!("field_{i}"), Value::Null)));
+            Value::Object(entries)
+        };
+        let v = obj(vec![(
+            "items",
+            Value::Array(vec![make("first"), make("second"), make("third")]),
+        )]);
+        let a = fields(&v);
+        assert_eq!(a, fields(&v));
+        assert_eq!(a[0].samples, ["first", "second"]);
+        assert_eq!(
+            a.iter().map(|f| &f.path).collect::<HashSet<_>>().len(),
+            a.len()
+        );
+    }
+
+    #[test]
+    fn late_populated_values_are_not_mistaken_for_empty_fields() {
+        let mut empty: Vec<_> = (0..MAX_FIELDS * 2)
+            .map(|i| (format!("field_{i}"), Value::Null))
+            .collect();
+        empty.push(("title".into(), Value::Null));
+        let v = obj(vec![(
+            "items",
+            Value::Array(vec![
+                Value::Object(empty),
+                obj(vec![("title", string("Late title"))]),
+            ]),
+        )]);
+        let listed = fields(&v);
+        assert_eq!(listed[0].path, "/items/*/title");
+        assert_eq!(listed[0].samples, ["Late title"]);
     }
 
     #[test]
