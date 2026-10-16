@@ -6,8 +6,8 @@
     "command": "twg jira workitem query --jql \"assignee = currentUser() ORDER BY updated DESC\" --first 50 --fields summary,status,assignee,reporter,description,priority,issuetype,created,updated,labels,components,project -o json",
     "max_chars": 12000,
     "source_bytes": 541319,
-    "bytes": 502292,
-    "chars": 502292,
+    "bytes": 495828,
+    "chars": 495828,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -17,8 +17,8 @@
     "command": "twg jira workitem query --jql \"assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC\" --first 50 --fields \"*all\" -o json",
     "max_chars": 16000,
     "source_bytes": 1424791,
-    "bytes": 1326536,
-    "chars": 1326536,
+    "bytes": 1309494,
+    "chars": 1309494,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -28,8 +28,8 @@
     "command": "twg jira workitem get DEMO-101 DEMO-102 DEMO-103 --full -o json",
     "max_chars": 8000,
     "source_bytes": 57764,
-    "bytes": 53281,
-    "chars": 53281,
+    "bytes": 52284,
+    "chars": 52284,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -39,8 +39,8 @@
     "command": "twg confluence search query --cql 'type = page AND lastmodified >= now(\"-7d\") ORDER BY lastmodified DESC' --limit 50 --excerpt -o json",
     "max_chars": 12000,
     "source_bytes": 99301,
-    "bytes": 93631,
-    "chars": 93631,
+    "bytes": 91138,
+    "chars": 91138,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -50,8 +50,8 @@
     "command": "twg teams query --all --limit 50 -o json",
     "max_chars": 10000,
     "source_bytes": 163392,
-    "bytes": 124061,
-    "chars": 124061,
+    "bytes": 118196,
+    "chars": 118196,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -61,8 +61,8 @@
     "command": "twg projects query --scope all --limit 40 --include-description --include-linked-goals -o json",
     "max_chars": 10000,
     "source_bytes": 107355,
-    "bytes": 91161,
-    "chars": 91161,
+    "bytes": 90125,
+    "chars": 90125,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -72,8 +72,8 @@
     "command": "twg goals query --scope all --limit 30 --include-description --include-parent-goal --include-contributing-projects -o json",
     "max_chars": 8000,
     "source_bytes": 60844,
-    "bytes": 48618,
-    "chars": 48618,
+    "bytes": 47949,
+    "chars": 47949,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   },
   {
@@ -83,8 +83,8 @@
     "command": "twg jira board query --type scrum --max-results 50 -o json",
     "max_chars": 6000,
     "source_bytes": 22369,
-    "bytes": 17792,
-    "chars": 17792,
+    "bytes": 17522,
+    "chars": 17522,
     "provenance": "Captured TWG response shape; all business content and identifiers replaced with synthetic values."
   }
 ]
