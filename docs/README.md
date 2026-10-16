@@ -10,6 +10,7 @@ These pages go deeper. Read what you need, in any order.
 | [Options and report](options.md) | Every option in every language, what the report tells you, and protect patterns. |
 | [Using shrinkfit in an agent](agents.md) | The checklist for tools that return big results to a model: strategy, exact identifiers, headroom, notes to the model, a complete example. |
 | [Model scoring with Jev](model-scoring.md) | Let a decision model choose which fields to keep: how to turn it on, the evidence, what is sent, what it costs, what happens when it fails. |
+| [Comparison with other projects](comparison.md) | How shrinkfit differs from Headroom, TOON, LLMLingua, context-mode and others, with a measured comparison against Headroom's JSON compressor. |
 | [Command-line guide](cli.md) | Every flag, the stderr notice for agents, exit codes and the local playground. |
 
 ## Understanding and changing shrinkfit
