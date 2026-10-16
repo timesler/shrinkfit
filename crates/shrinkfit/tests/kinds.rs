@@ -245,7 +245,7 @@ fn nothing_ever_exceeds_the_budget() {
         log(),
         format!("<ul>{}</ul>", "<li><a href=\"https://x.test/a\">link</a> text</li>".repeat(100)),
         format!("<r>{}</r>", "<i a=\"1\"><v>2</v></i>".repeat(100)),
-        "{\"a\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]}".repeat(1),
+        "{\"a\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]}".to_string(),
         "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,3 @@\n-a\n+b\n c\n".repeat(30),
     ];
     for t in &texts {
