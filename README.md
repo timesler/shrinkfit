@@ -16,6 +16,10 @@ It is built for **AI agents and the tools that serve them**. A tool that returns
 JSON either floods the model's context or gets rejected. With shrinkfit it can always answer
 inline, and the agent can see what it got and ask a narrower follow-up if it needs more.
 
+Which fields to keep is decided by built-in heuristics, or, optionally, by a hosted decision model,
+**[Jev](docs/model-scoring.md)**, that reads the field names and a few values and ranks what matters
+(see [below](#new-let-a-decision-model-choose-the-fields)).
+
 Rust core with no dependencies, plus Python, TypeScript/JavaScript and a command-line tool.
 
 ## See it work
@@ -39,6 +43,27 @@ All 60 issues survive with their key and summary, and the avatars, icon URLs, em
 fields and long descriptions are gone. The default strategy would instead keep 5 of the issues
 and replace the other 55 with `"…[55 items omitted]"`. Either way, the document stays valid and
 nothing is cut silently. (Line breaks above added for reading; the real output is one line.)
+
+### Let a model pick the fields
+
+The built-in scoring has to guess which fields matter from their names and values. Add `--jev` and a decision model,
+[Jev](docs/model-scoring.md), makes that call instead. A live response from the Hugging Face model list (20 models, 12.5 KB),
+shrunk to 2,000 characters:
+
+```bash
+shrinkfit -n 2000 -i 0 --array-strategy condense models.json                                          # built-in scoring
+OPENROUTER_API_KEY=sk-or-... shrinkfit -n 2000 -i 0 --array-strategy condense --jev --tool-name list_models models.json
+```
+
+```text
+built-in:  [{"_id":"621ffdc136468d709f180294","downloads":216129209,"library_name":"sentence-transformers"}, ...
+with Jev:  [{"id":"sentence-transformers/all-MiniLM-L6-v2","downloads":216129209,"pipeline_tag":"sentence-similarity"}, ...
+```
+
+Both keep all 20 records. The built-in scoring keeps an opaque database `_id`; Jev keeps the readable model name, which is
+what an agent needs to say which model it means or to ask for more about it, and adds what each model is for. Jev is opt-in,
+needs an OpenRouter key, and falls back to the built-in scoring if it cannot answer; see
+[model scoring](docs/model-scoring.md) for how well it does on labelled data.
 
 ## Install
 
