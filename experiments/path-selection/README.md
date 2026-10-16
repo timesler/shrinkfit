@@ -189,6 +189,30 @@ arguments), the second response was shrunk with the first one's scores and compa
 About a seventh of Jev's gain over the built-in scoring, in exchange for no request, no cost and no latency on every
 repeat. `jev.cache = false` turns it off.
 
+## Showing Jev the call and a pruned response
+
+Idea: besides the field list, show Jev the tool call as formatted JSON and the response itself, pruned but schema-preserving
+(every key kept, strings cut to 80 characters, only the first item of each array), with a note saying so, so that it
+understands the data and the call's goal better. Tested on the 237 labelled responses with the same fold discipline as above
+(`scripts/lab_ctx.py`, `scripts/lab_ctx_eval.py`; Jev alone, rank scores, labelled value kept / essential fields kept; the
+preview adds about 4,500 input tokens per request, around $0.0002):
+
+| prompt | 25% budget | 10% budget |
+|---|---|---|
+| built-in scoring | 0.720 / 0.766 | 0.661 / 0.742 |
+| zero-shot, fields only | 0.773 / 0.839 | 0.684 / 0.771 |
+| zero-shot + call + preview | 0.777 / 0.839 | 0.683 / 0.775 |
+| zero-shot + call + preview, strings 40 chars, 3,000-char cap | 0.781 / 0.845 | 0.679 / 0.773 |
+| **shipped: 4 examples, fields only** | **0.798 / 0.858** | **0.712 / 0.798** |
+| 4 examples + call + preview for the response being judged | 0.787 / 0.848 | 0.700 / 0.784 |
+| 4 examples + call + preview, examples carry theirs too | 0.790 / 0.851 | 0.712 / 0.796 |
+| the same, short preview | 0.785 / 0.846 | 0.709 / 0.792 |
+
+The preview makes no measurable difference on its own (zero-shot moves by under 0.005 either way) and does not beat the
+shipped prompt in any variant; the best (examples carrying their previews) ties it at 10% and is 0.008 behind at 25%, for
+2,000 to 6,000 more input tokens. Caveat: the labels were made without knowing the user's question, so they cannot reward a
+better grasp of the call's goal. A benefit that depends on the goal would need goal-conditioned labels to show up.
+
 ## Real-world check: public APIs, not MCP-Atlas
 
 Everything above was measured on MCP-Atlas responses. As a check on data from elsewhere, `scripts/realworld_fetch.py`
