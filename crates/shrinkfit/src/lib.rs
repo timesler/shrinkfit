@@ -29,6 +29,7 @@ mod condense;
 pub mod fields;
 pub mod jev;
 pub mod json;
+mod kinds;
 mod lexical;
 pub mod options;
 mod protect;
@@ -104,6 +105,10 @@ impl Report {
         add(st.items_omitted, "array items omitted");
         add(st.keys_omitted, "object keys omitted");
         add(st.strings_truncated, "strings truncated");
+        add(
+            st.strings_reshaped,
+            "strings converted or summarised by kind",
+        );
         add(st.containers_collapsed, "containers collapsed");
         if st.protected_omitted > 0 {
             parts.push(format!(
@@ -170,6 +175,7 @@ impl Report {
                     .map_or(Value::Null, Value::String),
             ),
             ("strings_truncated".into(), n(self.stats.strings_truncated)),
+            ("strings_reshaped".into(), n(self.stats.strings_reshaped)),
             ("arrays_sampled".into(), n(self.stats.arrays_sampled)),
             ("items_omitted".into(), n(self.stats.items_omitted)),
             ("objects_trimmed".into(), n(self.stats.objects_trimmed)),
@@ -442,6 +448,10 @@ pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrun
         Format::Json | Format::Auto => (Model::new(layout(opts)), true),
         Format::Yaml => (Model::new(Layout::Pretty(opts.indent.max(2))), false),
     };
+    // Blobs and markup are cut down to what they say before sizes are planned,
+    // so that the choice of which records to keep sees their real weight.
+    let (normalized, reshaped) = Pruner::with_scorer(model, opts, scorer).normalize(v);
+    let v = &normalized;
     let meta = Pruner::with_scorer(model, opts, scorer).analyze(v, 0);
     let max = opts.max_chars;
 
@@ -500,10 +510,11 @@ pub fn shrink_with(v: &Value, opts: &Options, scorer: &dyn FieldScorer) -> Shrun
         b = next;
     }
 
-    let (fits, (value, text, output_chars, stats)) = match best {
+    let (fits, (value, text, output_chars, mut stats)) = match best {
         Some(r) => (true, r),
         None => (false, smallest.expect("at least one attempt was made")),
     };
+    stats.strings_reshaped += reshaped;
     Shrunk {
         text,
         value,

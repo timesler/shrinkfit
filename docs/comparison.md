@@ -127,7 +127,9 @@ retrieval tool, so it is not a verdict on Headroom as a product. The script is `
 **Weaker**
 
 * **Characters, not tokens.** Budgets are in characters; a tokenizer-aware budget is not built in.
-* **Narrow scope.** JSON and YAML only: no logs, code, prose or images, which Headroom, RTK and others cover.
+* **Narrow scope.** JSON and YAML documents only. It does read the strings inside them by kind (logs, command
+  output, diffs, HTML, XML, JSON and rich text stored as text, blobs), but it does not take raw logs, code or images as
+  input, and its log and diff handling is a small fraction of what Headroom and RTK do.
 * **Recovery is minimal.** The CLI saves the input and says where; there is no cache, retrieve tool or index like Headroom's
   or context-mode's.
 * **No agent integration layer.** No proxy, hooks or `wrap` command; you call the library, the CLI, or go through

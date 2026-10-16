@@ -84,6 +84,7 @@ export interface Report {
   pruned: boolean;
   fits: boolean;
   strings_truncated: number;
+  strings_reshaped: number;
   arrays_sampled: number;
   items_omitted: number;
   objects_trimmed: number;

@@ -132,6 +132,7 @@ Every call returns a report next to the text (Python: `result.report`, a dict; T
 | `items_omitted`, `arrays_sampled` | Array items dropped, and arrays that were sampled. |
 | `keys_omitted`, `objects_trimmed` | Object keys dropped, and objects that lost keys. |
 | `strings_truncated` | Strings shortened. |
+| `strings_reshaped` | Of those, strings treated by what they hold: HTML or XML turned into text or an outline, JSON or rich text stored as text, logs and command output, diffs, base64 blobs. |
 | `containers_collapsed` | Containers replaced by a single marker. |
 | `arrays_condensed` | Arrays handled by `condense`. |
 | `fields_dropped`, `dropped_fields` | Under `condense`: how many fields were dropped from all records, and which (`path` and the number of `items` affected). The data itself carries no marker for these, so surface them to the model. |

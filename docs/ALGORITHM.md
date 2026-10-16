@@ -10,7 +10,7 @@ does, or before changing the algorithm (see also [Extending shrinkfit](EXTENDING
 * [Problem](#problem)
 * [Value model](#value-model)
 * [Size model](#size-model)
-* [`fit(node, budget)`](#fitnode-budget): [objects](#objects-keep-the-skeleton-then-water-fill), [arrays](#arrays-whole-items-in-priority-order), [strings](#strings-structure-first)
+* [`fit(node, budget)`](#fitnode-budget): [objects](#objects-keep-the-skeleton-then-water-fill), [arrays](#arrays-whole-items-in-priority-order), [strings](#strings-structure-first), [strings by what they hold](#strings-by-what-they-hold)
 * [Verification and the outer loop](#verification-and-the-outer-loop)
 * [Complexity](#complexity) and [known limitations](#known-limitations)
 * [Condensing arrays of records](#condensing-arrays-of-records-array_strategy-condense):
@@ -174,6 +174,47 @@ chars, then a `…[+K lines, N chars]` marker. The preview is still monotone in
 
 The string cost function is additive (`cost(a + b) = cost(a) + cost(b) - 2`),
 so candidates are evaluated per piece without re-escaping whole strings.
+
+### Strings by what they hold
+
+A long string is often not prose, and a head plus the start of every line keeps
+its least useful part (tag soup, the first 40 characters of a thousand
+identical log lines). Before the generic cut, the `kinds` module recognises the
+string from its text alone (`detect`, strings of 120+ characters only) and
+treats it by kind:
+
+| kind | recognised by | what is kept |
+|---|---|---|
+| **blob** | one unbroken run of base64 or hex, 200+ characters, or a base64 data URI | a 16-character prefix and the size: `iVBORw0KGgoAAAAN…[base64 blob, 12408 chars]` |
+| **HTML** | tags make up 20% or more of it, or it starts with `<html>` or a doctype | its text: block tags become line breaks, headings `#`, list items `- `, links `text <url>`, images `[image: alt]`; scripts, styles, comments and head dropped; entities decoded |
+| **XML** | starts with `<?xml`, or has tags none of which are HTML | read as data (attributes as `@name`, text as `#text`, repeated elements as an array) and fitted like JSON, written back as compact JSON text |
+| **JSON text** | starts with `{` or `[`, ends with `}` or `]`, and parses | the parsed value, fitted like any other (arrays condensed or sampled), written back as compact JSON text |
+| **rich text (ADF)** | an object `{"type":"doc","content":[...]}`, as an object or as JSON text | its words: paragraphs, `#` headings, lists, code blocks, tables, `text <url>` links, `@mentions`, attachments |
+| **log or command output** | timestamps or level tokens on 30%+ of lines, a traceback, stack frames, build or test markers, or many short lines of one shape | line selection, below |
+| **diff** | `diff --git` with hunks, or `---`/`+++`/`@@` | line selection, below |
+| **prose** with 10+ paragraphs and little room | blank-line separated, few markdown headings | the paragraphs whose words occur nowhere else, in order, behind `…[N paragraphs omitted]` |
+
+**Line selection (logs, diffs).** ANSI escape codes are removed, and a line
+overwritten with carriage returns (a progress bar) is reduced to its last
+state. Every line then gets a score: errors, failures, panics and exceptions
+1.0; the exception line after a stack trace 1.0; warnings 0.7; summaries
+(`N passed`, `test result:`, `Finished`) 0.75 to 0.85; the first three lines
+0.9 and the last five 0.85; two lines of context around anything scoring 0.95
+or more; the first line of each shape (digits and long hex ids collapsed to
+`#`) 0.5, the first and last of a run of one shape 0.3, the rest 0.08, and a
+fourth warning of one shape is worth 55% of the third. For a diff: file headers
+1.0, changes 0.82 falling to 0.4 within a hunk (a `-` and its `+` stay
+together), hunk headers 0.7, `---`/`+++` 0.55, `index` 0.3, context 0.12 (0.35
+beside a change). Lines are taken best first, ties spread evenly over the text,
+up to the largest count that fits (binary search), and shown in order with
+`…[N lines omitted]` where lines were left out. Lines over 240 characters are
+cut, those that matter over 480.
+
+**Before planning.** Blobs, HTML and large (600+ characters) ADF objects are
+replaced by their short forms before sizes are analysed, so the choice of which
+records to keep sees what they really weigh. The other kinds are cut to the
+budget each string is given. Protected values are never touched. The report
+counts the strings treated this way in `strings_reshaped`.
 
 ## Verification and the outer loop
 

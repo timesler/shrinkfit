@@ -23,6 +23,8 @@
 //!   of the same type: `["…[N items omitted]"]` or `{"…": "N keys omitted"}`.
 
 use crate::fields::FieldScorer;
+use crate::json::{self, Layout};
+use crate::kinds::{self, Kind};
 use crate::options::{ArrayStrategy, Options};
 use crate::protect::Pattern;
 use crate::size::Model;
@@ -48,6 +50,10 @@ pub fn keys_marker(n: usize) -> String {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Stats {
     pub strings_truncated: usize,
+    /// Strings turned into text or summarised by what they hold: HTML, XML,
+    /// JSON or rich text stored as text, logs, diffs, blobs. Also counted in
+    /// `strings_truncated`.
+    pub strings_reshaped: usize,
     pub arrays_sampled: usize,
     pub items_omitted: usize,
     pub objects_trimmed: usize,
@@ -108,6 +114,9 @@ pub struct Pruner<'a> {
     /// Absolute paths `condense` has marked exact for the array being planned.
     pub(crate) exact_extra: RefCell<std::collections::HashSet<Vec<String>>>,
 }
+
+/// Rich text smaller than this (rendered) is left as it is.
+const ADF_MIN: usize = 600;
 
 fn shape_of(v: &Value) -> u64 {
     let mut h = DefaultHasher::new();
@@ -396,15 +405,172 @@ impl<'a> Pruner<'a> {
         match v {
             Value::String(s) => {
                 let model = self.model;
-                let out = text::fit_text(s, budget, &self.opts.text, &|x: &str| model.string(x));
+                let out = if meta.pinned {
+                    text::fit_text(s, budget, &self.opts.text, &|x: &str| model.string(x))
+                } else {
+                    self.fit_string(s, budget)
+                };
                 self.stats.strings_truncated += 1;
                 let size = model.string(&out);
                 (Value::String(out), size)
             }
             Value::Array(items) => self.fit_array(v, items, meta, budget, depth),
-            Value::Object(entries) => self.fit_object(v, entries, meta, budget, depth),
+            Value::Object(entries) => {
+                if !meta.must_keep && kinds::adf::is_adf(entries) {
+                    // Rich text: its words, not its scaffolding.
+                    let model = self.model;
+                    let cost = |x: &str| model.string(x);
+                    let out = kinds::fit_plain(
+                        kinds::adf::to_text(entries),
+                        budget,
+                        &self.opts.text,
+                        &cost,
+                        30,
+                    );
+                    if cost(&out) <= budget {
+                        self.stats.strings_truncated += 1;
+                        self.stats.strings_reshaped += 1;
+                        let size = cost(&out);
+                        return (Value::String(out), size);
+                    }
+                }
+                self.fit_object(v, entries, meta, budget, depth)
+            }
             _ => (v.clone(), meta.full),
         }
+    }
+
+    /// A copy of `v` in which strings that are better as something smaller are
+    /// replaced before any budget is spent: base64 blobs become a prefix and a
+    /// size, HTML becomes its text, large rich text (ADF) becomes its words.
+    /// Protected values are never touched. Returns the copy and how many
+    /// strings were replaced.
+    pub fn normalize(&self, v: &Value) -> (Value, usize) {
+        let mut n = 0;
+        let out = self.normalize_at(v, &mut Vec::new(), false, &mut n);
+        (out, n)
+    }
+
+    fn normalize_at(
+        &self,
+        v: &Value,
+        path: &mut Vec<String>,
+        forced: bool,
+        n: &mut usize,
+    ) -> Value {
+        let pinned = forced || self.is_pinned(path);
+        match v {
+            Value::Array(items) => Value::Array(
+                items
+                    .iter()
+                    .map(|x| {
+                        path.push("*".to_string());
+                        let r = self.normalize_at(x, path, pinned, n);
+                        path.pop();
+                        r
+                    })
+                    .collect(),
+            ),
+            Value::Object(entries) => {
+                if !pinned && kinds::adf::is_adf(entries) && self.model.size(v, 0) >= ADF_MIN {
+                    *n += 1;
+                    return Value::String(kinds::adf::to_text(entries));
+                }
+                Value::Object(
+                    entries
+                        .iter()
+                        .map(|(k, x)| {
+                            path.push(k.clone());
+                            let r = self.normalize_at(x, path, pinned, n);
+                            path.pop();
+                            (k.clone(), r)
+                        })
+                        .collect(),
+                )
+            }
+            Value::String(s) if !pinned && s.len() >= kinds::MIN_LEN => {
+                let replaced = match kinds::detect(s) {
+                    Kind::Blob => kinds::to_text(Kind::Blob, s),
+                    Kind::Html => kinds::to_text(Kind::Html, s),
+                    _ => None,
+                };
+                match replaced {
+                    Some(t) => {
+                        *n += 1;
+                        Value::String(t)
+                    }
+                    None => v.clone(),
+                }
+            }
+            other => other.clone(),
+        }
+    }
+
+    /// Shorten a string: by what it holds if that is recognisable (HTML, XML,
+    /// logs, diffs, blobs, JSON text), else as prose.
+    fn fit_string(&mut self, s: &str, budget: usize) -> String {
+        let model = self.model;
+        let cost = |x: &str| model.string(x);
+        let kind = kinds::detect(s);
+        let special = match kind {
+            Kind::Json => json::parse(s.trim())
+                .ok()
+                .and_then(|v| self.fit_value_as_text(v, budget)),
+            Kind::Xml => kinds::xml_value(s).and_then(|v| self.fit_value_as_text(v, budget)),
+            Kind::Plain => kinds::fit_prose(s, budget, &cost),
+            k => kinds::fit(k, s, budget, &self.opts.text, &cost),
+        };
+        match special {
+            Some(out) if cost(&out) <= budget => {
+                self.stats.strings_reshaped += 1;
+                out
+            }
+            _ => text::fit_text(s, budget, &self.opts.text, &cost),
+        }
+    }
+
+    /// A string that holds a document (JSON text, or XML read as data): fit the
+    /// parsed value, then write it back as compact JSON text. Rich text (ADF)
+    /// becomes its words.
+    fn fit_value_as_text(&mut self, parsed: Value, budget: usize) -> Option<String> {
+        let outer = self.model;
+        let cost = |x: &str| outer.string(x);
+        if let Value::Object(entries) = &parsed {
+            if kinds::adf::is_adf(entries) {
+                let out = kinds::fit_plain(
+                    kinds::adf::to_text(entries),
+                    budget,
+                    &self.opts.text,
+                    &cost,
+                    30,
+                );
+                return (cost(&out) <= budget).then_some(out);
+            }
+        }
+        // The inner value is written compactly whatever the outer layout is.
+        self.model = Model::new(Layout::Compact);
+        let saved_path = std::mem::take(&mut self.path);
+        let meta = self.analyze(&parsed, 0);
+        let mut ratio = 0.85f64;
+        let mut result = None;
+        for _ in 0..6 {
+            let inner = ((budget.saturating_sub(2)) as f64 * ratio) as usize;
+            let text = if meta.full <= inner {
+                json::to_string(&parsed, Layout::Compact)
+            } else {
+                let (v, _) = self.fit(&parsed, &meta, inner.max(meta.min), 0);
+                json::to_string(&v, Layout::Compact)
+            };
+            let c = cost(&text);
+            if c <= budget {
+                result = Some(text);
+                break;
+            }
+            ratio *= budget as f64 / c as f64 * 0.97;
+        }
+        self.model = outer;
+        self.path = saved_path;
+        result
     }
 
     /// Fit a set of children that share `surplus` characters above their

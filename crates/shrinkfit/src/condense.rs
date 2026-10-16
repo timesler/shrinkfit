@@ -26,6 +26,7 @@
 //! [`Stats::dropped_fields`](crate::prune::Stats), not inside the data.
 
 use crate::fields::{ColumnInfo, KindCounts};
+use crate::kinds;
 use crate::lexical::{self, Query};
 use crate::prune::{Meta, Pruner};
 use crate::text;
@@ -362,7 +363,7 @@ impl<'a> Pruner<'a> {
                 }
             }
             if let Value::Object(sub) = v {
-                if !sub.is_empty() && path.len() < MAX_PATH_DEPTH {
+                if !sub.is_empty() && path.len() < MAX_PATH_DEPTH && !kinds::adf::is_adf(sub) {
                     d.cols[idx].recursed += 1;
                     self.visit(d, sub, km, Some(idx), &path, obj_depth + 1, item);
                 }

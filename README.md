@@ -124,8 +124,13 @@ See [all options](docs/options.md) and the [command-line guide](docs/cli.md).
   same low-value fields from all of them. Pass the tool call's `arguments` and fields the caller
   asked about are favoured.
 * **Exact identifiers.** IDs, handles and cursors are never truncated. Name any others with `protect`.
-* **Smart about text.** Long strings keep their outline (headings, paragraphs, lines) and show a
+* **Smart about text.** Long prose keeps its outline (headings, paragraphs, lines) and shows a
   preview of every section instead of just a prefix.
+* **Knows what is in a string.** HTML becomes its text, XML and JSON stored as text are shrunk as data,
+  rich text (Jira and Confluence ADF) becomes its words, base64 blobs become a prefix and a size, and logs,
+  command output and diffs keep the error, the exception, the summary and the changes. On a benchmark of
+  those cases, 18% of the facts a reader needs survived a tight budget before, and 83% after
+  ([details](experiments/strings/README.md)).
 * **Fast.** A 41 MB payload shrinks in about half a second.
 
 ### New: let a decision model choose the fields
