@@ -617,6 +617,47 @@ fn condense_falls_back_to_sampling_for_non_uniform_arrays() {
 }
 
 #[test]
+fn condense_keeps_every_record_when_a_few_carry_long_tails_of_sparse_fields() {
+    // Twenty issues share a core; every fifth also carries 300 further fields,
+    // all but one empty (Jira's "all fields" on a tenant with many custom
+    // fields). Condense must still keep all twenty issues, not sample three.
+    let issues: Vec<String> = (0..20)
+        .map(|i| {
+            let mut fields = format!(
+                r#""key":"K-{i}","summary":"Fix the thing number {i}","status":{{"name":"Open"}},"created":"2025-01-{:02}T12:00:00.000Z""#,
+                i + 1
+            );
+            if i % 5 == 0 {
+                for f in 0..300 {
+                    if f == i {
+                        fields.push_str(&format!(r#","customfield_{f}":"v{f}""#));
+                    } else {
+                        fields.push_str(&format!(r#","customfield_{f}":null"#));
+                    }
+                }
+            }
+            format!("{{{fields}}}")
+        })
+        .collect();
+    let src = format!(r#"{{"issues":[{}]}}"#, issues.join(","));
+    let opts = Options {
+        indent: 0,
+        array_strategy: shrinkfit::ArrayStrategy::Condense,
+        ..Options::new(2500)
+    };
+    let out = shrink_json(&src, &opts).unwrap();
+    assert_eq!(out.report.stats.arrays_condensed, 1, "{}", out.text);
+    assert_eq!(out.report.stats.items_omitted, 0, "{}", out.text);
+    for i in 0..20 {
+        assert!(
+            out.text.contains(&format!("K-{i}\"")),
+            "K-{i} missing: {}",
+            out.text
+        );
+    }
+}
+
+#[test]
 fn custom_scorer_can_be_swapped_in() {
     use shrinkfit::{shrink_with, ColumnInfo, FieldScorer};
     // Likes only fields under `status`; everything else is equally unloved.

@@ -229,8 +229,11 @@ The default array strategy samples whole items. For arrays of similar records
    (`/fields/assignee/displayName`) across all records: presence, value
    kinds, empties, distinctness, average size, and its exact cost. Nested
    objects are walked to depth 4; other values are leaf fields.
-2. **Uniformity check.** If most field occurrences do not belong to fields
-   most records share, or any element is not an object, fall back to `sample`.
+2. **Uniformity check.** Records count as uniform if most field occurrences
+   belong to fields most records share, or if the typical (median) record has
+   at least half of its filled-in fields among them (so a few records with long
+   tails of rarely used fields do not hide a shared core). Otherwise, or if any
+   element is not an object, fall back to `sample`.
 3. **Score** each leaf with a `FieldScorer`. The default heuristic combines a
    *name tier* (identifiers and titles high, links/avatars/expansion hints
    low, envelope keys like `fields` ignored) with *value statistics* (always
@@ -240,7 +243,7 @@ The default array strategy samples whole items. For arrays of similar records
 4. **Discount redundancy.** Fields holding identical values in every record
    keep only their best copy (score x 0.15 for the rest). Fields sharing a
    role (identity, title, time) lose 25% per rank after the best one.
-5. **Select greedily** by score. A field costs its *floor* in every record
+5. **Select greedily** by score (ties: the field that varies more across records first). A field costs its *floor* in every record
    that has it (scalars in full, long strings as a short preview, arrays as a
    one-line marker). Weaker fields may use only 70-90% of the budget so the
    best fields have room to show fuller values. If the high-scoring "core"

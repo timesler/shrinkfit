@@ -67,6 +67,12 @@ const DISTINCT_CAP: usize = 1024;
 /// Minimum share of field occurrences that must be "common" fields for an
 /// array to count as uniform.
 const UNIFORM_RATIO: f64 = 0.7;
+/// Or: the typical record (median) has at least this share of its filled-in
+/// fields among the fields most records fill in. This accepts arrays whose
+/// records share a core but also carry long tails of rarely used fields (a few
+/// thousand sparse custom fields on some issues), which the occurrence count
+/// above cannot tell from a genuinely mixed array.
+const TYPICAL_SHARED: f64 = 0.5;
 
 #[derive(Default)]
 struct Column {
@@ -726,6 +732,36 @@ impl<'a> Pruner<'a> {
         Some(out)
     }
 
+    /// Median, over the records, of the share of a record's filled-in top-level
+    /// fields that most records fill in. Empty values (null, "", [], {}) count
+    /// for nothing: they are the clutter, not the content.
+    fn typical_shared(items: &[Value], d: &Discovery) -> f64 {
+        let n = items.len();
+        let mut shares: Vec<f64> = Vec::with_capacity(n);
+        for item in items {
+            let Value::Object(entries) = item else {
+                continue;
+            };
+            let (mut filled, mut shared) = (0usize, 0usize);
+            for (k, _) in entries.iter().filter(|(_, v)| !is_empty_value(v)) {
+                filled += 1;
+                let common = d
+                    .index
+                    .get(std::slice::from_ref(k))
+                    .is_some_and(|&c| (d.cols[c].present - d.cols[c].empty) * 2 >= n);
+                shared += usize::from(common);
+            }
+            if filled > 0 {
+                shares.push(shared as f64 / filled as f64);
+            }
+        }
+        if shares.is_empty() {
+            return 0.0;
+        }
+        shares.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        shares[shares.len() / 2]
+    }
+
     /// Discover, score and select fields for the current string-preview
     /// floor. Pure with respect to the pruner's statistics.
     fn plan(
@@ -750,7 +786,10 @@ impl<'a> Pruner<'a> {
                     common += c.present;
                 }
             }
-            if occ == 0 || (common as f64) < UNIFORM_RATIO * occ as f64 {
+            if occ == 0
+                || ((common as f64) < UNIFORM_RATIO * occ as f64
+                    && Self::typical_shared(items, &d) < TYPICAL_SHARED)
+            {
                 return Planned::NotUniform;
             }
         }
@@ -816,6 +855,14 @@ impl<'a> Pruner<'a> {
         leaves.sort_by(|a, b| {
             b.1.partial_cmp(&a.1)
                 .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    // Equal scores: the field that varies more says more about each record.
+                    let variety =
+                        |i: usize| cols[i].distinct.len() as f64 / cols[i].present.max(1) as f64;
+                    variety(b.0)
+                        .partial_cmp(&variety(a.0))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .then(cols[a.0].floor_sum.cmp(&cols[b.0].floor_sum))
                 .then(a.0.cmp(&b.0))
         });
